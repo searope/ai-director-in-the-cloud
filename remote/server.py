@@ -717,7 +717,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
             "styles": [{"id": k, "label": v.get("label", k), "restyle": bool(v.get("restyle_prompt")), "group": v.get("group", "Other"),
                         "look": v.get("video_prompt", ""),  # searched on the Styles page, editable
                         "restyle_prompt": v.get("restyle_prompt", ""), "negative": v.get("negative", ""),
-                        "edited": bool(v.get("edited")),
+                        "edited": bool(v.get("edited")), "custom": bool(v.get("custom")),
                         # the AI review of the shipped examples, while it is about the current prompt
                         "review": (lambda r: {f: r.get(f) for f in ("coverage", "strength", "unstyled", "replaced", "summary")}
                                    if r and r.get("prompt") == v.get("restyle_prompt") else None)(reviews.get(k)),
@@ -916,14 +916,50 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
 
     def style_or_404(request):
         style_id = request.match_info["id"]
-        if style_id not in animate.load_default_styles():
+        if style_id not in animate.load_styles():
             raise web.HTTPNotFound()
         return style_id
+
+    def remove_style_examples(style_id):
+        for n in range(1, STYLE_SCENES + 1):
+            path = os.path.join(STYLE_EXAMPLES_DIR, f"{style_id}-{n}.jpg")
+            if os.path.exists(path):
+                os.remove(path)
+
+    def own_style_fields(data, old=None):
+        """A user's style from the panel's fields: the redraw prompt is made from the look when left empty."""
+        old = old or {}
+        label = str(data.get("label", old.get("label", ""))).strip()[:60]
+        look = str(data.get("look", old.get("video_prompt", ""))).strip()[:2000]
+        if not label or not look:
+            raise ValueError("give the style a name and describe its look")
+        restyle = str(data.get("restyle_prompt", old.get("restyle_prompt", ""))).strip()[:2000] or animate.restyle_prompt_for(look)
+        return {"label": label, "video_prompt": look, "restyle_prompt": restyle,
+                "negative": str(data.get("negative", old.get("negative", ""))).strip()[:500]}
+
+    async def create_style(request):
+        """A new style of the user's own ("My styles"), e.g. a copy of a built-in one to change."""
+        data = await request.json()
+        try:
+            style = own_style_fields(data)
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        slug = "".join(c if c.isalnum() else "-" for c in style["label"].lower()).strip("-")[:24] or "style"
+        style_id = f"my-{slug}-{uuid.uuid4().hex[:4]}"
+        animate.save_custom_style(style_id, style)
+        return web.json_response({"id": style_id})
 
     async def edit_style(request):
         """Save edited prompts for a style (empty or default fields go back to styles.json)."""
         style_id = style_or_404(request)
         data = await request.json()
+        custom = animate.load_custom_styles()
+        if style_id in custom:
+            try:
+                animate.save_custom_style(style_id, own_style_fields(data, custom[style_id]))
+            except ValueError as e:
+                return web.json_response({"error": str(e)}, status=400)
+            return web.json_response({"ok": True})
         default = animate.load_default_styles()[style_id]
         fields = {f: (str(data[f]).strip()[:2000] or default.get(f, "")) for f in animate.EDITABLE_STYLE_FIELDS if f in data}
         if "look" in data:
@@ -935,13 +971,13 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         return web.json_response({"ok": True, "edited": style_id in animate.load_user_styles()})
 
     async def reset_style(request):
-        """Back to the prompts in styles.json, and the shipped example pictures."""
+        """Back to the prompts in styles.json, and the shipped example pictures; deletes one of the user's own."""
         style_id = style_or_404(request)
-        animate.save_user_style(style_id, None)
-        for n in range(1, STYLE_SCENES + 1):
-            path = os.path.join(STYLE_EXAMPLES_DIR, f"{style_id}-{n}.jpg")
-            if os.path.exists(path):
-                os.remove(path)
+        if style_id in animate.load_custom_styles():
+            animate.save_custom_style(style_id, None)
+        else:
+            animate.save_user_style(style_id, None)
+        remove_style_examples(style_id)
         return web.json_response({"ok": True})
 
     async def redraw_style_examples(request):
@@ -1152,6 +1188,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         web.get("/api/jobs/{id}/image/{kind}/{name}", image),
         web.post("/api/keyframes/generate", keyframe_generate),
         web.post("/api/styles/try", try_styles),
+        web.post("/api/styles", create_style),
         web.put("/api/styles/{id}", edit_style),
         web.delete("/api/styles/{id}", reset_style),
         web.post("/api/styles/{id}/examples", redraw_style_examples),

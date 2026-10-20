@@ -42,6 +42,9 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 STYLES_FILE = os.path.join(ROOT, "styles.json")
 USER_STYLES_FILE = os.path.join(ROOT, "output", "styles_user.json")  # prompts edited in the app, over styles.json
 EDITABLE_STYLE_FIELDS = ("restyle_prompt", "video_prompt", "negative")
+CUSTOM_STYLES_FILE = os.path.join(ROOT, "output", "styles_custom.json")  # the user's own styles, made in the app
+RESTYLE_KEEP = (" Keep everything in the picture: every person, animal, object, building and the background stay in the"
+                " same places, with the same poses and framing; change only how it is drawn, coloured and lit.")
 IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
 
 # Wan's default negative prompt (from the official ComfyUI template).
@@ -578,14 +581,44 @@ def load_user_styles():
         return {}
 
 
+def load_custom_styles():
+    try:
+        with open(CUSTOM_STYLES_FILE, encoding="utf-8") as f:
+            return {k: dict(v, group="My styles", loras=[], custom=True) for k, v in json.load(f).items()}
+    except (OSError, ValueError):
+        return {}
+
+
 def load_styles():
-    """styles.json with the prompts edited in the app (output/styles_user.json) applied; edited styles
-    get "edited": True."""
+    """styles.json with the prompts edited in the app (output/styles_user.json) applied, plus the user's own
+    styles (output/styles_custom.json). Edited styles get "edited": True, own ones "custom": True."""
     styles, user = load_default_styles(), load_user_styles()
     for k, fields in user.items():
         if k in styles:
             styles[k] = {**styles[k], **{f: v for f, v in fields.items() if f in EDITABLE_STYLE_FIELDS}, "edited": True}
+    for k, v in load_custom_styles().items():
+        styles.setdefault(k, v)
     return styles
+
+
+def restyle_prompt_for(look):
+    return f"Convert this image into {look.strip().rstrip('.')}." + RESTYLE_KEEP
+
+
+def save_custom_style(style_id, style):
+    """Create or replace one of the user's own styles ({label, video_prompt, restyle_prompt, negative}); None deletes it."""
+    try:
+        with open(CUSTOM_STYLES_FILE, encoding="utf-8") as f:
+            custom = json.load(f)
+    except (OSError, ValueError):
+        custom = {}
+    if style is None:
+        custom.pop(style_id, None)
+    else:
+        custom[style_id] = {k: style.get(k, "") for k in ("label", "video_prompt", "restyle_prompt", "negative")}
+    os.makedirs(os.path.dirname(CUSTOM_STYLES_FILE), exist_ok=True)
+    with open(CUSTOM_STYLES_FILE, "w", encoding="utf-8") as f:
+        json.dump(custom, f, indent=1, ensure_ascii=False)
 
 
 def save_user_style(style_id, fields):
@@ -607,8 +640,7 @@ def custom_style(description):
         "label": description,
         "video_prompt": description,
         "negative": "",
-        "restyle_prompt": (f"Redraw this image in the following style: {description}. "
-                           "Keep the exact composition, pose, framing and characters."),
+        "restyle_prompt": restyle_prompt_for(description),
         "loras": [],
     }
 

@@ -523,3 +523,6 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
 .ss-try { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
 .ss-try img, .ss-try .ph { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; background: var(--card); cursor: zoom-in; }
 .ss-try .ph { display: grid; place-items: center; font-size: 12px; color: var(--muted); padding: 6px; box-sizing: border-box; }
+
+.search-row { display: flex; gap: 8px; align-items: center; }
+.search-row input { flex: 1; }

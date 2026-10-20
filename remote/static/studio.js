@@ -787,17 +787,26 @@ $("styleTool").onclick = async (e) => {
 // prompts, editable. "Redraw examples" redoes the pictures with the edited redraw prompt on the GPU.
 const SCENES = ["City street", "Close-up face", "Landscape", "Indoor scene"];
 const SS = { id: null, redrawing: {}, tries: [] };  // tries: pictures tried in a style here {style, source, task, image}  // redrawing: style id -> tasks still running
-function openStyleSheet(id) {
-  const st = styleById(id); if (!st) return;
-  SS.id = id;
-  $("ssTitle").textContent = st.label;
+// A new style of the user's own: the panel opens empty (seed: a style to copy from).
+const NEW_STYLE = { id: null, label: "", group: "My styles", look: "", restyle_prompt: "", restyle: true, custom: true, examples: [] };
+function openStyleSheet(id, seed = null) {
+  const st = id ? styleById(id) : { ...NEW_STYLE, ...(seed || {}) }; if (!st) return;
+  SS.id = id; SS.draft = id ? null : st;
+  $("ssTitle").textContent = id ? st.label : "New style";
+  $("ssName").value = id ? st.label : st.label || "";
   $("ssRestyle").value = st.restyle_prompt || "";
   $("ssLook").value = st.look || "";
   renderStyleSheet();
   $("styleSheet").classList.remove("hidden");
+  if (!id) $("ssName").focus();
 }
 function renderStyleSheet() {
-  const st = styleById(SS.id); if (!st) return;
+  const st = SS.id ? styleById(SS.id) : SS.draft; if (!st) return;
+  $("ssNameBlock").classList.toggle("hidden", !st.custom);
+  $("ssRestyleHint").textContent = st.custom ? "turns pictures into this style; leave empty to make it from the look"
+    : "turns keyframes and pictures into this style";
+  $("ssCopy").classList.toggle("hidden", !!st.custom || !SS.id);
+  $("ssReset").textContent = st.custom ? "Delete style" : "Reset to default";
   const running = SS.redrawing[st.id] || [];
   $("ssSub").textContent = `${st.group}${st.edited ? " · edited" : ""}`;
   $("ssExamples").innerHTML = SCENES.map((name, i) => `<figure>${st.examples?.[i] ? `<img alt="${name}, tap to enlarge" src="${exampleUrl(st.examples[i])}" data-zoom-scene="${i}">`
@@ -807,9 +816,10 @@ function renderStyleSheet() {
   $("ssRedraw").disabled = running.length > 0;
   $("ssRedrawing").classList.toggle("hidden", !running.length);
   $("ssRedrawing").textContent = running.length ? `Redrawing the examples on the GPU: ${running.length} left…` : "";
-  $("ssReset").classList.toggle("hidden", !st.edited);
+  $("ssReset").classList.toggle("hidden", st.custom ? !SS.id : !st.edited);
+  $("ssRedraw").disabled = $("ssRedraw").disabled || !SS.id && !st.custom;
   $("ssTryBlock").classList.toggle("hidden", !st.restyle);
-  const tries = SS.tries.filter((t) => t.style === st.id);
+  const tries = SS.tries.filter((t) => SS.id && t.style === SS.id);
   $("ssTries").innerHTML = tries.map((t, i) => `<div class="ss-try">
       <img alt="Before" src="${imgUrl(t.source)}" data-try="${SS.tries.indexOf(t)}" data-side="before"><span>→</span>
       ${t.image ? `<img alt="After" src="${imgUrl(t.image)}" data-try="${SS.tries.indexOf(t)}" data-side="after">`
@@ -823,6 +833,7 @@ function renderStyleSheet() {
 }
 // Try the style on the user's own picture, from the panel: drop, upload or pick from the Library.
 async function tryOnPicture(imageId) {
+  if (!SS.id) { try { await saveStyle(); } catch (e) { return toast(e.message); } }  // a new style: save it first
   const id = SS.id, st = styleById(id); if (!st || !imageId) return;
   try {
     const [t] = await api("/api/styles/try", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -895,17 +906,36 @@ document.addEventListener("keydown", (e) => {
 });
 
 async function saveStyle() {
+  const st = SS.id ? styleById(SS.id) : SS.draft;
   const body = { look: $("ssLook").value };
-  if (styleById(SS.id).restyle) body.restyle_prompt = $("ssRestyle").value;
-  await api(`/api/styles/${SS.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  await refreshInfo(); renderStylesPage(); renderStyles(); renderStyleSheet();
+  if (st.restyle) body.restyle_prompt = $("ssRestyle").value;
+  if (st.custom) body.label = $("ssName").value;
+  if (!SS.id) {  // a new style: create it, then the panel shows it like any other
+    SS.id = (await api("/api/styles", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).id;
+    SS.draft = null;
+  } else {
+    await api(`/api/styles/${SS.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  }
+  await refreshInfo(); renderStylesPage(); renderStyles();
+  const now = styleById(SS.id);
+  if (now) { $("ssTitle").textContent = now.label; $("ssRestyle").value = now.restyle_prompt || ""; }
+  renderStyleSheet();
 }
+$("styleNew").onclick = () => openStyleSheet(null);
+$("ssCopy").onclick = () => {
+  const st = styleById(SS.id); if (!st) return;
+  openStyleSheet(null, { label: `${st.label} (mine)`, look: st.look, restyle_prompt: st.restyle_prompt || "" });
+};
 $("ssSave").onclick = async () => { try { await saveStyle(); toast("Saved: renders in this style use the new prompts"); } catch (e) { toast(e.message); } };
 $("ssReset").onclick = async () => {
-  if (!confirm("Go back to the original prompts and example pictures for this style?")) return;
+  const st = styleById(SS.id); if (!st) return;
+  if (!confirm(st.custom ? `Delete your style "${st.label}"? Videos already made keep their look.`
+    : "Go back to the original prompts and example pictures for this style?")) return;
   try {
     await api(`/api/styles/${SS.id}`, { method: "DELETE" });
-    await refreshInfo(); openStyleSheet(SS.id); renderStylesPage(); renderStyles();
+    await refreshInfo();
+    if (st.custom) { closeOverlay("styleSheet"); if (S.style === st.id) setVideoStyle("photoreal"); } else openStyleSheet(SS.id);
+    renderStylesPage(); renderStyles();
   } catch (e) { toast(e.message); }
 };
 $("ssRedraw").onclick = async () => {
