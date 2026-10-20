@@ -21,6 +21,7 @@ import hmac
 import io
 import json
 import os
+import re
 import queue
 import secrets
 import shutil
@@ -100,10 +101,60 @@ class Jobs:
             job.update(fields)
             self.save(job)
 
+    # ---- time estimates, from how long earlier renders' steps took (their logs: "segment 1/2: done in 154s")
+
+    @staticmethod
+    def _kind(job):
+        s = job["settings"]
+        mode = "q" if not s.get("fast", True) else str(s.get("turbo_steps", 8)) if s.get("engine") == "minimax-h3" else "f"
+        return s.get("engine", "minimax-h3"), mode, s.get("size", "standard"), s.get("length", 81)
+
+    def _step_times(self):
+        """Median seconds per segment and per keyframe redraw, by (engine, mode, size, length) and by engine alone."""
+        seg, seg_engine, restyle = {}, {}, []
+        for j in list(self.jobs.values()):
+            if j.get("status") != "done" or j.get("kind") == "film":
+                continue
+            for line in j.get("log") or []:
+                m = re.match(r"(segment \d+/\d+|restyle keyframes .*?): done in (\d+)s", line)
+                if not m:
+                    continue
+                if m.group(1).startswith("segment"):
+                    seg.setdefault(self._kind(j), []).append(int(m.group(2)))
+                    seg_engine.setdefault(self._kind(j)[0], []).append(int(m.group(2)))
+                else:
+                    restyle.append(int(m.group(2)))
+        med = lambda xs: sorted(xs)[len(xs) // 2] if xs else None  # noqa: E731
+        return ({k: med(v) for k, v in seg.items()}, {k: med(v) for k, v in seg_engine.items()}, med(restyle))
+
+    def estimate(self, job, times=None):
+        """Seconds the render takes in all (redraw, segments, download and encoding), or None if unknown."""
+        seg, seg_engine, restyle = times or self._step_times()
+        s = job["settings"]
+        per = seg.get(self._kind(job)) or seg_engine.get(s.get("engine", "minimax-h3")) \
+            or {"minimax-h3": 160, "ltx23": 150, "wan22": 240}.get(s.get("engine"), 200)
+        segments = max(1, len(job.get("inputs") or []) - (0 if s.get("loop") else 1))
+        redraw = (restyle or 30) * max(1, segments) if s.get("restyle") and not job.get("styled") else 0
+        return redraw + segments * (per + 15)  # + downloading the frames and encoding
+
     def public(self, job):
         with self.lock:
             data = copy.deepcopy({k: v for k, v in job.items() if k != "cancel"})
         data["queue_position"] = self.position(job["id"])
+        if data["status"] in ("queued", "running"):
+            times = self._step_times()
+            total = self.estimate(job, times)
+            if data["status"] == "running":
+                data["eta_seconds"] = max(5, round(total - (time.time() - (job.get("started") or time.time()))))
+            else:  # waits for the renders ahead of it
+                ahead = [j for j in self.jobs.values() if j["status"] in ("queued", "running") and j["created"] < job["created"]]
+                wait = sum(max(5, self.estimate(j, times) - (time.time() - (j.get("started") or time.time())))
+                           if j["status"] == "running" else self.estimate(j, times) for j in ahead)
+                data["starts_in_seconds"], data["eta_seconds"] = round(wait), round(wait + total)
+            if getattr(self.gpu, "remote", False) and self.gpu.status().get("state") in ("off", "starting"):
+                data["eta_seconds"] += 240  # the pod boots first (usually 2-5 min)
+                if "starts_in_seconds" in data:
+                    data["starts_in_seconds"] += 240
         if data["status"] == "running" and not data["styled"]:  # redrawn keyframes show as soon as they exist
             folder = os.path.join(self.dir(job["id"]), "result_keyframes")
             if os.path.isdir(folder):  # NN.png only: the restyle's temporary files are named otherwise

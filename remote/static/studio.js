@@ -1149,7 +1149,10 @@ function jobCard(j) {
   const end = j.finished || Date.now() / 1000, took = j.started ? fmtTime(end - j.started) : "";
   const active = ["queued", "running"].includes(j.status);
   const when = new Date(j.created * 1000).toLocaleString([], { dateStyle: "short", timeStyle: "short" });
-  const progress = j.status === "queued" ? `Waiting · position ${j.queue_position || "?"}` : j.status === "running" ? `${j.progress} · ${took}` : "";
+  const eta = (sec) => sec == null ? "" : sec < 60 ? "under a minute" : `about ${Math.round(sec / 60)} min`;
+  const progress = j.status === "queued"
+    ? `Waiting · position ${j.queue_position || "?"}${j.starts_in_seconds ? ` · starts in ${eta(j.starts_in_seconds)}` : ""}${j.eta_seconds ? ` · done in ${eta(j.eta_seconds)}` : ""}`
+    : j.status === "running" ? `${j.progress} · ${took}${j.eta_seconds && j.progress !== "cancelling…" ? ` · ${eta(j.eta_seconds)} left` : ""}` : "";
   // badges for the collapsed Details row
   const checks = j.keyframe_checks || [], kc = checks[checks.length - 1], r = j.review;
   const badges = [j.styled.length ? "redrawn" : j.settings.restyle && active ? "redrawing" : "",
