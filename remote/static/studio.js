@@ -791,7 +791,13 @@ $("idlePill").onclick = async () => {
 async function refreshInfo() {
   const first = !S.info;
   S.info = await api("/api/info");
-  if (first) { renderImageModels(); renderEngines(); renderStyles(); }
+  if (first) renderStyles();
+  // Which models are installed is known only once a GPU pod has run: refresh the menus when that changes.
+  const models = JSON.stringify([S.info.image_models.map((m) => m.missing), S.info.engines.map((e) => e.ready)]);
+  if (models !== S.modelsSig) {
+    S.modelsSig = models;
+    renderImageModels(); renderEngines();  // a model that turned out missing falls back to the default
+  }
   renderStatus();
 }
 async function refreshImages() { S.images = await api("/api/images"); S.imagesLoaded = true; }
