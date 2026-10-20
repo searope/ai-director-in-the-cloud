@@ -13,6 +13,7 @@
    images) and an end frame (an edit of the start frame). To use your own photo, choose
    **Use a library image as the start frame**, then **Make end keyframe**.
 5. **Shots:** each shot is a 2-5 s Wan 2.2 clip between its two keyframes, rendered on the GPU.
+   **Check clip** has the AI model look at the rendered clip (see below) and suggest a better prompt.
 6. **Film:** the clips joined in order with hard cuts. The film appears in the Library like any
    video; its **Sound** button lists the script's narration with each line's start time, so a
    voice-over layer takes one tap per line (ElevenLabs, paid, opt-in).
@@ -73,6 +74,24 @@ app with their own accounts.
 **Local model on the GPU pod:** a model served on the pod (e.g. llama.cpp's `llama-server` on
 port 8080) is free apart from GPU time. It isn't set up by the installer yet: the pod only
 exposes the gateway's port 8700.
+
+## Checking a rendered clip
+
+**Check clip** (on any finished render in Create video, and on Director shots) shows the clip to the
+AI model as one contact sheet: the start and end keyframes, then 12 frames spread through the clip
+with their times. The model reports what a viewer would find wrong (faces or hands that morph,
+objects that appear, vanish or duplicate, smearing, flicker, motion that ignores the prompt, drift
+away from the keyframes), gives a verdict, writes an improved motion prompt, and says when the real
+cause is a keyframe (for example an END keyframe with an object the START doesn't have).
+
+- **Render again with this prompt** re-renders the same keyframes. If the render redrew them in a
+  style, the redrawn keyframes are reused, so only the prompt changes.
+- In the Director, **Use this prompt and render again** saves it as the shot's motion and renders.
+- Keyframe advice is shown as a note; act on it with Remake keyframes or by editing the end change.
+
+The model needs to see images: Claude Code reads the sheet with its Read tool (only that tool,
+only in the sheet's folder), the Claude API and OpenAI-compatible endpoints get it in the request,
+and a `command` writer gets the file's path. One check is one request (~20-30 s with Claude Code).
 
 ## Tips
 

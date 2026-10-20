@@ -20,6 +20,7 @@ Without a "writers" list: Claude Code if it is installed, plus the Anthropic API
 "anthropic_api_key" is set (paid per token; opt-in, approved by the owner in Oct 2026).
 """
 
+import base64
 import json
 import os
 import shutil
@@ -144,11 +145,11 @@ def find_claude(path=None):
     return found if os.path.exists(found) else None
 
 
-def _run(cmd, stdin, timeout, shell=False):
+def _run(cmd, stdin, timeout, shell=False, cwd=None):
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     try:
         return subprocess.run(cmd, input=stdin, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
-                              shell=shell, cwd=tempfile.gettempdir(), creationflags=flags)
+                              shell=shell, cwd=cwd or tempfile.gettempdir(), creationflags=flags)
     except subprocess.TimeoutExpired:
         raise WriterError(f"no answer after {timeout // 60} minutes") from None
     except OSError as e:
@@ -166,8 +167,19 @@ def _json_from_text(text):
         raise WriterError(f"the reply was not valid JSON ({e})") from None
 
 
+def _image_note(image):
+    """For writers that read files themselves: point them at the image."""
+    return f"\n\nThe image to look at is the file {image}: read it first." if image else ""
+
+
+def _image_b64(image):
+    with open(image, "rb") as f:
+        return base64.standard_b64encode(f.read()).decode()
+
+
 class ClaudeCodeWriter:
-    """Headless Claude Code (`claude -p`) on the owner's subscription: no tools, structured output."""
+    """Headless Claude Code (`claude -p`) on the owner's subscription, with structured output. No tools, except
+    Read (limited to the image's folder) when there is an image to look at."""
 
     def __init__(self, cfg):
         self.cfg = cfg
@@ -177,14 +189,16 @@ class ClaudeCodeWriter:
     def ready(self):
         return bool(self.exe)
 
-    def write(self, system, user, schema):
+    def write(self, system, user, schema, image=None):
         if not self.exe:
             raise WriterError("Claude Code isn't installed on this computer (or set \"path\" for this writer)")
-        cmd = [self.exe, "-p", "--output-format", "json", "--tools", "", "--strict-mcp-config",
+        folder = os.path.dirname(image) if image else None
+        tools = ["--tools", "Read", "--allowedTools", "Read", "--add-dir", folder] if image else ["--tools", ""]
+        cmd = [self.exe, "-p", "--output-format", "json", *tools, "--strict-mcp-config",
                "--no-session-persistence", "--json-schema", json.dumps(schema), "--system-prompt", system]
         if self.cfg.get("model"):
             cmd += ["--model", self.cfg["model"]]
-        proc = _run(cmd, user, self.cfg.get("timeout", 900))
+        proc = _run(cmd, user + _image_note(image), self.cfg.get("timeout", 900), cwd=folder)
         try:
             out = json.loads(proc.stdout)
         except ValueError:
@@ -204,7 +218,7 @@ class AnthropicWriter:
     def ready(self):
         return bool(self.cfg.get("api_key"))
 
-    def write(self, system, user, schema):
+    def write(self, system, user, schema, image=None):
         try:
             import anthropic
         except ImportError:
@@ -215,7 +229,9 @@ class AnthropicWriter:
                 model=self.cfg.get("model") or "claude-opus-5-5",
                 max_tokens=16000,
                 system=system,
-                messages=[{"role": "user", "content": user}],
+                messages=[{"role": "user", "content": ([{"type": "image", "source": {
+                    "type": "base64", "media_type": "image/png", "data": _image_b64(image)}}] if image else [])
+                    + [{"type": "text", "text": user}]}],
                 output_config={"effort": self.cfg.get("effort", "high"),
                                "format": {"type": "json_schema", "schema": schema}},
                 betas=["server-side-fallback-2026-07-01"],
@@ -232,7 +248,7 @@ class AnthropicWriter:
         if response.stop_reason == "refusal":
             raise WriterError("the model declined this request")
         if response.stop_reason == "max_tokens":
-            raise WriterError("the script was too long for one reply; ask for fewer shots")
+            raise WriterError("the reply was too long and got cut off")
         return _json_from_text(next((b.text for b in response.content if b.type == "text"), ""))
 
 
@@ -247,9 +263,11 @@ class OpenAIWriter:
     def ready(self):
         return bool(self.cfg.get("base_url") and self.cfg.get("model"))
 
-    def write(self, system, user, schema):
+    def write(self, system, user, schema, image=None):
+        content = ([{"type": "image_url", "image_url": {"url": "data:image/png;base64," + _image_b64(image)}}] if image else []) \
+            + [{"type": "text", "text": user}]
         body = {"model": self.cfg["model"],
-                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}],
                 "response_format": {"type": "json_schema", "json_schema": {"name": "script", "schema": schema, "strict": True}}}
         headers = {"Content-Type": "application/json"}
         if self.cfg.get("api_key"):
@@ -280,8 +298,8 @@ class CommandWriter:
     def ready(self):
         return bool(self.cfg.get("command"))
 
-    def write(self, system, user, schema):
-        prompt = (f"{system}\n\n{user}\n\nReply with only one JSON object that matches this JSON Schema, "
+    def write(self, system, user, schema, image=None):
+        prompt = (f"{system}\n\n{user}{_image_note(image)}\n\nReply with only one JSON object that matches this JSON Schema, "
                   f"with no other text:\n{json.dumps(schema)}")
         proc = _run(self.cfg["command"], prompt, self.cfg.get("timeout", 900), shell=True)
         if proc.returncode:
@@ -390,8 +408,8 @@ class Director:
             return None
         for shot in project["shots"]:
             job = self.jobs.jobs.get(shot.get("job_id") or "")
-            shot["render"] = ({"status": job["status"], "progress": job.get("progress"), "error": job.get("error")}
-                              if job else None)
+            shot["render"] = ({"status": job["status"], "progress": job.get("progress"), "error": job.get("error"),
+                               "review": job.get("review")} if job else None)
             shot["characters"] = [c for c in shot["characters"] if self.characters.get(c)]
         project["cast"] = [c for c in project["cast"] if self.characters.get(c)]
         film = project.get("film", {})

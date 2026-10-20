@@ -312,6 +312,14 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
                field-sizing: content; max-height: 240px; }  /* grows with its text where supported */
 .cast-pick.small .cast-chip { font-size: 12.5px; padding: 3px 10px 3px 3px; }
 .cast-pick.small .cast-chip img { width: 20px; height: 20px; }
+.clip-review { display: flex; flex-direction: column; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-top: 10px; font-size: 13.5px; }
+.clip-review p { margin: 0; }
+.cr-head { display: flex; gap: 8px; align-items: center; }
+.cr-head .pill.warn { color: var(--warn); }
+.clip-review summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.clip-review ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.clip-review li.major b { color: var(--bad); } .clip-review li.minor b { color: var(--warn); }
+.clip-review .btn { align-self: flex-start; }
 .note { font-size: 13px; background: #fbbf2414; border: 1px solid #fbbf2455; color: #fde68a; border-radius: 9px; padding: 7px 10px; }
 .note::before { content: "Note: "; font-weight: 700; }
 .review { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 13.5px; margin-bottom: 12px; }
