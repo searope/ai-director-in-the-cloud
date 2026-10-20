@@ -135,6 +135,16 @@ Then make it start with Windows, without needing a login (as Administrator):
 powershell -ExecutionPolicy Bypass -File setup\windows\register_startup.ps1
 ```
 
+## Restarting the app
+
+After pulling new code (or if the app misbehaves), restart it in PowerShell **as Administrator**:
+```powershell
+powershell -ExecutionPolicy Bypass -File setup\windowsestart_pc.ps1
+```
+It stops the startup task and its leftover processes, starts it again and waits until the app
+answers. Check that nothing is rendering first: a running render is cancelled. If the app crashes
+or is killed, the startup task starts it again within a minute by itself.
+
 ## Troubleshooting
 
 - **No HTTPS / certificate errors:** check `output\caddy.err.log`. Usually ports 80/443 aren't

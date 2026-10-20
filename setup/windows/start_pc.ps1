@@ -14,3 +14,6 @@ try {
 } finally {
     Stop-Process -Id $caddy.Id -ErrorAction SilentlyContinue
 }
+# The app only stops if it crashed or was killed. Report a failure, so the startup task
+# (register_startup.ps1: restart every minute on failure) starts it again.
+exit 1
