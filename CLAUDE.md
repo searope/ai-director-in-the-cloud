@@ -23,6 +23,14 @@ use needs a paid ElevenLabs plan; **the owner has one** (free-plan dubs are wate
 secondary sources say free-plan output is non-commercial and needs attribution). Check ElevenLabs'
 terms before using generated music commercially.
 
+**Approved exception (owner, Oct 2026): the Anthropic API for the Director.** The Director's script
+writer (`remote/director.py`) can use the owner's Anthropic API credit (pay per token) as well as
+the subscription (headless Claude Code). It must stay opt-in: offered only when `anthropic_api_key`
+is set, labelled as paid, confirmed before each request, and never the only way to write a script.
+The writer is pluggable (any OpenAI-compatible endpoint or CLI, see `docs/director.md`) because other
+people running the app may use other models; other paid providers still need the owner's approval
+for the owner's own setup.
+
 **Runpod pods:** the web app runs on the owner's always-on Windows PC (`docs/home-server.md`) and
 creates the GPU pod itself when a job needs it, removing it after 10 idle minutes (`remote/gpu.py`).
 GPU time should be paid only around jobs: don't leave pods running. When Claude creates a pod by hand
