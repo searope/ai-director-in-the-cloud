@@ -350,14 +350,19 @@ def build_ltx_segment_graph(cfg, start_name, end_name, prompt, seed, width, heig
             "frames_number": n, "frame_rate": LTX_FPS, "batch_size": 1, "audio_vae": ["audio_vae", 0]}},
     }
     prev = {"positive": ["cond", 0], "negative": ["cond", 1], "latent": ["latent", 0]}
-    for key, name, idx in (("first", start_name, 0), ("last", end_name, -1)):
+    # tunable (defaults = the template): how firmly each keyframe is held, how much its detail is softened before
+    # it guides (LTXVPreprocess), and where the last keyframe sits (-1 = the last frame; earlier leaves a tail)
+    strengths = (cfg.get("ltx_first_strength", 0.7), cfg.get("ltx_last_strength", 0.7))
+    compression = cfg.get("ltx_img_compression", 25)
+    last_idx = cfg.get("ltx_last_frame", -1)
+    for key, name, idx in (("first", start_name, 0), ("last", end_name, last_idx)):
         g[f"{key}_load"] = {"class_type": "LoadImage", "inputs": {"image": name}}
         g[f"{key}_scale"] = {"class_type": "ImageScale", "inputs": {
             "image": [f"{key}_load", 0], "upscale_method": "lanczos", "width": width, "height": height, "crop": "center"}}
-        g[f"{key}_prep"] = {"class_type": "LTXVPreprocess", "inputs": {"image": [f"{key}_scale", 0], "img_compression": 25}}
+        g[f"{key}_prep"] = {"class_type": "LTXVPreprocess", "inputs": {"image": [f"{key}_scale", 0], "img_compression": compression}}
         g[f"{key}_guide"] = {"class_type": "LTXVAddGuide", "inputs": {
             "positive": prev["positive"], "negative": prev["negative"], "vae": ["ckpt", 2], "latent": prev["latent"],
-            "image": [f"{key}_prep", 0], "frame_idx": idx, "strength": 0.7}}
+            "image": [f"{key}_prep", 0], "frame_idx": idx, "strength": strengths[0 if key == "first" else 1]}}
         prev = {"positive": [f"{key}_guide", 0], "negative": [f"{key}_guide", 1], "latent": [f"{key}_guide", 2]}
     g.update({
         "av": {"class_type": "LTXVConcatAVLatent", "inputs": {"video_latent": prev["latent"], "audio_latent": ["audio_latent", 0]}},
