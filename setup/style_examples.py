@@ -39,11 +39,36 @@ SEED = 20261020
 WIDTH = 640  # example size: sharp enough to enlarge, small enough to load quickly
 
 
-def save_jpg(png_bytes, path):
+def save_jpg(png_bytes, path, shape=None):
+    """Save WIDTH px wide; shape (w, h) of the scene's base picture makes every example exactly its size and shape,
+    so before and after line up (the image model rounds its output size a little)."""
     from PIL import Image
     im = Image.open(io.BytesIO(png_bytes)).convert("RGB")
-    im = im.resize((WIDTH, round(WIDTH * im.height / im.width)), Image.LANCZOS)
+    w, h = shape or im.size
+    im = im.resize((WIDTH, round(WIDTH * h / w)), Image.LANCZOS)
     im.save(path, "JPEG", quality=82, optimize=True)
+
+
+def fit_existing():
+    """Resize the examples already made to their scene's base shape (no GPU needed)."""
+    from PIL import Image
+    for n in SCENES:
+        base = os.path.join(OUT, f"_base-{n}.jpg")
+        if not os.path.exists(base):
+            continue
+        with Image.open(base) as b:
+            size = (WIDTH, round(WIDTH * b.height / b.width))
+        fixed = 0
+        for name in os.listdir(OUT):
+            if name.endswith(f"-{n}.jpg") and not name.startswith("_"):
+                p = os.path.join(OUT, name)
+                with Image.open(p) as im:
+                    if im.size == size:
+                        continue
+                    out = im.convert("RGB").resize(size, Image.LANCZOS)
+                out.save(p, "JPEG", quality=82, optimize=True)
+                fixed += 1
+        print(f"scene {n}: {fixed} resized to {size[0]}x{size[1]}")
 
 
 def keep_app_awake(url, token):
@@ -70,9 +95,12 @@ def main():
     ap.add_argument("--model", default=animate.DEFAULT_IMAGE_MODEL, choices=list(animate.IMAGE_MODELS),
                     help="image model for the redraws (default: the app's default)")
     ap.add_argument("--resume", action="store_true", help="skip examples that already exist (after an interrupted run)")
+    ap.add_argument("--fit", action="store_true", help="only resize existing examples to their base picture's shape")
     ap.add_argument("--app-dir", default=ROOT, help="the running app's folder (output/gpu_pod.json, remote/config.json)")
     ap.add_argument("--app-url", default="http://127.0.0.1:8700", help="the running app, kept from removing the pod")
     args = ap.parse_args()
+    if args.fit:
+        return fit_existing()
     if args.pod:
         state = json.load(open(os.path.join(args.app_dir, "output", "gpu_pod.json")))
         if not state.get("pod"):
@@ -101,6 +129,9 @@ def main():
             Image.open(io.BytesIO(comfy.fetch(out["save"]["images"][0]))).convert("RGB").save(base_jpg, "JPEG", quality=92)
         with open(base_jpg, "rb") as f:
             save_jpg(f.read(), os.path.join(OUT, f"photoreal-{n}.jpg"))
+        from PIL import Image
+        with Image.open(base_jpg) as b:
+            shape = b.size
         base = comfy.upload_image(base_jpg, f"style_examples_base{n}.jpg")
         for k in todo:
             path = os.path.join(OUT, f"{k}-{n}.jpg")
@@ -111,7 +142,7 @@ def main():
             for attempt in range(4):  # the proxy drops a connection now and then
                 try:
                     out = comfy.wait(comfy.queue(graph), k, quiet, lambda: False)
-                    save_jpg(comfy.fetch(out["save"]["images"][0]), path)
+                    save_jpg(comfy.fetch(out["save"]["images"][0]), path, shape)
                     break
                 except OSError as e:
                     if attempt == 3:

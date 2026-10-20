@@ -513,8 +513,9 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
 
 .ss-examples img { cursor: zoom-in; }
 .ss-zoom { z-index: 30; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; }
-.ss-zoom figure { margin: 0; max-width: 100%; position: relative; }
-.ss-zoom img { display: block; max-width: min(1200px, 100%); max-height: calc(var(--vh) - 150px); border-radius: 12px; cursor: pointer; }
+/* one fixed 16:9 frame: before and after (and your own pictures) fit inside it, so switching never moves anything */
+.ss-zoom figure { margin: 0; position: relative; width: min(1200px, 100%, calc((var(--vh) - 160px) * 16 / 9)); }
+.ss-zoom img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; border-radius: 12px; cursor: pointer; }
 .ss-zoom figcaption { text-align: center; font-size: 13px; color: var(--muted); margin-top: 8px; }
 .ss-zoom-bar { display: flex; gap: 10px; align-items: center; }
 

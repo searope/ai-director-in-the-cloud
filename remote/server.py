@@ -264,12 +264,14 @@ def merge_render_info(job, info):
     return info
 
 
-def save_example_jpg(png_path, jpg_path, width=640):
-    """A style example as a small JPG (the size setup/style_examples.py makes)."""
+def save_example_jpg(png_path, jpg_path, width=640, shape_of=None):
+    """A style example as a small JPG (the size setup/style_examples.py makes); shape_of: the base picture, whose
+    exact shape it takes so before and after line up."""
     from PIL import Image
+    with Image.open(shape_of or png_path) as ref:
+        w, h = ref.size
     with Image.open(png_path) as im:
-        im = im.convert("RGB")
-        im.resize((width, round(width * im.height / im.width)), Image.LANCZOS).save(jpg_path, "JPEG", quality=82, optimize=True)
+        im.convert("RGB").resize((width, round(width * h / w)), Image.LANCZOS).save(jpg_path, "JPEG", quality=82, optimize=True)
 
 
 def style_reviews():
@@ -401,7 +403,7 @@ class KeyframeMaker:
             if example:
                 tmp = example + ".png"
                 animate.make_keyframe(server, prompt, tmp, seed, aspect, source, report, model, keep_look=False)
-                save_example_jpg(tmp, example)
+                save_example_jpg(tmp, example, shape_of=source)
                 os.remove(tmp)
                 task.update(status="done", example=os.path.basename(example))
                 return
