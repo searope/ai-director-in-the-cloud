@@ -101,8 +101,20 @@ def make_app(token, activity):
         except OSError as e:
             return web.json_response({"error": f"ComfyUI is not reachable: {e}"}, status=502)
 
+    async def logs(request):
+        """The last lines of ComfyUI's and the model download's logs, to see why a pod is slow or failing."""
+        out = {}
+        for name in ("comfyui", "download"):
+            try:
+                with open(os.path.join(os.path.dirname(HERE), "output", f"{name}.log"), encoding="utf-8", errors="replace") as f:
+                    out[name] = f.read()[-6000:]
+            except OSError as e:
+                out[name] = str(e)
+        return web.json_response(out)
+
     app = web.Application(middlewares=[auth], client_max_size=200 * 1024 ** 2)
     app.router.add_get("/gateway/health", health)
+    app.router.add_get("/gateway/logs", logs)
     app.router.add_route("*", "/{tail:.*}", proxy)
     return app
 
