@@ -67,6 +67,9 @@ def main():
     ap.add_argument("--pod", action="store_true", help="use the app's running Runpod pod")
     ap.add_argument("--only", nargs="*", help="style ids to (re)make; default: all")
     ap.add_argument("--scenes", nargs="*", type=int, default=list(SCENES), help="scene numbers; default: all")
+    ap.add_argument("--model", default=animate.DEFAULT_IMAGE_MODEL, choices=list(animate.IMAGE_MODELS),
+                    help="image model for the redraws (default: the app's default)")
+    ap.add_argument("--resume", action="store_true", help="skip examples that already exist (after an interrupted run)")
     ap.add_argument("--app-dir", default=ROOT, help="the running app's folder (output/gpu_pod.json, remote/config.json)")
     ap.add_argument("--app-url", default="http://127.0.0.1:8700", help="the running app, kept from removing the pod")
     args = ap.parse_args()
@@ -82,7 +85,8 @@ def main():
     comfy = animate.Comfy(server)
     comfy.ping()
     os.makedirs(OUT, exist_ok=True)
-    cfg = {"image_model": "klein4b"}
+    cfg = {"image_model": "klein4b"}  # the base photos (already made and kept)
+    redraw_cfg = {"image_model": args.model}
     quiet = lambda *a, **k: None  # noqa: E731
 
     styles = animate.load_default_styles()
@@ -99,11 +103,22 @@ def main():
             save_jpg(f.read(), os.path.join(OUT, f"photoreal-{n}.jpg"))
         base = comfy.upload_image(base_jpg, f"style_examples_base{n}.jpg")
         for k in todo:
+            path = os.path.join(OUT, f"{k}-{n}.jpg")
+            if args.resume and os.path.exists(path):
+                continue
             t = time.time()
-            graph = animate.build_restyle_graph(cfg, base, styles[k]["restyle_prompt"], SEED, f"style_examples/{k}")
-            out = comfy.wait(comfy.queue(graph), k, quiet, lambda: False)
-            save_jpg(comfy.fetch(out["save"]["images"][0]), os.path.join(OUT, f"{k}-{n}.jpg"))
-            print(f"scene {n} {k}: {time.time() - t:.0f}s")
+            graph = animate.build_restyle_graph(redraw_cfg, base, styles[k]["restyle_prompt"], SEED, f"style_examples/{k}")
+            for attempt in range(4):  # the proxy drops a connection now and then
+                try:
+                    out = comfy.wait(comfy.queue(graph), k, quiet, lambda: False)
+                    save_jpg(comfy.fetch(out["save"]["images"][0]), path)
+                    break
+                except OSError as e:
+                    if attempt == 3:
+                        raise
+                    print(f"scene {n} {k}: retrying after {e}", flush=True)
+                    time.sleep(10 * (attempt + 1))
+            print(f"scene {n} {k}: {time.time() - t:.0f}s", flush=True)
     print(f"Examples in {OUT}")
 
 
