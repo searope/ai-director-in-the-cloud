@@ -527,3 +527,15 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
 
 .search-row { display: flex; gap: 8px; align-items: center; }
 .search-row input { flex: 1; }
+
+/* Create video's style: the chosen one large, recent ones as wrapping chips */
+.style-pick { display: flex; flex-direction: column; gap: 8px; }
+.sp-main { position: relative; display: block; width: 100%; padding: 0; border: 1px solid var(--accent); border-radius: 12px; overflow: hidden;
+           background: var(--bg2); cursor: zoom-in; text-align: left; color: var(--text); font: inherit; }
+.sp-main .sp-img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.sp-main .style-ph.sp-img { display: grid; place-items: center; font-size: 28px; }
+.sp-cap { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: baseline; gap: 8px; padding: 18px 10px 8px;
+          background: linear-gradient(transparent, #000c); color: #fff; font-size: 13px; }
+.sp-cap b { font-size: 14px; } .sp-cap span { opacity: .8; font-size: 12px; }
+.sp-chips { flex-wrap: wrap; }
+.sp-chips .chip.more { border-style: dashed; }
