@@ -100,6 +100,10 @@ class Jobs:
         with self.lock:
             data = copy.deepcopy({k: v for k, v in job.items() if k != "cancel"})
         data["queue_position"] = self.position(job["id"])
+        if data["status"] == "running" and not data["styled"]:  # redrawn keyframes show as soon as they exist
+            folder = os.path.join(self.dir(job["id"]), "result_keyframes")
+            if os.path.isdir(folder):  # NN.png only: the restyle's temporary files are named otherwise
+                data["styled"] = sorted(n for n in os.listdir(folder) if len(n) == 6 and n[:2].isdigit() and n.endswith(".png"))
         return data
 
     def position(self, job_id):
