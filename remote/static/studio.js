@@ -1399,7 +1399,7 @@ function renderPanelSummary() {
   $("sumLook").textContent = [styleLabel(S.style), restyle ? `redraw on${$("approveKeyframes").checked ? ", approval stop" : ""}` : ""].filter(Boolean).join(" · ");
   const sound = !$("soundBox").classList.contains("hidden") && $("audio").checked;
   $("sumVideo").textContent = [opt("engine").replace(/ \+ sound$/, ""), opt("vmode"), `${opt("length")} per gap`,
-    $("size").value === "preview" ? "preview" : "480p", sound ? "sound" : "", $("loop").checked ? "loop" : ""].filter(Boolean).join(" · ");
+    $("size").value === "preview" ? "preview" : $("engine").value === "ltx23" ? "~0.7 MP" : "480p", sound ? "sound" : "", $("loop").checked ? "loop" : ""].filter(Boolean).join(" · ");
   const gaps = Math.max(0, S.tray.length - ($("loop").checked ? 0 : 1));
   const ready = (S.info.engines || []).filter((e) => e.ready);
   $("vidGoAll").classList.toggle("hidden", ready.length < 2);
