@@ -729,10 +729,11 @@ $("engine").onchange = () => {
 $("engine").addEventListener("change", () => { $("engine").dataset.chosen = $("engine").value; });
 $("vmode").onchange = () => {
   const e = S.info.engines.find((x) => x.id === $("engine").value), h3 = e.id === "minimax-h3";
+  // What the engine gives; its license notes only on hover (owner's choice, Oct 2026; details in the README).
   const el = $("engineLicense"), turbo = h3 && $("vmode").value !== "quality";
-  el.className = "license " + (turbo ? "warn" : licenseClass(e.license));
-  el.textContent = e.license + (turbo ? `; turbo LoRA: license not verified` : "");
-  el.title = (h3 ? "24 fps with generated sound. " : "16 fps, silent. ") + "License: " + e.license + (turbo ? `. ${e.turbo_license}; Quality mode doesn't use it.` : "");
+  el.className = "hint";
+  el.textContent = h3 ? "24 fps with generated sound" : "16 fps, silent";
+  el.title = "License: " + e.license + (turbo ? `. ${e.turbo_license}; Quality mode doesn't use it.` : "");
 };
 
 async function renderVideoJob() {
