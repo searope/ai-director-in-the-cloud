@@ -590,3 +590,5 @@ body.no-scroll { overflow: hidden; }
 /* bigger keyframe pairs in Motion; smaller once there are many gaps */
 .gap .pair img { height: 130px; }
 #motion:has(.gap:nth-child(3)) .gap .pair img { height: 90px; }
+
+#vidGoAll { margin-top: 6px; }

@@ -1049,12 +1049,17 @@ $("vmode").onchange = () => {
   el.title = "License: " + e.license + (turbo ? `. ${e.turbo_license}; Quality mode doesn't use it.` : "");
 };
 
-async function renderVideoJob() {
+// engines: render the same setup with each of these video models (default: the chosen one). They share one seed,
+// so redrawn keyframes come out the same and the clips compare fairly; each gets the nearest mode it has.
+async function renderVideoJob(engines = null) {
+  const all = Array.isArray(engines);
+  engines = all ? engines : [$("engine").value];
   if (S.tray.length < 2) return toast("Add at least two keyframes");
   const custom = S.style === "__custom" ? $("customStyle").value.trim() : "";
   if (S.style === "__custom" && !custom) return toast("Describe the custom style");
   const n = S.tray.length - ($("loop").checked ? 0 : 1);
-  const settings = {
+  const seed = $("vseed").value || (all ? String(Math.floor(Math.random() * 2 ** 31)) : "");
+  const base = {
     prompts: Array.from({ length: n }, (_, i) => S.motion[i] || ""),
     engine: $("engine").value, image_model: S.imageModel,
     audio: $("audio").checked, sound: $("sound").value,
@@ -1063,21 +1068,35 @@ async function renderVideoJob() {
     check_keyframes: $("restyle").checked && $("checkKeyframes").checked && !!reviewWriter(), writer: reviewWriter()?.id || "",
     approve_keyframes: $("restyle").checked && $("approveKeyframes").checked,
     length: +$("length").value, size: $("size").value,
-    loop: $("loop").checked, smooth: $("smooth").checked, seed: $("vseed").value,
+    loop: $("loop").checked, smooth: $("smooth").checked, seed,
   };
-  const form = new FormData();
-  S.tray.forEach((id) => form.append("keyframe_id", id));
-  form.append("settings", JSON.stringify(settings));
-  const btn = $("vidGo"); btn.disabled = true;
+  const btns = [$("vidGo"), $("vidGoAll")]; btns.forEach((b) => { b.disabled = true; });
+  let queued = 0;
   try {
-    await api("/api/jobs", { method: "POST", body: form });
-    toast("Queued on the GPU");
+    for (const engine of engines) {
+      const settings = { ...base, engine };
+      if (engine !== base.engine) {  // the nearest mode this engine has
+        if (engine === "ltx23") settings.fast = true;
+        if (engine !== "minimax-h3") settings.turbo_steps = 8;
+        settings.smooth = engine === "wan22";
+      }
+      const form = new FormData();
+      S.tray.forEach((id) => form.append("keyframe_id", id));
+      form.append("settings", JSON.stringify(settings));
+      await api("/api/jobs", { method: "POST", body: form });
+      queued++;
+    }
+    toast(queued > 1 ? `Queued ${queued} renders, one per video model (seed ${seed})` : "Queued on the GPU");
     await refreshJobs(); renderVideoPage();
-    window.scrollTo({ top: $("jobList").offsetTop - 80, behavior: "smooth" });
-  } catch (e) { toast("Failed: " + e.message); }
-  finally { btn.disabled = false; }
+  } catch (e) { toast(`Failed${queued ? ` after ${queued} queued` : ""}: ${e.message}`); }
+  finally { btns.forEach((b) => { b.disabled = false; }); }
 }
-$("vidGo").onclick = renderVideoJob;
+$("vidGo").onclick = () => renderVideoJob();
+$("vidGoAll").onclick = () => {
+  const ready = (S.info?.engines || []).filter((e) => e.ready).map((e) => e.id);
+  if (ready.length < 2) return toast("Only one video model is installed");
+  renderVideoJob(ready);
+};
 
 // ---------------------------------------------------------------- clip check (an AI model reviews a render)
 const STYLE_RATINGS = { strong: ["strong", "ok"], good: ["good", "ok"], weak: ["weak", "warn"], lost: ["lost", "bad"] };
@@ -1189,6 +1208,8 @@ function jobCard(j) {
         <a class="btn small" href="${jobVideo(j, null, true)}">Download</a>` : ""}
       ${active || j.status === "approve" ? `<button type="button" class="btn small" data-job-act="cancel">Cancel</button>` : ""}
       ${["failed", "cancelled"].includes(j.status) && j.kind !== "film" ? `<button type="button" class="btn small primary" data-job-act="retry">Try again</button>` : ""}
+      ${["done", "failed", "cancelled"].includes(j.status) && j.kind !== "film" ? `<button type="button" class="btn small" data-job-act="edit"
+        title="Load this render's keyframes and settings into the panel, change anything, and render">Edit and render again</button>` : ""}
       ${j.status !== "running" ? `<button type="button" class="btn small ghost danger icon-only" data-job-act="delete" aria-label="Delete this render" title="Delete this render"><svg><use href="#i-trash"/></svg></button>` : ""}
     </div></div>`;
 }
@@ -1288,6 +1309,12 @@ $("jobList").onclick = async (e) => {
   }
   if (act === "delete") return deleteJob(id);
   if (act === "sound") return openSound(id);
+  if (act === "edit") {
+    const restore = busyButton(e.target.closest("[data-job-act]"), "Loading…");
+    try { await loadJobIntoPanel(jobById(id)); } catch (err) { toast(err.message); }
+    restore();
+    return;
+  }
   if (act === "retry") {  // the same render again: same keyframes, settings and prompts (redrawn keyframes are reused)
     const j = jobById(id);
     const restore = busyButton(e.target.closest("[data-job-act]"), "Queueing…");
@@ -1302,6 +1329,28 @@ $("jobList").onclick = async (e) => {
   try { await api(`/api/jobs/${id}/cancel`, { method: "POST" }); await refreshJobs(); renderJobs(); }
   catch (err) { toast(err.message); restore(); }
 };
+// "Edit and render again": a render's keyframes and every setting back in the panel, to change and render anew.
+async function loadJobIntoPanel(j) {
+  const s = j.settings, r = j.render || {};
+  const { ids } = await api(`/api/jobs/${j.id}/keyframe-ids`, { method: "POST" });
+  await refreshImages();
+  S.tray = ids; store.set("tray", S.tray);
+  S.motion = [...s.prompts]; store.set("motion", S.motion);
+  const set = (id, v) => { const el = $(id); if (!el || v == null) return; if (el.type === "checkbox") el.checked = !!v; else el.value = v; };
+  $("engine").dataset.chosen = s.engine; renderEngines();  // picks the engine (if installed) and fills its modes
+  set("vmode", !s.fast ? "quality" : s.engine === "minimax-h3" && s.turbo_steps === 4 ? "fast4" : "fast"); $("vmode").onchange?.();
+  set("audio", s.audio); set("sound", s.sound);
+  set("length", s.length); set("size", s.size); set("vseed", r.seed ?? s.seed ?? "");
+  set("loop", s.loop); set("smooth", (s.interpolate || 1) > 1);
+  if (s.custom_style) { setVideoStyle("__custom"); set("customStyle", s.custom_style); } else setVideoStyle(s.style || "photoreal");
+  S.restyleTouched = true; set("restyle", s.restyle); $("restyleModelBox").classList.toggle("hidden", !$("restyle").checked);
+  set("restyleModel", s.image_model); set("checkKeyframes", s.check_keyframes); set("approveKeyframes", s.approve_keyframes);
+  $("motion").dataset.sig = ""; renderTray(); renderMotion(); renderPanelSummary();
+  $("secLook").open = $("secVideo").open = true;
+  go("video");
+  document.querySelector(".video-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+  toast("Loaded into the panel (seed included, clear it for a new one). Change anything, then Render video.");
+}
 function renderVideoPage() { renderTray(); renderMotion(); renderJobs(); renderPanelSummary(); }
 
 // Create video's folded sections show a one-line summary; the footer, what the render will make.
@@ -1314,6 +1363,9 @@ function renderPanelSummary() {
   $("sumVideo").textContent = [opt("engine").replace(/ \+ sound$/, ""), opt("vmode"), `${opt("length")} per gap`,
     $("size").value === "preview" ? "preview" : "480p", sound ? "sound" : "", $("loop").checked ? "loop" : ""].filter(Boolean).join(" · ");
   const gaps = Math.max(0, S.tray.length - ($("loop").checked ? 0 : 1));
+  const ready = (S.info.engines || []).filter((e) => e.ready);
+  $("vidGoAll").classList.toggle("hidden", ready.length < 2);
+  $("vidGoAll").textContent = `Render with every model (${ready.length})`;
   $("sumRender").textContent = gaps ? `${S.tray.length} keyframes → about ${gaps * ((+$("length").value - 1) / 16)} s of video` : "Add at least two keyframes";
 }
 document.querySelector(".video-panel").addEventListener("change", renderPanelSummary);
