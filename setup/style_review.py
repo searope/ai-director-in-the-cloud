@@ -29,40 +29,49 @@ DIR = os.path.join(ROOT, "remote", "static", "styles")
 OUT = os.path.join(ROOT, "styles_review.json")
 SCENES = ["city street", "close-up face", "landscape", "indoor scene"]
 
+# The main features of each test scene: every one must be redrawn in the style, and none removed or replaced.
+FEATURES = {
+    1: ["the woman in the yellow raincoat", "the woman's face", "the brown dog", "the red bicycle", "the lamp post",
+        "the shop windows", "the passers-by", "the pavement and street"],
+    2: ["the old man's face", "his eyes", "the grey beard", "the blue knitted cap", "the harbour background"],
+    3: ["the river", "the wooden cabin", "the chimney smoke", "the pine forest", "the snowy peaks", "the sky and clouds"],
+    4: ["the two children", "the children's faces", "the milk being poured", "the ginger cat", "the fruit bowl",
+        "the potted plants", "the window"],
+}
+STATUSES = ["styled", "partly", "unstyled", "missing", "replaced"]
+
 SCHEMA = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["coverage", "strength", "unstyled", "replaced", "summary"],
+    "required": ["features", "strength", "summary"],
     "properties": {
-        "coverage": {"type": "integer", "minimum": 0, "maximum": 100},
+        "features": {"type": "array", "items": {
+            "type": "object", "additionalProperties": False, "required": ["scene", "feature", "status", "note"],
+            "properties": {"scene": {"type": "integer"}, "feature": {"type": "string"},
+                           "status": {"type": "string", "enum": STATUSES}, "note": {"type": "string"}}}},
         "strength": {"type": "string", "enum": ["strong", "clear", "weak", "none"]},
-        "unstyled": {"type": "array", "items": {"type": "string"}},
-        "replaced": {"type": "array", "items": {"type": "string"}},
         "summary": {"type": "string"},
     },
 }
 
-PROMPT = """You check how well an image-editing model redrew pictures in a requested visual style.
+PROMPT = """You check how well an image-editing model redrew test pictures in a requested visual style.
 
 The sheet has one row per scene: the original photo (BEFORE, left) and the model's redraw (AFTER, right).
-The redraw must (1) put the WHOLE picture in the style (people, faces, hands, animals, objects, buildings,
-ground, sky), and (2) keep the content: the same people, animals, objects and buildings in the same places,
-nothing important removed, added or swapped for something else. Small simplifications that belong to the
-style (fewer details in pixel art, flattened shapes in cubism) are fine.
+The message lists each scene's main features. Judge EVERY listed feature in its scene's AFTER picture,
+comparing with BEFORE:
+- styled: clearly drawn in the requested style (its medium, texture, line, palette or light);
+- partly: some of the style, but it still looks noticeably like the original photo;
+- unstyled: still looks like the original photo (at most a colour tint), not in the style;
+- missing: removed or no longer recognisable;
+- replaced: turned into something else, or moved or rearranged substantially.
+Small simplifications that belong to the style (fewer details in pixel art, flattened shapes in cubism) are
+fine and count as styled. Colour and lighting changes that are part of the style are not replacements. For a
+colour-grade or lighting style (film looks), a feature counts as styled when the grade or light covers it.
+note: a few words on what you see, especially for anything not "styled", e.g. "skin stays photographic".
 
-- coverage: your estimate of the share of the picture area, over all scenes, that clearly shows the style
-  (0-100). A picture that is still a photo with a colour tint has low coverage for a medium style
-  (knitted, pixel art, watercolour); for a colour grade or lighting style (film looks), the grade covering
-  everything counts as full coverage.
-- strength: how unmistakably the style shows where it is applied.
-- unstyled: kinds of things that stay in the original photographic look, as short generic phrases (2-5 words)
-  a user can relate to their own pictures, e.g. "faces", "skin", "background buildings", "the sky", "metal objects",
-  "small people in the distance". Empty if none.
-- replaced: important content that was removed, added or replaced (short phrases). Colour and lighting
-  changes that are part of the style are not replacements. E.g. "the shop windows became a painted
-  sky", "the dog is missing in the landscape scene". Empty if none.
-- summary: one sentence for the user, e.g. "Strong knitted look on people and animals; buildings and the
-  street stay photographic." """
+strength: how unmistakably the style shows where it is applied.
+summary: one sentence for the user, e.g. "Strong knitted look on people and animals; buildings and the
+street stay photographic." """
 
 
 def make_sheet(style_id, path):
@@ -112,11 +121,22 @@ def main():
             if not make_sheet(k, sheet):
                 return k, None
             s = styles[k]
+            scenes = [n for n in FEATURES if os.path.exists(os.path.join(DIR, f"{k}-{n}.jpg"))]
+            rows = "\n".join(f"Row {i + 1}, {SCENES[n - 1]} (scene {n}): " + "; ".join(FEATURES[n]) for i, n in enumerate(scenes))
             user = (f"Requested style: {s['label']}: {s['video_prompt']}\n"
-                    f"The redraw instruction was: {s['restyle_prompt']}\nReview the sheet.")
+                    f"The redraw instruction was: {s['restyle_prompt']}\n\nMain features to judge, by scene:\n{rows}\n"
+                    "Use the scene numbers given here. Review the sheet.")
             r = writer.write(PROMPT, user, SCHEMA, image=sheet)
-        r = {"coverage": int(r.get("coverage", 0)), "strength": r.get("strength", ""), "unstyled": r.get("unstyled", [])[:8],
-             "replaced": r.get("replaced", [])[:8], "summary": str(r.get("summary", ""))[:300],
+        feats = [f for f in r.get("features") or [] if isinstance(f, dict) and f.get("status") in STATUSES]
+        score = {"styled": 1, "partly": 0.5}
+        coverage = round(100 * sum(score.get(f["status"], 0) for f in feats) / max(1, len(feats)))
+        generic = lambda f: f["feature"].replace("the ", "", 1)  # noqa: E731
+        unstyled = list(dict.fromkeys(generic(f) for f in feats if f["status"] in ("unstyled", "partly")))
+        replaced = [f"{generic(f)} {f['status']} ({SCENES[f['scene'] - 1] if 1 <= f.get('scene', 0) <= 4 else '?'})"
+                    + (f": {f['note']}" if f.get("note") else "") for f in feats if f["status"] in ("missing", "replaced")]
+        r = {"coverage": coverage, "strength": r.get("strength", ""), "unstyled": unstyled[:10], "replaced": replaced[:10],
+             "passed": bool(feats) and all(f["status"] == "styled" for f in feats),
+             "features": feats, "summary": str(r.get("summary", ""))[:300],
              "prompt": s["restyle_prompt"], "checked": time.strftime("%Y-%m-%d")}
         with lock:
             results[k] = r
@@ -132,8 +152,14 @@ def main():
                 print("failed:", e, flush=True)
                 continue
             if r:
-                print(f"{k:24s} {r['coverage']:3d}% {r['strength']:7s} unstyled: {', '.join(r['unstyled']) or '-'}"
-                      f" | replaced: {', '.join(r['replaced']) or '-'}", flush=True)
+                print(f"{k:24s} {'PASS' if r['passed'] else 'fail'} {r['coverage']:3d}% {r['strength']:7s}"
+                      f" unstyled: {', '.join(r['unstyled']) or '-'} | missing/replaced: {'; '.join(r['replaced']) or '-'}", flush=True)
+    done = {k: results[k] for k in todo if k in results}
+    failed = sorted((v["coverage"], k) for k, v in done.items() if not v.get("passed"))
+    print(f"\n{len(done) - len(failed)} of {len(done)} styles pass (every main feature present and styled).")
+    for cov, k in failed:
+        print(f"  {k:24s} {cov:3d}%  unstyled: {', '.join(done[k]['unstyled']) or '-'}"
+              f" | missing/replaced: {'; '.join(done[k]['replaced']) or '-'}")
     print(f"Reviews in {OUT}")
 
 
