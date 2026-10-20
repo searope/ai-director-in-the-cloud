@@ -1,0 +1,66 @@
+{
+  "_comment": "Style presets. video_prompt is appended to every segment prompt; negative is added to the negative prompt. restyle_prompt (optional) redraws the keyframes in this style with FLUX.2 Klein before animating; leave it null for photos you want kept as they are. loras are optional Wan 2.2 I2V LoRAs you put in ComfyUI/models/loras (high/low noise pair, or the same file for both).",
+  "photoreal": {
+    "label": "Photorealistic",
+    "video_prompt": "photorealistic, natural lighting, realistic physics and motion, shot on a cinema camera, shallow depth of field",
+    "negative": "cartoon, anime, illustration, painting, drawing, 3d render, cgi",
+    "restyle_prompt": null,
+    "loras": []
+  },
+  "photoreal-from-art": {
+    "label": "Photorealistic (convert drawings)",
+    "video_prompt": "photorealistic, natural lighting, realistic physics and motion, shot on a cinema camera",
+    "negative": "cartoon, anime, illustration, painting, drawing, 3d render, cgi",
+    "restyle_prompt": "Turn this image into a realistic photograph with natural lighting and real-world materials. Keep the exact composition, pose, framing, characters and colors.",
+    "loras": []
+  },
+  "anime": {
+    "label": "Anime",
+    "video_prompt": "2D anime style, cel shading, clean line art, vibrant flat colors, hand-drawn animation",
+    "negative": "photorealistic, photo, 3d render, realistic skin texture",
+    "restyle_prompt": "Redraw this image as a 2D anime illustration with cel shading, clean line art and vibrant flat colors. Keep the exact composition, pose, framing and characters.",
+    "loras": []
+  },
+  "3d-cartoon": {
+    "label": "3D cartoon",
+    "video_prompt": "stylized 3D animated film look, soft global illumination, expressive cartoon characters, smooth subsurface skin",
+    "negative": "photorealistic, photo, 2d, flat, sketch",
+    "restyle_prompt": "Re-render this image as a stylized 3D animated movie frame with soft lighting and expressive cartoon proportions. Keep the exact composition, pose, framing and characters.",
+    "loras": []
+  },
+  "claymation": {
+    "label": "Claymation",
+    "video_prompt": "claymation stop-motion, plasticine figures with fingerprints, handmade miniature set, slightly jerky stop-motion movement",
+    "negative": "photorealistic, smooth cgi, 2d, anime",
+    "restyle_prompt": "Recreate this image as a claymation stop-motion scene made of plasticine with visible fingerprints on a handmade miniature set. Keep the exact composition, pose, framing and characters.",
+    "loras": []
+  },
+  "watercolor": {
+    "label": "Watercolor",
+    "video_prompt": "animated watercolor painting, soft bleeding pigments, visible paper texture, gentle brush strokes",
+    "negative": "photorealistic, photo, 3d render, sharp digital lines",
+    "restyle_prompt": "Repaint this image as a soft watercolor painting with bleeding pigments and visible paper texture. Keep the exact composition, pose, framing and characters.",
+    "loras": []
+  },
+  "comic": {
+    "label": "Comic / ink",
+    "video_prompt": "comic book style, bold black ink outlines, halftone shading, flat saturated colors",
+    "negative": "photorealistic, photo, 3d render, soft gradients",
+    "restyle_prompt": "Redraw this image as a comic book panel with bold black ink outlines, halftone shading and flat saturated colors. Keep the exact composition, pose, framing and characters.",
+    "loras": []
+  },
+  "oil-painting": {
+    "label": "Oil painting",
+    "video_prompt": "living oil painting, thick impasto brush strokes, rich colors, painterly texture in motion",
+    "negative": "photorealistic, photo, 3d render, flat cartoon",
+    "restyle_prompt": "Repaint this image as an oil painting with thick impasto brush strokes and rich colors. Keep the exact composition, pose, framing and characters.",
+    "loras": []
+  },
+  "pixel-art": {
+    "label": "Pixel art",
+    "video_prompt": "retro 16-bit pixel art animation, limited color palette, crisp pixels",
+    "negative": "photorealistic, photo, blurry, smooth gradients, 3d render",
+    "restyle_prompt": "Redraw this image as retro 16-bit pixel art with a limited color palette and crisp pixels. Keep the exact composition, pose, framing and characters.",
+    "loras": []
+  }
+}

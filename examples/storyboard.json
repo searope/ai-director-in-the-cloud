@@ -1,0 +1,19 @@
+{
+  "keyframes": [
+    "keyframes/01.png",
+    "keyframes/02.png",
+    "keyframes/03.png"
+  ],
+  "prompts": [
+    "The character turns their head toward the camera and smiles, hair moving gently in the wind. Static camera.",
+    "The character raises one hand and waves, the background lights slowly shift from warm to cool. Slow push-in."
+  ],
+  "style": "anime",
+  "restyle": true,
+  "length": 81,
+  "interpolate": 2,
+  "fast": true,
+  "seed": 42,
+  "loop": false,
+  "output": "output/storyboard_demo.mp4"
+}

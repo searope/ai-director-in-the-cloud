@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#14161a">
+<title>Keyframe Animator</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b8cff'/%3E%3Cpath d='M24 18v28l22-14z' fill='white'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #16181d; --muted: #646b78; --line: #dde0e6;
+    --accent: #3b6fe0; --accent-text: #ffffff; --ok: #1f8a4c; --warn: #b26a00; --bad: #c0362c;
+    --chip: #eceef2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14161a; --card: #1d2026; --text: #eceef2; --muted: #9aa1ad; --line: #2c3038;
+            --accent: #5b8cff; --accent-text: #0b0d10; --ok: #4cc27f; --warn: #e3a33a; --bad: #ef6b60; --chip: #272b33; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         padding: env(safe-area-inset-top) 0 calc(72px + env(safe-area-inset-bottom)); }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 6px; }
+  h1 { font-size: 20px; margin: 0; }
+  h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  main { padding: 0 16px; max-width: 640px; margin: 0 auto; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin: 12px 0; }
+  .pill { font-size: 13px; padding: 4px 10px; border-radius: 99px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+  .pill.ok { color: var(--ok); } .pill.bad { color: var(--bad); }
+  button, .btn { font: inherit; border: 0; border-radius: 10px; padding: 11px 14px; background: var(--chip); color: var(--text);
+                 cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  button.primary { background: var(--accent); color: var(--accent-text); font-weight: 600; width: 100%; padding: 14px; }
+  button:disabled { opacity: .5; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .thumb { position: relative; border-radius: 10px; overflow: hidden; background: var(--chip); aspect-ratio: 1; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb .n { position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; border-radius: 6px; padding: 1px 6px; }
+  .thumb .tools { position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-between; background: rgba(0,0,0,.55); }
+  .thumb .tools button { background: none; color: #fff; padding: 6px 10px; border-radius: 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { padding: 8px 12px; border-radius: 99px; background: var(--chip); border: 1px solid transparent; font-size: 14px; }
+  .chip.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  label.field { display: block; margin: 10px 0 4px; font-size: 14px; color: var(--muted); }
+  textarea, input[type=text], input[type=number], select {
+    width: 100%; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+  textarea { min-height: 64px; resize: vertical; }
+  .switch { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; gap: 12px; }
+  .switch input { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hint { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+  nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: var(--card); border-top: 1px solid var(--line);
+        padding-bottom: env(safe-area-inset-bottom); }
+  nav button { flex: 1; background: none; border-radius: 0; padding: 16px; color: var(--muted); font-weight: 600; }
+  nav button.on { color: var(--accent); }
+  .job-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .status { font-weight: 600; font-size: 14px; }
+  .status.done { color: var(--ok); } .status.failed, .status.cancelled { color: var(--bad); } .status.running { color: var(--accent); } .status.queued { color: var(--warn); }
+  .progress { font-size: 14px; color: var(--muted); margin: 6px 0; word-break: break-word; }
+  .error { font-size: 13px; color: var(--bad); white-space: pre-wrap; word-break: break-word; max-height: 140px; overflow: auto; }
+  video { width: 100%; border-radius: 10px; background: #000; margin-top: 8px; }
+  .mini { display: flex; gap: 6px; overflow-x: auto; margin-top: 8px; }
+  .mini img { height: 56px; border-radius: 6px; }
+  .empty { text-align: center; color: var(--muted); padding: 30px 0; }
+  .hidden { display: none !important; }
+  .kf img { width: 100%; border-radius: 10px; display: block; background: var(--chip); }
+  .kf .meta { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 8px; }
+  .kf .prompt { font-size: 14px; color: var(--muted); margin: 4px 0 8px; word-break: break-word; }
+  .chip:disabled { opacity: .45; }
+  .toast { position: fixed; left: 16px; right: 16px; bottom: calc(80px + env(safe-area-inset-bottom)); background: var(--text); color: var(--bg);
+           border-radius: 10px; padding: 12px 14px; font-size: 14px; max-width: 608px; margin: 0 auto; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Keyframe Animator</h1>
+  <span id="status" class="pill">connecting…</span>
+</header>
+
+<main>
+  <div id="noToken" class="card hidden">
+    <h2>Not connected</h2>
+    <p>Open the link (or scan the QR code) shown in the <b>Phone remote</b> window on the laptop.</p>
+  </div>
+
+  <section id="maker" class="hidden">
+    <div class="card">
+      <h2>Format</h2>
+      <div id="aspects" class="chips"></div>
+      <p id="aspectHint" class="hint">All keyframes share this shape.</p>
+      <label class="field" for="kfModel">Image model</label>
+      <select id="kfModel" class="imageModel"></select>
+    </div>
+    <div id="kfList"></div>
+    <div class="card">
+      <h2 id="composerTitle">Keyframe 1</h2>
+      <textarea id="kfPrompt"></textarea>
+      <div style="height:10px"></div>
+      <button id="kfGo" class="primary" type="button">Generate</button>
+      <div id="kfBusy" class="progress hidden"></div>
+      <div id="photoStart" class="row" style="margin-top:10px">
+        <label class="btn" style="flex:1">Start from a photo instead<input id="kfPhoto" type="file" accept="image/*" hidden></label>
+      </div>
+      <p id="composerHint" class="hint"></p>
+    </div>
+    <button id="kfSend" class="primary" type="button">Send keyframes to Create animation</button>
+    <div class="row" style="margin:12px 0"><button id="kfReset" type="button">Start over</button></div>
+  </section>
+
+  <section id="create">
+    <div class="card">
+      <h2>Keyframes</h2>
+      <div id="thumbs" class="thumbs"></div>
+      <div class="row" style="margin-top:10px">
+        <label class="btn" style="flex:1">＋ Add images<input id="pick" type="file" accept="image/*" multiple hidden></label>
+        <button id="clear" type="button">Clear</button>
+      </div>
+      <p class="hint">In order, 2–12 images. Same aspect ratio works best. Each gap becomes ~2–5 s of motion.</p>
+    </div>
+
+    <div class="card">
+      <h2>Style</h2>
+      <div id="styles" class="chips"></div>
+      <div id="customBox" class="hidden">
+        <label class="field" for="custom">Describe the style</label>
+        <input id="custom" type="text" placeholder="e.g. paper cut-out stop motion, muted pastel colors">
+      </div>
+      <div class="switch"><span>Redraw keyframes in this style first<br><span class="hint">Turns photos into the chosen look before animating</span></span>
+        <input id="restyle" type="checkbox"></div>
+      <label class="field" for="restyleModel">Redraw with</label>
+      <select id="restyleModel" class="imageModel"></select>
+    </div>
+
+    <div class="card">
+      <h2>Video model</h2>
+      <select id="engine" aria-label="Video model"><option value="wan22">Wan 2.2</option></select>
+      <p id="engineHint" class="hint">Wan 2.2: reliable on this laptop, silent, 16 fps.</p>
+      <div id="soundBox" class="hidden">
+        <div class="switch"><span>Generate sound</span><input id="audio" type="checkbox" checked></div>
+        <label class="field" for="sound">Describe the sound (optional)</label>
+        <input id="sound" type="text" placeholder="e.g. footsteps on gravel, soft wind, distant birds">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Motion</h2>
+      <div id="prompts"></div>
+      <p class="hint">Describe what moves between the two frames, and the camera. An empty box repeats the one above.</p>
+    </div>
+
+    <div class="card">
+      <h2>Options</h2>
+      <div class="grid2">
+        <div><label class="field" for="length">Length per gap</label>
+          <select id="length"><option value="33">2 s</option><option value="49">3 s</option><option value="65">4 s</option><option value="81" selected>5 s</option></select></div>
+        <div><label class="field" for="size">Resolution</label>
+          <select id="size"><option value="preview">Preview (fast)</option><option value="standard" selected>Standard ~480p</option></select></div>
+        <div><label class="field" for="mode">Mode</label>
+          <select id="mode"><option value="fast" selected>Fast (4 steps)</option><option value="quality">Quality (20 steps, ~5× slower)</option></select></div>
+        <div><label class="field" for="seed">Seed</label>
+          <input id="seed" type="number" inputmode="numeric" placeholder="random"></div>
+      </div>
+      <div class="switch"><span>Loop back to the first keyframe</span><input id="loop" type="checkbox"></div>
+      <div class="switch"><span>Smooth motion (double the frame rate)</span><input id="smooth" type="checkbox" checked></div>
+    </div>
+
+    <button id="submit" class="primary" type="button">Render animation</button>
+    <div style="height:12px"></div>
+  </section>
+
+  <section id="jobs" class="hidden">
+    <div id="jobList"></div>
+  </section>
+</main>
+
+<nav>
+  <button id="tabMaker" type="button">Keyframes</button>
+  <button id="tabCreate" class="on" type="button">Create</button>
+  <button id="tabJobs" type="button">Jobs <span id="jobBadge"></span></button>
+</nav>
+<div id="toast" class="toast hidden"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+let token = params.get("t") || "";
+try {
+  if (token) localStorage.setItem("kfa_token", token); else token = localStorage.getItem("kfa_token") || "";
+} catch (e) {}
+if (params.has("t")) history.replaceState(null, "", location.pathname);
+
+const state = { files: [], styles: [], style: "photoreal", restyleTouched: false };
+
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.remove("hidden");
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.add("hidden"), 4000);
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { ...opts, headers: { ...(opts.headers || {}), "X-Token": token } });
+  if (res.status === 401) { $("noToken").classList.remove("hidden"); throw new Error("not authorised"); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+const withToken = (url) => url + (url.includes("?") ? "&" : "?") + "t=" + encodeURIComponent(token);
+
+// ---------- keyframes
+function renderThumbs() {
+  const box = $("thumbs"); box.innerHTML = "";
+  state.files.forEach((f, i) => {
+    const d = document.createElement("div"); d.className = "thumb";
+    d.innerHTML = `<img alt=""><span class="n">${i + 1}</span><div class="tools">
+      <button type="button" data-a="left" aria-label="Move earlier">◀</button>
+      <button type="button" data-a="del" aria-label="Remove">✕</button>
+      <button type="button" data-a="right" aria-label="Move later">▶</button></div>`;
+    d.querySelector("img").src = f.url;
+    d.querySelectorAll("button").forEach((b) => b.onclick = () => {
+      const a = b.dataset.a, j = a === "left" ? i - 1 : i + 1;
+      if (a === "del") { URL.revokeObjectURL(f.url); state.files.splice(i, 1); }
+      else if (j >= 0 && j < state.files.length) [state.files[i], state.files[j]] = [state.files[j], state.files[i]];
+      renderThumbs();
+    });
+    box.appendChild(d);
+  });
+  renderPrompts();
+}
+$("pick").onchange = (e) => {
+  for (const file of e.target.files) {
+    if (state.files.length >= 12) { toast("Up to 12 keyframes"); break; }
+    state.files.push({ file, url: URL.createObjectURL(file) });
+  }
+  e.target.value = ""; renderThumbs();
+};
+$("clear").onclick = () => { state.files.forEach((f) => URL.revokeObjectURL(f.url)); state.files = []; renderThumbs(); };
+
+// ---------- prompts (one per gap)
+function renderPrompts() {
+  const box = $("prompts");
+  const old = [...box.querySelectorAll("textarea")].map((t) => t.value);
+  const n = Math.max(0, state.files.length - ($("loop").checked ? 0 : 1));
+  box.innerHTML = n ? "" : '<p class="hint">Add at least two keyframes.</p>';
+  for (let i = 0; i < n; i++) {
+    const to = (i + 1) % state.files.length + 1;
+    box.insertAdjacentHTML("beforeend", `<label class="field" for="p${i}">${i + 1} → ${to}</label>
+      <textarea id="p${i}" placeholder="${i ? "same as above" : "e.g. she turns toward the camera and smiles, slow push-in"}"></textarea>`);
+    $("p" + i).value = old[i] || "";
+  }
+}
+$("loop").onchange = renderPrompts;
+
+// ---------- styles
+function renderStyles() {
+  const box = $("styles"); box.innerHTML = "";
+  [...state.styles, { id: "__custom", label: "Custom…" }].forEach((s) => {
+    const b = document.createElement("button"); b.type = "button";
+    b.className = "chip" + (state.style === s.id ? " on" : ""); b.textContent = s.label;
+    b.onclick = () => {
+      state.style = s.id; renderStyles();
+      $("customBox").classList.toggle("hidden", s.id !== "__custom");
+      if (!state.restyleTouched) $("restyle").checked = s.id === "__custom" ? true : !!s.restyle;
+    };
+    box.appendChild(b);
+  });
+}
+$("restyle").onchange = () => { state.restyleTouched = true; };
+
+// ---------- engine
+const ENGINE_HINTS = {
+  "wan22": "Wan 2.2: reliable on this laptop, silent, 16 fps.",
+  "minimax-h3": "MiniMax H3: 24 fps with generated sound. Heavier and slower on 8 GB; style LoRAs don't apply.",
+};
+function renderEngines(engines) {
+  const sel = $("engine"); sel.innerHTML = "";
+  for (const e of engines) {
+    const o = document.createElement("option"); o.value = e.id;
+    o.textContent = e.label + (e.ready ? "" : " (not installed)"); o.disabled = !e.ready;
+    sel.appendChild(o);
+  }
+  const h3 = engines.find((e) => e.id === "minimax-h3");
+  if (h3 && !h3.ready) ENGINE_HINTS.wan22 += ` MiniMax H3 isn't usable yet; missing in ComfyUI/models: ${h3.missing.join(", ")}`;
+  $("engineHint").textContent = ENGINE_HINTS[sel.value];
+}
+$("engine").onchange = () => {
+  const h3 = $("engine").value === "minimax-h3";
+  $("soundBox").classList.toggle("hidden", !h3);
+  $("engineHint").textContent = ENGINE_HINTS[$("engine").value];
+  $("smooth").checked = !h3;  // H3 is already 24 fps
+};
+
+// ---------- submit
+$("submit").onclick = async () => {
+  if (state.files.length < 2) return toast("Add at least two keyframes");
+  const custom = state.style === "__custom" ? $("custom").value.trim() : "";
+  if (state.style === "__custom" && !custom) return toast("Describe the custom style");
+  const settings = {
+    prompts: [...$("prompts").querySelectorAll("textarea")].map((t) => t.value),
+    engine: $("engine").value,
+    image_model: $("restyleModel").value,
+    audio: $("audio").checked,
+    sound: $("sound").value,
+    style: state.style === "__custom" ? "photoreal" : state.style,
+    custom_style: custom,
+    restyle: $("restyle").checked,
+    fast: $("mode").value === "fast",
+    length: +$("length").value,
+    size: $("size").value,
+    loop: $("loop").checked,
+    smooth: $("smooth").checked,
+    seed: $("seed").value,
+  };
+  const form = new FormData();
+  state.files.forEach((f) => form.append("keyframes", f.file, f.file.name));
+  form.append("settings", JSON.stringify(settings));
+  const btn = $("submit"); btn.disabled = true; btn.textContent = "Uploading…";
+  try {
+    await api("/api/jobs", { method: "POST", body: form });
+    toast("Queued on the laptop"); showTab("jobs");
+  } catch (e) { toast("Failed: " + e.message); }
+  finally { btn.disabled = false; btn.textContent = "Render animation"; }
+};
+
+// ---------- jobs
+const fmtTime = (s) => s < 60 ? `${Math.round(s)}s` : `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
+function jobCard(j) {
+  const s = j.settings, styleName = s.custom_style || (state.styles.find((x) => x.id === s.style) || {}).label || s.style;
+  const end = j.finished || Date.now() / 1000, took = j.started ? fmtTime(end - j.started) : "";
+  const imgs = (j.styled.length ? j.styled.map((n) => ["styled", n]) : j.inputs.map((n) => ["input", n]))
+    .map(([k, n]) => `<img loading="lazy" alt="" src="${withToken(`/api/jobs/${j.id}/image/${k}/${n}`)}">`).join("");
+  const progress = j.status === "queued" ? `Waiting · position ${j.queue_position || "?"}` :
+                   j.status === "running" ? `${j.progress} · ${took}` : (took ? `Took ${took}` : "");
+  return `<div class="card" data-id="${j.id}">
+    <div class="job-head"><span class="status ${j.status}">${j.status}</span><span class="hint">${new Date(j.created * 1000).toLocaleString()}</span></div>
+    <div class="progress">${s.engine === "minimax-h3" ? "H3 · " : ""}${escapeHtml(styleName)} · ${j.inputs.length} keyframes${s.loop ? " · loop" : ""} · ${s.fast ? "fast" : "quality"}</div>
+    ${progress ? `<div class="progress">${escapeHtml(progress)}</div>` : ""}
+    ${j.error ? `<div class="error">${escapeHtml(j.error)}</div>` : ""}
+    <div class="mini">${imgs}</div>
+    ${j.status === "done" ? `<video controls playsinline loop preload="metadata" src="${withToken(`/api/jobs/${j.id}/video`)}"></video>` : ""}
+    <div class="row" style="margin-top:10px">
+      ${j.status === "done" ? `<a class="btn" href="${withToken(`/api/jobs/${j.id}/video?download=1`)}">Download</a>` : ""}
+      ${["queued", "running"].includes(j.status) ? `<button type="button" data-act="cancel">Cancel</button>` : ""}
+      ${j.status !== "running" ? `<button type="button" data-act="delete">Delete</button>` : ""}
+    </div></div>`;
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+let lastJobsJson = "";
+async function refreshJobs() {
+  const jobs = await api("/api/jobs");
+  const active = jobs.filter((j) => ["queued", "running"].includes(j.status)).length;
+  $("jobBadge").textContent = active ? `(${active})` : "";
+  const json = JSON.stringify(jobs);
+  if (json === lastJobsJson) return;
+  lastJobsJson = json;
+  const list = $("jobList");
+  if (!jobs.length) { list.innerHTML = '<div class="empty">No renders yet.</div>'; return; }
+  // Only touch cards that changed, and never move unchanged ones: detaching a <video> stops playback.
+  const existing = new Map([...list.children].map((c) => [c.dataset.id, c]));
+  const ids = new Set(jobs.map((j) => j.id));
+  for (const [id, el] of existing) if (!ids.has(id)) el.remove();
+  let prev = null;
+  for (const j of jobs) {
+    const html = jobCard(j);
+    let el = existing.get(j.id);
+    if (!el || el.dataset.html !== html) {
+      const tmp = document.createElement("div"); tmp.innerHTML = html;
+      const fresh = tmp.firstElementChild; fresh.dataset.html = html;
+      if (el) el.replaceWith(fresh);
+      el = fresh;
+    }
+    const want = prev ? prev.nextElementSibling : list.firstElementChild;
+    if (want !== el) list.insertBefore(el, want);
+    prev = el;
+  }
+}
+$("jobList").onclick = async (e) => {
+  const act = e.target.dataset.act; if (!act) return;
+  const id = e.target.closest(".card").dataset.id;
+  if (act === "delete" && !confirm("Delete this render?")) return;
+  try {
+    await api(`/api/jobs/${id}` + (act === "cancel" ? "/cancel" : ""), { method: act === "cancel" ? "POST" : "DELETE" });
+    lastJobsJson = ""; refreshJobs();
+  } catch (err) { toast(err.message); }
+};
+
+// ---------- status + tabs
+async function refreshInfo() {
+  const info = await api("/api/info");
+  if (!state.styles.length) { state.styles = info.styles; renderStyles(); $("restyle").checked = false; renderEngines(info.engines); renderImageModels(info.image_models); }
+  const c = info.comfy, st = $("status");
+  if (c.online) {
+    const used = c.vram_total ? ((c.vram_total - c.vram_free) / 2 ** 30).toFixed(1) + "/" + (c.vram_total / 2 ** 30).toFixed(0) + " GB" : "";
+    st.textContent = (info.running ? "Rendering · " : "Ready · ") + used; st.className = "pill ok";
+  } else { st.textContent = "ComfyUI offline"; st.className = "pill bad"; }
+}
+function showTab(name) {
+  for (const [sec, tab] of [["maker", "tabMaker"], ["create", "tabCreate"], ["jobs", "tabJobs"]]) {
+    $(sec).classList.toggle("hidden", name !== sec);
+    $(tab).classList.toggle("on", name === sec);
+  }
+  if (name === "jobs") refreshJobs().catch(() => {});
+  window.scrollTo(0, 0);
+}
+$("tabMaker").onclick = () => showTab("maker");
+$("tabCreate").onclick = () => showTab("create");
+$("tabJobs").onclick = () => showTab("jobs");
+
+// ---------- image model pickers (Keyframes tab + "Redraw with"), one shared choice
+let imageModel = "klein4b";
+try { imageModel = localStorage.getItem("kfa_image_model") || imageModel; } catch (e) {}
+function renderImageModels(models) {
+  if (!models.some((m) => m.id === imageModel && !m.missing.length)) imageModel = "klein4b";
+  document.querySelectorAll("select.imageModel").forEach((sel) => {
+    sel.innerHTML = "";
+    for (const m of models) {
+      const o = document.createElement("option"); o.value = m.id;
+      o.textContent = m.label + (m.missing.length ? " (not installed)" : ""); o.disabled = m.missing.length > 0;
+      sel.appendChild(o);
+    }
+    sel.value = imageModel;
+    sel.onchange = () => {
+      imageModel = sel.value;
+      try { localStorage.setItem("kfa_image_model", imageModel); } catch (e) {}
+      document.querySelectorAll("select.imageModel").forEach((other) => { other.value = imageModel; });
+    };
+  });
+}
+
+// ---------- keyframe maker: text -> keyframe 1, then each next keyframe is an edit of the previous one
+const ASPECTS = [["16:9", "Landscape 16:9"], ["9:16", "Portrait 9:16"], ["1:1", "Square"], ["4:3", "4:3"], ["3:4", "3:4"]];
+const maker = { aspect: "16:9", frames: [], busy: false };
+try { Object.assign(maker, JSON.parse(localStorage.getItem("kfa_maker") || "{}"), { busy: false }); } catch (e) {}
+const saveMaker = () => { try { localStorage.setItem("kfa_maker", JSON.stringify({ aspect: maker.aspect, frames: maker.frames })); } catch (e) {} };
+const kfUrl = (id) => withToken(`/api/keyframes/image/${id}`);
+
+function renderMaker() {
+  const n = maker.frames.length;
+  $("aspects").innerHTML = "";
+  for (const [id, label] of ASPECTS) {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = label;
+    b.className = "chip" + (maker.aspect === id ? " on" : ""); b.disabled = n > 0 || maker.busy;
+    b.onclick = () => { maker.aspect = id; saveMaker(); renderMaker(); };
+    $("aspects").appendChild(b);
+  }
+  $("aspectHint").textContent = n ? "Locked: all keyframes share the first one's shape. Start over to change it." : "All keyframes share this shape.";
+
+  const list = $("kfList"); list.innerHTML = "";
+  maker.frames.forEach((f, i) => {
+    const last = i === n - 1;
+    const kind = (f.kind === "photo" ? "your photo" : f.kind === "text" ? "from text" : `edit of keyframe ${i}`) +
+                 (f.model ? ` · ${f.model.replace(/ \(.*\)$/, "")}` : "");
+    const d = document.createElement("div"); d.className = "card kf";
+    d.innerHTML = `<img alt="Keyframe ${i + 1}"><div class="meta"><b>Keyframe ${i + 1}</b><span class="hint">${kind}</span></div>
+      ${f.prompt ? `<div class="prompt"></div>` : ""}
+      ${last ? `<div class="row">${f.kind !== "photo" ? '<button type="button" data-a="again">Regenerate</button><button type="button" data-a="text">Change text</button>' : ""}
+        <button type="button" data-a="remove">Remove</button></div>` : ""}`;
+    d.querySelector("img").src = kfUrl(f.id);
+    if (f.prompt) d.querySelector(".prompt").textContent = f.prompt;
+    d.querySelectorAll("button").forEach((b) => { b.disabled = maker.busy; b.onclick = () => frameAction(i, b.dataset.a); });
+    list.appendChild(d);
+  });
+
+  $("composerTitle").textContent = `Keyframe ${n + 1}`;
+  $("kfPrompt").placeholder = n ? "What changes? e.g. the fox stands up and looks at the camera"
+                                : "Describe the scene and style, e.g. a red fox sitting in a snowy forest at dusk, side view, anime style";
+  $("kfGo").textContent = n ? "Next keyframe" : "Generate";
+  $("composerHint").textContent = n
+    ? "Describe only the change: one pose or camera change per keyframe. Everything else is kept from the previous keyframe."
+    : "Put the style in the description. Regenerate until you like it, then add the next keyframes.";
+  $("photoStart").classList.toggle("hidden", n > 0);
+  $("kfGo").disabled = $("kfPhoto").disabled = maker.busy;
+  $("kfSend").disabled = n < 2 || maker.busy;
+  $("kfSend").textContent = n < 2 ? "Make at least 2 keyframes to animate" : `Send ${n} keyframes to Create animation`;
+}
+
+async function runKeyframe(prompt, source, replaceLast) {
+  maker.busy = true; renderMaker();
+  const busy = $("kfBusy"); busy.classList.remove("hidden"); busy.textContent = "Starting…";
+  try {
+    let task = await api("/api/keyframes/generate", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, source, aspect: maker.aspect, model: imageModel }) });
+    const t0 = Date.now();
+    while (task.status === "running") {
+      await new Promise((r) => setTimeout(r, 1500));
+      task = await api(`/api/keyframes/tasks/${task.id}`);
+      busy.textContent = `${task.progress || "working"} · ${Math.round((Date.now() - t0) / 1000)}s` +
+        " (waits if a video segment is rendering)";
+    }
+    if (task.status === "failed") throw new Error(task.error);
+    const label = $("kfModel").selectedOptions[0]?.textContent || imageModel;
+    const frame = { id: task.image_id, prompt, kind: source ? "edit" : "text", seed: task.seed, model: label };
+    if (replaceLast) maker.frames[maker.frames.length - 1] = frame; else maker.frames.push(frame);
+    saveMaker();
+    if (!replaceLast) $("kfPrompt").value = "";
+  } catch (e) { toast("Keyframe failed: " + e.message); }
+  finally { maker.busy = false; busy.classList.add("hidden"); renderMaker(); }
+}
+
+function frameAction(i, action) {
+  const f = maker.frames[i], prev = maker.frames[i - 1];
+  if (action === "remove") { maker.frames.pop(); saveMaker(); renderMaker(); }
+  else if (action === "again") runKeyframe(f.prompt, prev ? prev.id : null, true);
+  else if (action === "text") {
+    const text = prompt("Change the description and regenerate:", f.prompt);
+    if (text && text.trim()) runKeyframe(text.trim(), prev ? prev.id : null, true);
+  }
+}
+
+$("kfGo").onclick = () => {
+  const text = $("kfPrompt").value.trim();
+  if (!text) return toast(maker.frames.length ? "Describe what changes" : "Describe the first keyframe");
+  const prev = maker.frames[maker.frames.length - 1];
+  runKeyframe(text, prev ? prev.id : null, false);
+};
+$("kfPhoto").onchange = async (e) => {
+  const file = e.target.files[0]; e.target.value = "";
+  if (!file) return;
+  const form = new FormData(); form.append("image", file, file.name);
+  maker.busy = true; renderMaker();
+  try {
+    const r = await api("/api/keyframes/upload", { method: "POST", body: form });
+    maker.frames = [{ id: r.image_id, prompt: "", kind: "photo" }]; saveMaker();
+  } catch (err) { toast("Upload failed: " + err.message); }
+  finally { maker.busy = false; renderMaker(); }
+};
+$("kfReset").onclick = () => {
+  if (maker.frames.length && !confirm("Clear all keyframes and start over?")) return;
+  maker.frames = []; saveMaker(); renderMaker();
+};
+$("kfSend").onclick = async () => {
+  if (state.files.length && !confirm(`Replace the ${state.files.length} images already in Create?`)) return;
+  try {
+    const files = await Promise.all(maker.frames.map(async (f, i) => {
+      const res = await fetch(kfUrl(f.id));
+      if (!res.ok) throw new Error(`keyframe ${i + 1} is no longer on the laptop`);
+      return new File([await res.blob()], `keyframe_${String(i + 1).padStart(2, "0")}.png`, { type: "image/png" });
+    }));
+    state.files.forEach((f) => URL.revokeObjectURL(f.url));
+    state.files = files.map((file) => ({ file, url: URL.createObjectURL(file) }));
+    // keyframes from the maker are already in their final look; don't redraw them by default
+    $("restyle").checked = false; state.restyleTouched = true;
+    renderThumbs(); showTab("create");
+    toast("Keyframes added. Write the motion for each gap, then render.");
+  } catch (e) { toast("Couldn't send: " + e.message); }
+};
+renderMaker();
+
+renderThumbs();
+if (!token) $("noToken").classList.remove("hidden");
+else {
+  const tick = async () => { await refreshInfo().catch(() => {}); refreshJobs().catch(() => {}); };
+  tick(); setInterval(tick, 3000);
+}
+</script>
+</body>
+</html>
