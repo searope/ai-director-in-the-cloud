@@ -436,6 +436,42 @@ PAIR_HEIGHT = 1024  # each photo's height in a side-by-side restyle
 PAIR_GAP = 48       # white gap between the two photos
 
 
+def split_pair(out, left_w, right_w):
+    """Cut a side-by-side restyle back into its two pictures. The model may paint the white gap a little to
+    one side, so find the actual gap (a run of near-white columns near where it was) instead of cutting at
+    the input's position, trim leftover white from the inner edges, and scale each half to its expected size."""
+    import numpy as np
+    from PIL import Image
+    canvas_w = left_w + PAIR_GAP + right_w
+    scale = out.width / canvas_w
+    white = (np.asarray(out.convert("L")) > 225).mean(axis=0) > 0.85  # columns that are mostly white
+    lo, hi = int((left_w - 0.1 * canvas_w) * scale), int((left_w + PAIR_GAP + 0.1 * canvas_w) * scale)
+    runs, start = [], None
+    for x in range(max(0, lo), min(out.width, hi)):
+        if white[x] and start is None:
+            start = x
+        elif not white[x] and start is not None:
+            runs.append((start, x)); start = None
+    if start is not None:
+        runs.append((start, min(out.width, hi)))
+    runs = [r for r in runs if r[1] - r[0] >= 0.4 * PAIR_GAP * scale]  # not a white object in a picture
+    center = (left_w + PAIR_GAP / 2) * scale
+    if runs:  # the white run closest to where the gap should be
+        gap_start, gap_end = min(runs, key=lambda r: abs((r[0] + r[1]) / 2 - center))
+    else:
+        gap_start, gap_end = round(left_w * scale), round((left_w + PAIR_GAP) * scale)
+    a, b = 0, gap_start   # left picture: [a, b)
+    c, d = gap_end, out.width
+    limit = int(0.15 * out.width)  # trim at most this much leftover white per inner edge
+    while b - a > 1 and white[b - 1] and gap_start - b < limit:
+        b -= 1
+    while d - c > 1 and white[c] and c - gap_end < limit:
+        c += 1
+    size = lambda w: (max(16, round(w * scale)), out.height)
+    return [out.crop((a, 0, b, out.height)).resize(size(left_w), Image.LANCZOS),
+            out.crop((c, 0, d, out.height)).resize(size(right_w), Image.LANCZOS)]
+
+
 def restyle_keyframes(comfy, cfg, instruction, paths, out_dir, seed, prefix, report, should_cancel):
     """Redraw keyframes in a style so they share it, while each keeps its own pose and layout.
 
@@ -464,10 +500,7 @@ def restyle_keyframes(comfy, cfg, instruction, paths, out_dir, seed, prefix, rep
         result = comfy.wait(comfy.queue(graph), f"restyle keyframes 1+{i + 1}/{len(paths)}", report, should_cancel)
         with open(pair_path, "wb") as f:
             f.write(comfy.fetch(result["save"]["images"][0]))
-        out = Image.open(pair_path).convert("RGB")
-        scale = out.width / canvas.width
-        halves = [out.crop((0, 0, round(left.width * scale), out.height)),
-                  out.crop((round((left.width + PAIR_GAP) * scale), 0, out.width, out.height))]
+        halves = split_pair(Image.open(pair_path).convert("RGB"), left.width, right.width)
         os.remove(pair_path)
         if i <= 1:  # keyframe 1 comes from the first pair; later pairs only supply their right half
             outputs.append(halves[0])

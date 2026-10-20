@@ -366,6 +366,38 @@ function jobSummary(j) {
   const engine = (S.info?.engines.find((e) => e.id === s.engine) || {}).label || s.engine;
   return { style, engine, text: `${engine} · ${style} · ${j.inputs.length} keyframes${s.loop ? " · loop" : ""} · ${modeLabel(s).toLowerCase()}` };
 }
+// ---------------------------------------------------------------- keyframes of a render
+// The keyframes a render was made from: the originals, and the redrawn ones when the style redraws them
+// (shown as soon as the redraw finishes). Tapping one opens it full size.
+function keyframeStrip(j) {
+  const film = j.kind === "film", redrawn = j.styled.length > 0;
+  const row = (kind, names, label) => !names.length ? "" : `<div class="kf-row"><span class="kf-label">${label}</span>
+    ${names.map((n, i) => `<button type="button" class="kf-thumb" data-kf="${kind}/${n}" data-kf-job="${j.id}" aria-label="${label} ${i + 1}">
+      <img loading="lazy" alt="" src="${jobImg(j, kind, n)}"><span>${film ? "Shot " : ""}${i + 1}</span></button>`).join("")}</div>`;
+  const redrawing = j.status === "running" && j.settings.restyle && !redrawn;
+  return `<div class="kf-strip">${row("input", j.inputs, film ? "Shots" : redrawn || j.settings.restyle ? "Original" : "Keyframes")}
+    ${row("styled", j.styled, "Redrawn")}${redrawing ? `<div class="kf-row"><span class="kf-label">Redrawn</span><span class="hint" style="margin:0">being redrawn in the style…</span></div>` : ""}</div>`;
+}
+function openKeyframe(jobId, ref, back) {
+  const j = jobById(jobId); if (!j) return;
+  const [kind, name] = ref.split("/"), n = parseInt(name, 10);
+  const label = j.kind === "film" ? `Shot ${n}, start frame` : `Keyframe ${n}${kind === "styled" ? ", redrawn" : j.styled.length ? ", original" : ""}`;
+  $("lbMedia").innerHTML = `<img alt="" src="${jobImg(j, kind, name)}">`;
+  $("lbInfo").innerHTML = `<h3>${label}</h3>
+    <p class="hint" style="margin:0">${esc(jobSummary(j).text)}</p>
+    ${keyframeStrip(j)}
+    <div class="acts">
+      ${back ? `<button type="button" class="btn" data-lb="video">Back to the video</button>` : ""}
+      <a class="btn" href="${jobImg(j, kind, name)}" download="keyframe-${j.id}-${kind}-${name}">Download</a>
+    </div>`;
+  $("lbInfo").onclick = (e) => {
+    const kf = e.target.closest("[data-kf]");
+    if (kf) return openKeyframe(jobId, kf.dataset.kf, back);
+    if (e.target.closest('[data-lb="video"]')) openVideo(jobId);
+  };
+  $("lightbox").classList.remove("hidden");
+}
+
 function openVideo(id) {
   const j = S.jobs.find((x) => x.id === id); if (!j) return;
   const s = j.settings, sum = jobSummary(j);
@@ -376,12 +408,15 @@ function openVideo(id) {
   $("lbInfo").innerHTML = `<h3>${j.kind === "film" ? esc(j.title) : "Video"}</h3>
     <div class="prompt">${s.prompts.map((p, i) => j.kind === "film" ? `Shot ${i + 1}: ${esc(p)}` : `${i + 1} → ${i + 2}: ${esc(p)}`).join("\n")}</div>
     <dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+    ${keyframeStrip(j)}
     <div class="acts">
       <button type="button" class="btn" data-lb="sound">Sound</button>
       <a class="btn" href="${jobVideo(j, null, true)}">Download</a>
       <button type="button" class="btn danger" data-lb="delete">Delete</button>
     </div>`;
   $("lbInfo").onclick = async (e) => {
+    const kf = e.target.closest("[data-kf]");
+    if (kf) return openKeyframe(id, kf.dataset.kf, true);
     const a = e.target.closest("[data-lb]")?.dataset.lb;
     if (a === "sound") openSound(id);
     else if (a === "delete" && await deleteJob(id)) closeOverlay("lightbox");
@@ -719,6 +754,7 @@ async function renderVideoJob() {
 $("vidGo").onclick = renderVideoJob;
 
 // ---------------------------------------------------------------- clip check (an AI model reviews a render)
+const STYLE_RATINGS = { strong: ["strong", "ok"], good: ["good", "ok"], weak: ["weak", "warn"], lost: ["lost", "bad"] };
 const VERDICTS = { good: ["Looks good", "ok"], minor: ["Small flaws", "warn"], redo: ["Needs a redo", "bad"] };
 function reviewWriter() {
   const ws = (S.info?.writers || []).filter((w) => w.ready);
@@ -743,6 +779,7 @@ function reviewBlock(r, action, redrawn = false) {
   return `<div class="clip-review">
     <div class="cr-head"><span class="pill ${cls}">${label}</span><span class="hint">${who}</span></div>
     <p>${esc(r.summary)}</p>
+    ${r.style_rating ? `<div class="cr-style"><span class="pill ${STYLE_RATINGS[r.style_rating]?.[1] || ""}">Style: ${STYLE_RATINGS[r.style_rating]?.[0] || r.style_rating}</span> ${esc(r.style_notes || "")}</div>` : ""}
     ${r.issues?.length ? `<details><summary>${r.issues.length} problem${r.issues.length === 1 ? "" : "s"}</summary><ul>${r.issues.map((i) =>
       `<li class="${i.severity}"><b>${esc(i.when)}</b> ${esc(i.what)}</li>`).join("")}</ul></details>` : ""}
     ${r.keyframe_advice ? `<div class="note">${esc(r.keyframe_advice)}</div>` : ""}
@@ -755,8 +792,6 @@ function reviewBlock(r, action, redrawn = false) {
 function jobCard(j) {
   const sum = jobSummary(j);
   const end = j.finished || Date.now() / 1000, took = j.started ? fmtTime(end - j.started) : "";
-  const imgs = (j.styled.length ? j.styled.map((n) => ["styled", n]) : j.inputs.map((n) => ["input", n]))
-    .map(([k, n]) => `<img loading="lazy" alt="" src="${jobImg(j, k, n)}">`).join("");
   const progress = j.status === "queued" ? `Waiting · position ${j.queue_position || "?"}` :
                    j.status === "running" ? `${j.progress} · ${took}` : (took ? `Took ${took}` : "");
   const active = ["queued", "running"].includes(j.status);
@@ -766,7 +801,8 @@ function jobCard(j) {
     ${progress ? `<div class="progress">${esc(progress)}</div>` : ""}
     ${active ? `<div class="bar"><span></span></div>` : ""}
     ${j.error ? `<div class="error">${esc(j.error)}</div>` : ""}
-    ${j.status === "done" ? `<video controls playsinline loop preload="metadata" src="${jobVideo(j)}"></video>` : `<div class="mini">${imgs}</div>`}
+    ${j.status === "done" ? `<video controls playsinline loop preload="metadata" src="${jobVideo(j)}"></video>` : ""}
+    ${keyframeStrip(j)}
     ${reviewBlock(j.review, ["rerender", "Render again with this prompt"], j.styled.length > 0)}
     <div class="row">
       ${j.status === "done" && j.kind !== "film" && j.review?.status !== "working" ? `<button type="button" class="btn small" data-job-act="check">${j.review ? "Check again" : "Check clip"}</button>` : ""}
@@ -808,6 +844,8 @@ async function deleteJob(id) {
 }
 $("jobList").onclick = async (e) => {
   const card = e.target.closest(".job"); if (!card) return;
+  const kf = e.target.closest("[data-kf]");
+  if (kf) return openKeyframe(card.dataset.id, kf.dataset.kf, false);
   if (e.target.closest('[data-fix="rerender"]')) {
     const prompt = card.querySelector("[data-fix-prompt]").value.trim();
     try {

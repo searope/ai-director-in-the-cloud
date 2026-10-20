@@ -186,8 +186,14 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
 .job .error { color: var(--bad); font-size: 13px; white-space: pre-wrap; word-break: break-word; max-height: 140px; overflow: auto; margin-top: 8px; }
 .job video { width: 100%; border-radius: 11px; background: #000; margin-top: 12px; display: block; max-height: 70vh; }
-.job .mini { display: flex; gap: 6px; overflow-x: auto; margin-top: 10px; }
-.job .mini img { height: 48px; border-radius: 6px; }
+.kf-strip { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.kf-row { display: flex; align-items: center; gap: 6px; overflow-x: auto; }
+.kf-label { flex: none; width: 64px; font-size: 11.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.kf-thumb { position: relative; flex: none; padding: 0; border: 1px solid var(--line2); border-radius: 7px; overflow: hidden; background: var(--card); cursor: zoom-in; }
+.kf-thumb img { display: block; height: 64px; width: auto; }
+.kf-thumb span { position: absolute; left: 3px; bottom: 3px; font-size: 10.5px; font-weight: 700; background: #000b; color: #fff; border-radius: 4px; padding: 0 4px; }
+.kf-thumb:hover { border-color: var(--accent); }
+.lb-info .kf-strip { margin-top: 0; }
 .job .row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 
 /* ---------- library */
@@ -315,7 +321,8 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
 .clip-review { display: flex; flex-direction: column; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-top: 10px; font-size: 13.5px; }
 .clip-review p { margin: 0; }
 .cr-head { display: flex; gap: 8px; align-items: center; }
-.cr-head .pill.warn { color: var(--warn); }
+.cr-head .pill.warn, .cr-style .pill.warn { color: var(--warn); }
+.cr-style { font-size: 13px; color: var(--muted); } .cr-style .pill { margin-right: 4px; }
 .clip-review summary { cursor: pointer; color: var(--muted); font-weight: 600; }
 .clip-review ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
 .clip-review li.major b { color: var(--bad); } .clip-review li.minor b { color: var(--warn); }

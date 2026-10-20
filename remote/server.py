@@ -100,6 +100,10 @@ class Jobs:
         with self.lock:
             data = copy.deepcopy({k: v for k, v in job.items() if k != "cancel"})
         data["queue_position"] = self.position(job["id"])
+        if data["status"] == "running" and not data["styled"]:  # redrawn keyframes show as soon as they exist
+            folder = os.path.join(self.dir(job["id"]), "result_keyframes")
+            if os.path.isdir(folder):  # NN.png only: the restyle's temporary files are named otherwise
+                data["styled"] = sorted(n for n in os.listdir(folder) if len(n) == 6 and n[:2].isdigit() and n.endswith(".png"))
         return data
 
     def position(self, job_id):
@@ -517,9 +521,14 @@ def review_job(jobs, job, writer):
 
     def run():
         keys = job_keyframes(jobs, job)
+        settings = job["settings"]
+        originals = [os.path.join(jobs.dir(job["id"]), "inputs", n) for n in job["inputs"]] if job.get("styled") else []
         try:
+            style = animate.resolve_style({"style": settings.get("style"), "custom_style": settings.get("custom_style")})
             result = clipreview.review(writer, os.path.join(jobs.dir(job["id"]), "result.mp4"), [keys[0], keys[-1]],
-                                       " / then: ".join(job["settings"]["prompts"]))
+                                       " / then: ".join(settings["prompts"]),
+                                       {"label": style.get("label", "?"), "description": style.get("video_prompt", "")},
+                                       [originals[0], originals[-1]] if originals else ())
             jobs.update(job, review={**result, "status": "done", "writer": writer.id, "finished": time.time()})
         except Exception as e:  # report any failure in the app
             jobs.update(job, review={"status": "failed", "writer": writer.id, "error": str(e)[-800:]})
