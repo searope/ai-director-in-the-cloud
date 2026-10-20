@@ -1,7 +1,7 @@
 """Download the model files listed in models.json into ComfyUI/models.
 
 Usage:
-    python setup/download_models.py                  # default: minimax-h3 + wan22-flf + interp + restyle
+    python setup/download_models.py                  # default: minimax-h3 + wan22-flf + interp + restyle + flux3-klein
     python setup/download_models.py --profile interp
     python setup/download_models.py --list
 
@@ -19,7 +19,7 @@ import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST = os.path.join(ROOT, "setup", "models.json")
-DEFAULT_PROFILES = ["minimax-h3", "wan22-flf", "interp", "restyle"]
+DEFAULT_PROFILES = ["minimax-h3", "wan22-flf", "interp", "restyle", "flux3-klein"]
 CHUNK = 8 * 1024 * 1024
 
 

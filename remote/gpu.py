@@ -68,6 +68,13 @@ class RunpodGPU:
         self.ready = threading.Event()
         self.state, self.error, self.pod, self.since = "off", None, None, time.time()
         self.last_activity, self.cached_models = time.time(), None
+        # the network volume's last storage reading, kept on disk so the app shows it while the GPU is off
+        self.disk_path = os.path.join(os.path.dirname(state_path), "gpu_disk.json")
+        try:
+            with open(self.disk_path, encoding="utf-8") as f:
+                self.cached_disk = json.load(f)
+        except (OSError, ValueError):
+            self.cached_disk = None
         self._load()
         threading.Thread(target=self._watch, daemon=True).start()
 
@@ -112,7 +119,7 @@ class RunpodGPU:
         return {"mode": "runpod", "state": self.state, "error": self.error, "since": self.since,
                 "gpu": (self.pod or {}).get("gpu_id"), "cost_per_hour": (self.pod or {}).get("cost"),
                 "idle_minutes": self.cfg["idle_minutes"], "seconds_left": None if left is None else round(left),
-                "month_cost": round(self.month_cost(), 2)}
+                "month_cost": round(self.month_cost(), 2), "disk": self.cached_disk}
 
     def models(self):
         return self.cached_models
@@ -202,6 +209,13 @@ class RunpodGPU:
                 data = json.loads(resp.read())
             if data.get("comfy"):
                 self.cached_models = data.get("models")
+                if data.get("disk") and data["disk"] != {k: (self.cached_disk or {}).get(k) for k in ("total", "free")}:
+                    self.cached_disk = dict(data["disk"], seen=time.time())  # {"total", "free"} bytes, and when
+                    try:
+                        with open(self.disk_path, "w", encoding="utf-8") as f:
+                            json.dump(self.cached_disk, f)
+                    except OSError:
+                        pass
                 return True
         except Exception:
             pass

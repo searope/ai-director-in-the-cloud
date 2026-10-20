@@ -42,6 +42,9 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 STYLES_FILE = os.path.join(ROOT, "styles.json")
 USER_STYLES_FILE = os.path.join(ROOT, "output", "styles_user.json")  # prompts edited in the app, over styles.json
 EDITABLE_STYLE_FIELDS = ("restyle_prompt", "video_prompt", "negative")
+CUSTOM_STYLES_FILE = os.path.join(ROOT, "output", "styles_custom.json")  # the user's own styles, made in the app
+RESTYLE_KEEP = (" Keep everything in the picture: every person, animal, object, building and the background stay in the"
+                " same places, with the same poses and framing; change only how it is drawn, coloured and lit.")
 IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
 
 # Wan's default negative prompt (from the official ComfyUI template).
@@ -51,12 +54,15 @@ DEFAULT_NEGATIVE = (
     "手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走"
 )
 
-ENGINES = ("wan22", "minimax-h3")
+ENGINES = ("wan22", "minimax-h3", "ltx23")
+SOUND_ENGINES = ("minimax-h3", "ltx23")  # engines that render a soundtrack with the video
 
 # Short license notes shown in the app (details in setup/models.json; verify on each model card).
 LICENSES = {
     "wan22": "Apache 2.0, commercial OK",
     "minimax-h3": "commercial OK under the owner's written MiniMax license (Oct 2026)",
+    "ltx23": ("LTX-2 Community License: free commercial use under $10M annual revenue (affiliates counted); "
+              "label AI-generated content when you publish it"),
     "h3-turbo": "lightx2v turbo LoRA: license not verified (no license on the repo)",
     "klein4b": "Apache 2.0, commercial OK",
     "klein9b": "non-commercial",
@@ -77,8 +83,14 @@ IMAGE_MODELS = {
 }
 
 
+# FLUX 3 Klein is the default (owner's choice, Oct 2026; free commercial use under $5M annual revenue); FLUX.2
+# Klein 4B (Apache 2.0) is used when FLUX 3 isn't installed.
+DEFAULT_IMAGE_MODEL = "flux3klein"
+FALLBACK_IMAGE_MODEL = "klein4b"
+
+
 def image_model(cfg):
-    name = cfg.get("image_model") or "klein4b"
+    name = cfg.get("image_model") or DEFAULT_IMAGE_MODEL
     if name not in IMAGE_MODELS:
         raise ValueError(f"image_model must be one of: {', '.join(IMAGE_MODELS)}")
     return IMAGE_MODELS[name]
@@ -93,7 +105,7 @@ def missing_image_model_files(models_dir, name, exists=None):
 
 DEFAULTS = {
     "server": "http://127.0.0.1:8188",
-    "engine": "minimax-h3",   # "minimax-h3" (default, with sound) or "wan22" (silent; see LICENSES)
+    "engine": "minimax-h3",   # "minimax-h3" (default, with sound), "wan22" (silent) or "ltx23" (opt-in, with sound; see LICENSES)
     "width": "auto",          # "auto" = match the first keyframe's aspect ratio
     "height": "auto",
     "area": 832 * 480,        # pixel budget for "auto" sizing; fits 8 GB VRAM
@@ -109,7 +121,7 @@ DEFAULTS = {
     "style": "photoreal",     # preset name from styles.json, or a style dict
     "custom_style": None,     # free-text style description; overrides "style"
     "restyle": None,          # redraw keyframes in the style first; None = only if the style has a restyle_prompt
-    "image_model": "klein4b", # model for restyling and the keyframe maker, see IMAGE_MODELS
+    "image_model": None,      # model for restyling and the keyframe maker (None: DEFAULT_IMAGE_MODEL), see IMAGE_MODELS
     "negative": DEFAULT_NEGATIVE,
     "crf": 18,
     "output": "output/animation.mp4",
@@ -127,6 +139,8 @@ DEFAULTS = {
         "h3_audio_vae": "minimax_h3_audio_vae_fp32.safetensors",
         "h3_lora": "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
         "h3_lora_4step": "minimax_h3_fl2v_turbo_4step_v1.3_768p_comfyui_bf16.safetensors",
+        "ltx_ckpt": "ltx-2.3-22b-distilled-fp8.safetensors",  # transformer, video and audio VAEs in one file
+        "ltx_text_encoder": "gemma_3_12B_it_fp4_mixed.safetensors",
     },
 }
 
@@ -283,6 +297,75 @@ def h3_length(wan_length):
     """Same duration as a Wan segment of wan_length frames (16 fps), on H3's 24 fps 17k+5 frame grid."""
     frames = max(5, round((wan_length - 1) / 16 * 24))
     return frames + (5 - frames % 17) % 17
+
+
+def ltx_length(wan_length):
+    """Same duration as a Wan segment of wan_length frames (16 fps), on LTX-2.3's 25 fps 8k+1 frame grid."""
+    frames = max(9, round((wan_length - 1) / 16 * 25))
+    return frames + (1 - frames % 8) % 8
+
+
+LTX_FPS = 25
+LTX_SIGMAS = "1., 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0"  # 8 steps, distilled model
+
+
+def build_ltx_segment_graph(cfg, start_name, end_name, prompt, seed, width, height, prefix):
+    """API-format graph equivalent to ComfyUI's 'LTX-2.3: FLF2V' template (video_ltx2_3_flf2v.json): the distilled
+    fp8 model, the start and end keyframes as guides at frames 0 and -1, video and audio sampled together in 8 steps."""
+    m = cfg["models"]
+    n = ltx_length(cfg["length"])
+    g = {
+        "ckpt": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": m["ltx_ckpt"]}},
+        "audio_vae": {"class_type": "LTXVAudioVAELoader", "inputs": {"ckpt_name": m["ltx_ckpt"]}},
+        "clip": {"class_type": "LTXAVTextEncoderLoader", "inputs": {
+            "text_encoder": m["ltx_text_encoder"], "ckpt_name": m["ltx_ckpt"], "device": "default"}},
+        "pos": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["clip", 0], "text": prompt}},
+        "neg": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["clip", 0], "text": (
+            "blurry, low quality, still frame, frames, watermark, overlay, titles, has blurbox, has subtitles")}},
+        "cond": {"class_type": "LTXVConditioning", "inputs": {"positive": ["pos", 0], "negative": ["neg", 0],
+                                                              "frame_rate": float(LTX_FPS)}},
+        "latent": {"class_type": "EmptyLTXVLatentVideo", "inputs": {"width": width, "height": height, "length": n,
+                                                                    "batch_size": 1}},
+        "audio_latent": {"class_type": "LTXVEmptyLatentAudio", "inputs": {
+            "frames_number": n, "frame_rate": LTX_FPS, "batch_size": 1, "audio_vae": ["audio_vae", 0]}},
+    }
+    prev = {"positive": ["cond", 0], "negative": ["cond", 1], "latent": ["latent", 0]}
+    for key, name, idx in (("first", start_name, 0), ("last", end_name, -1)):
+        g[f"{key}_load"] = {"class_type": "LoadImage", "inputs": {"image": name}}
+        g[f"{key}_scale"] = {"class_type": "ImageScale", "inputs": {
+            "image": [f"{key}_load", 0], "upscale_method": "lanczos", "width": width, "height": height, "crop": "center"}}
+        g[f"{key}_prep"] = {"class_type": "LTXVPreprocess", "inputs": {"image": [f"{key}_scale", 0], "img_compression": 25}}
+        g[f"{key}_guide"] = {"class_type": "LTXVAddGuide", "inputs": {
+            "positive": prev["positive"], "negative": prev["negative"], "vae": ["ckpt", 2], "latent": prev["latent"],
+            "image": [f"{key}_prep", 0], "frame_idx": idx, "strength": 0.7}}
+        prev = {"positive": [f"{key}_guide", 0], "negative": [f"{key}_guide", 1], "latent": [f"{key}_guide", 2]}
+    g.update({
+        "av": {"class_type": "LTXVConcatAVLatent", "inputs": {"video_latent": prev["latent"], "audio_latent": ["audio_latent", 0]}},
+        "noise": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}},
+        "guider": {"class_type": "CFGGuider", "inputs": {"model": ["ckpt", 0], "positive": prev["positive"],
+                                                         "negative": prev["negative"], "cfg": 1.0}},
+        "sampler": {"class_type": "SamplerEulerAncestral", "inputs": {"eta": 0.0, "s_noise": 1.0}},
+        "sigmas": {"class_type": "ManualSigmas", "inputs": {"sigmas": LTX_SIGMAS}},
+        "sample": {"class_type": "SamplerCustomAdvanced", "inputs": {
+            "noise": ["noise", 0], "guider": ["guider", 0], "sampler": ["sampler", 0], "sigmas": ["sigmas", 0],
+            "latent_image": ["av", 0]}},
+        "split": {"class_type": "LTXVSeparateAVLatent", "inputs": {"av_latent": ["sample", 1]}},
+        "crop": {"class_type": "LTXVCropGuides", "inputs": {"positive": prev["positive"], "negative": prev["negative"],
+                                                            "latent": ["split", 0]}},  # drops the appended guide frames
+        "decode": {"class_type": "VAEDecodeTiled", "inputs": {"samples": ["crop", 2], "vae": ["ckpt", 2], "tile_size": 768,
+                                                              "overlap": 64, "temporal_size": 4096, "temporal_overlap": 64}},
+    })
+    frames = ["decode", 0]
+    if cfg["interpolate"] > 1:
+        g["interp_model"] = {"class_type": "FrameInterpolationModelLoader", "inputs": {"model_name": m["interp"]}}
+        g["interp"] = {"class_type": "FrameInterpolate", "inputs": {
+            "interp_model": ["interp_model", 0], "images": frames, "multiplier": cfg["interpolate"]}}
+        frames = ["interp", 0]
+    g["save"] = {"class_type": "SaveImage", "inputs": {"images": frames, "filename_prefix": prefix}}
+    if cfg["audio"]:
+        g["decode_audio"] = {"class_type": "LTXVAudioVAEDecode", "inputs": {"samples": ["split", 1], "audio_vae": ["audio_vae", 0]}}
+        g["save_audio"] = {"class_type": "SaveAudio", "inputs": {"audio": ["decode_audio", 0], "filename_prefix": prefix + "_audio"}}
+    return g
 
 
 def build_h3_segment_graph(cfg, start_name, end_name, prompt, seed, width, height, prefix):
@@ -526,7 +609,7 @@ EDIT_SUFFIX = (" Keep the same characters, art style, lighting, colors, backgrou
 
 
 def make_keyframe(server, prompt, out_path, seed=None, aspect="16:9", source=None,
-                  report=lambda text, final=False: None, model="klein4b", references=(), keep_look=True):
+                  report=lambda text, final=False: None, model=None, references=(), keep_look=True):
     """Create one keyframe image with an IMAGE_MODELS model and save it to out_path.
 
     Without source: text-to-image at the given aspect. With source (an image path):
@@ -537,7 +620,7 @@ def make_keyframe(server, prompt, out_path, seed=None, aspect="16:9", source=Non
     """
     from PIL import Image
 
-    cfg = {"image_model": model}
+    cfg = {"image_model": model or DEFAULT_IMAGE_MODEL}
     image_model(cfg)  # validate
     seed = seed if seed is not None else random.randint(0, 2**32 - 1)
     comfy = Comfy(server)
@@ -578,14 +661,44 @@ def load_user_styles():
         return {}
 
 
+def load_custom_styles():
+    try:
+        with open(CUSTOM_STYLES_FILE, encoding="utf-8") as f:
+            return {k: dict(v, group="My styles", loras=[], custom=True) for k, v in json.load(f).items()}
+    except (OSError, ValueError):
+        return {}
+
+
 def load_styles():
-    """styles.json with the prompts edited in the app (output/styles_user.json) applied; edited styles
-    get "edited": True."""
+    """styles.json with the prompts edited in the app (output/styles_user.json) applied, plus the user's own
+    styles (output/styles_custom.json). Edited styles get "edited": True, own ones "custom": True."""
     styles, user = load_default_styles(), load_user_styles()
     for k, fields in user.items():
         if k in styles:
             styles[k] = {**styles[k], **{f: v for f, v in fields.items() if f in EDITABLE_STYLE_FIELDS}, "edited": True}
+    for k, v in load_custom_styles().items():
+        styles.setdefault(k, v)
     return styles
+
+
+def restyle_prompt_for(look):
+    return f"Convert this image into {look.strip().rstrip('.')}." + RESTYLE_KEEP
+
+
+def save_custom_style(style_id, style):
+    """Create or replace one of the user's own styles ({label, video_prompt, restyle_prompt, negative}); None deletes it."""
+    try:
+        with open(CUSTOM_STYLES_FILE, encoding="utf-8") as f:
+            custom = json.load(f)
+    except (OSError, ValueError):
+        custom = {}
+    if style is None:
+        custom.pop(style_id, None)
+    else:
+        custom[style_id] = {k: style.get(k, "") for k in ("label", "video_prompt", "restyle_prompt", "negative")}
+    os.makedirs(os.path.dirname(CUSTOM_STYLES_FILE), exist_ok=True)
+    with open(CUSTOM_STYLES_FILE, "w", encoding="utf-8") as f:
+        json.dump(custom, f, indent=1, ensure_ascii=False)
 
 
 def save_user_style(style_id, fields):
@@ -607,8 +720,7 @@ def custom_style(description):
         "label": description,
         "video_prompt": description,
         "negative": "",
-        "restyle_prompt": (f"Redraw this image in the following style: {description}. "
-                           "Keep the exact composition, pose, framing and characters."),
+        "restyle_prompt": restyle_prompt_for(description),
         "loras": [],
     }
 
@@ -749,23 +861,25 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
     comfy = Comfy(cfg["server"])
     comfy.ping()
     style = cfg["style_def"]
-    h3 = cfg["engine"] == "minimax-h3"
+    h3, ltx = cfg["engine"] == "minimax-h3", cfg["engine"] == "ltx23"
+    sound = cfg["engine"] in SOUND_ENGINES
 
     keys = cfg["keyframes"]
     width, height = cfg["width"], cfg["height"]
     if width == "auto" or height == "auto":
-        width, height = auto_size(keys[0], cfg["area"], 32 if h3 else 16)
-    elif h3:
+        width, height = auto_size(keys[0], cfg["area"], 32 if sound else 16)
+    elif sound:
         width, height = width // 32 * 32, height // 32 * 32
     seed = cfg["seed"] if cfg["seed"] is not None else random.randint(0, 2**32 - 1)
-    base_fps = 24 if h3 else cfg["fps"]
+    base_fps = 24 if h3 else LTX_FPS if ltx else cfg["fps"]
     out_fps = base_fps * max(1, cfg["interpolate"])
-    if h3 and style.get("loras"):
-        report("note: this style's LoRAs are for Wan 2.2 and are skipped with MiniMax H3", final=True)
+    if sound and style.get("loras"):
+        report(f"note: this style's LoRAs are for Wan 2.2 and are skipped with {cfg['engine']}", final=True)
     run_id = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:4]
 
     report(f"engine {cfg['engine']}, {len(keys)} keyframes, style '{style.get('label', '?')}'{' (restyling keyframes)' if cfg['restyle'] else ''}, "
-           f"{width}x{height}, {h3_length(cfg['length']) if h3 else cfg['length']} frames/segment, {'fast' if cfg['fast'] else 'quality'} mode, seed {seed}",
+           f"{width}x{height}, {h3_length(cfg['length']) if h3 else ltx_length(cfg['length']) if ltx else cfg['length']} frames/segment, "
+           f"{'distilled' if ltx else 'fast' if cfg['fast'] else 'quality'} mode, seed {seed}",
            final=True)
 
     uploaded = {p: comfy.upload_image(p, f"{run_id}_{i:02d}{os.path.splitext(p)[1]}") for i, p in enumerate(keys)}
@@ -814,10 +928,12 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
         full_prompt = ", ".join(x for x in (prompt, style.get("video_prompt")) if x)
         label = f"segment {i + 1}/{len(pairs)}"
         prefix = f"keyframe_anim/{run_id}/seg{i + 1:02d}"
+        if sound and cfg["audio"] and cfg.get("sound"):
+            full_prompt += f"\nAudio: {cfg['sound']}"
         if h3:
-            if cfg["audio"] and cfg.get("sound"):
-                full_prompt += f"\nAudio: {cfg['sound']}"
             graph = build_h3_segment_graph(cfg, uploaded[a], uploaded[b], full_prompt, seed + i, width, height, prefix)
+        elif ltx:
+            graph = build_ltx_segment_graph(cfg, uploaded[a], uploaded[b], full_prompt, seed + i, width, height, prefix)
         else:
             graph = build_segment_graph(cfg, style, uploaded[a], uploaded[b], full_prompt, seed + i, width, height, prefix)
         outputs = comfy.wait(comfy.queue(graph), label, report, should_cancel)
@@ -828,7 +944,7 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
         with ThreadPoolExecutor(16) as pool:
             frames = list(pool.map(lambda im: Image.open(io.BytesIO(comfy.fetch(im))).convert("RGB"), images))
         all_frames.extend(frames if i == 0 else frames[1:])  # segment i starts on segment i-1's last frame
-        if h3 and cfg["audio"]:
+        if sound and cfg["audio"]:
             samples, audio_rate = decode_audio(comfy.fetch(outputs["save_audio"]["audio"][0]))
             if i > 0:  # drop the audio under the dropped shared frame
                 samples = samples[:, round(audio_rate / base_fps):]
@@ -857,7 +973,7 @@ def main():
     ap.add_argument("--no-restyle", dest="restyle", action="store_false", help="keep keyframes as they are")
     ap.add_argument("--list-styles", action="store_true")
     ap.add_argument("--engine", choices=ENGINES, help="video model (default minimax-h3)")
-    ap.add_argument("--image-model", choices=list(IMAGE_MODELS), help="model for --restyle (default klein4b)")
+    ap.add_argument("--image-model", choices=list(IMAGE_MODELS), help=f"model for --restyle (default {DEFAULT_IMAGE_MODEL})")
     ap.add_argument("--sound", help="MiniMax H3: describe the soundtrack")
     ap.add_argument("--turbo-steps", type=int, choices=(4, 8), help="MiniMax H3 fast mode: 8 (default) or 4 steps")
     ap.add_argument("--no-audio", dest="audio", action="store_false", default=None, help="MiniMax H3: drop the soundtrack")

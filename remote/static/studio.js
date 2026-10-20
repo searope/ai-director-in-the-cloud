@@ -55,7 +55,7 @@ const S = {
   pending: [],                       // image generations in flight: {task, prompt, error}
   imgMode: "text", source: null,     // edit mode: library image id to edit
   aspect: store.get("aspect", "16:9"), count: 1,
-  imageModel: store.get("image_model", "klein4b"),
+  imageModel: store.get("image_model", null),  // null: the server's default (FLUX 3 Klein when installed)
   tray: store.get("tray", []),       // library image ids for the next video, in order
   motion: store.get("motion", []),   // one motion prompt per gap
   style: "photoreal", restyleTouched: false,
@@ -180,7 +180,7 @@ $("editSource").onclick = (e) => { if (e.target.closest("[data-pick-source]")) o
 
 function renderImageModels() {
   const models = S.info.image_models;
-  if (!models.some((m) => m.id === S.imageModel && !m.missing.length)) S.imageModel = "klein4b";
+  if (!models.some((m) => m.id === S.imageModel && !m.missing.length)) S.imageModel = S.info.default_image_model;
   document.querySelectorAll("select.imageModel").forEach((sel) => {
     sel.innerHTML = models.map((m) => `<option value="${m.id}"${m.missing.length ? " disabled" : ""}>${esc(m.label)}${m.missing.length ? " (not installed)" : ""}</option>`).join("");
     sel.value = S.imageModel;
@@ -194,8 +194,9 @@ function renderImageModels() {
 }
 function renderModelLicense() {
   const m = S.info.image_models.find((x) => x.id === S.imageModel);
-  const el = $("imgModelLicense");
-  el.className = "license " + licenseClass(m.license); el.textContent = "License: " + m.license;
+  // the owner chose (Oct 2026) not to show license text here: it is a tooltip on the menu
+  $("imgModelLicense").classList.add("hidden");
+  document.querySelectorAll("select.imageModel").forEach((sel) => { sel.title = m ? "License: " + m.license : ""; });
 }
 
 async function generateImages() {
@@ -309,6 +310,7 @@ document.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {  // the picker can sit on top of the character sheet: close only the top one
     if (!$("picker").classList.contains("hidden")) return closeOverlay("picker");
+    if (!$("ssZoom").classList.contains("hidden")) return closeOverlay("ssZoom");
     closeOverlay("lightbox"); closeOverlay("charSheet"); closeOverlay("soundSheet"); closeOverlay("styleSheet");
   }
   if (e.key === "Enter" && e.target.matches?.(".tile")) e.target.click();
@@ -360,7 +362,9 @@ function openImage(id) {
   $("lightbox").classList.remove("hidden");
 }
 
-const modeLabel = (s) => !s.fast ? "Quality" : s.engine === "minimax-h3" ? (s.turbo_steps === 4 ? "Fast, 4 steps" : "Balanced, 8 steps") : "Fast";
+const SOUND_ENGINES = ["minimax-h3", "ltx23"];  // engines that render their own soundtrack
+const modeLabel = (s) => s.engine === "ltx23" ? "Distilled, 8 steps" : !s.fast ? "Quality"
+  : s.engine === "minimax-h3" ? (s.turbo_steps === 4 ? "Fast, 4 steps" : "Balanced, 8 steps") : "Fast";
 function jobSummary(j) {
   const s = j.settings;
   if (j.kind === "film") return { style: "", engine: "", text: `Film · ${j.title} · ${s.prompts.length} shots` };
@@ -530,7 +534,7 @@ function renderSound() {
   $("sndVersions").innerHTML = versions.map(([k, label]) =>
     `<button type="button" class="chip${k === SND.version ? " on" : ""}" data-version="${k}">${esc(label)}</button>`).join("");
   $("sndDownload").innerHTML = `<a class="btn small" href="${jobVideo(j, SND.version, true)}">Download this version</a>`;
-  const hasOwnSound = j.settings.engine === "minimax-h3";
+  const hasOwnSound = SOUND_ENGINES.includes(j.settings.engine);
   $("sndTracks").innerHTML = (hasOwnSound ? `<div class="snd-track" data-track="video">
       <div class="head"><b>Render</b><span class="txt">the video's own generated sound</span></div>
       <div class="ctl"><span></span><label>Volume ${Math.round(a.video_volume * 100)}%<input type="range" data-f="volume" min="0" max="2" step="0.05" value="${a.video_volume}"></label><span></span></div>
@@ -589,11 +593,12 @@ $("sndDub").onclick = async () => {
 
 // ---------------------------------------------------------------- picker (library images)
 const picker = { mode: "tray", sel: [] };
-const pickOne = () => ["source", "shotstart", "trystyle"].includes(picker.mode);  // single choice, not a list
+const pickOne = () => ["source", "shotstart", "trystyle", "sstry"].includes(picker.mode);  // single choice, not a list
 function openPicker(mode) {
   picker.mode = mode; picker.sel = [];
   $("pickerTitle").textContent = { source: "Choose the image to edit", refs: "Add reference images",
-                                   shotstart: "Choose the shot's start frame", trystyle: "Choose the image to try the styles on" }[mode] || "Add keyframes, in order";
+                                   shotstart: "Choose the shot's start frame", trystyle: "Choose the image to try the styles on",
+                                   sstry: "Choose a picture to try this style on" }[mode] || "Add keyframes, in order";
   $("pickerDone").textContent = pickOne() ? "Use image" : "Add";
   renderPicker();
   $("picker").classList.remove("hidden");
@@ -618,6 +623,7 @@ $("pickerDone").onclick = () => {
   else if (picker.mode === "refs") addRefs(picker.sel);
   else if (picker.mode === "shotstart") setShotStart(picker.shot, picker.sel[0]);
   else if (picker.mode === "trystyle") tryStyles(picker.sel[0]);
+  else if (picker.mode === "sstry") tryOnPicture(picker.sel[0]);
   else addToTray(picker.sel);
   closeOverlay("picker");
 };
@@ -688,7 +694,9 @@ $("loop").onchange = renderMotion;
 const styleById = (id) => (S.info?.styles || []).find((s) => s.id === id);
 const styleLabel = (id) => id === "__custom" ? "Custom" : styleById(id)?.label || id;
 const exampleUrl = (url) => url.startsWith("/api/") ? withToken(url) : url;
-const styleThumb = (st, cls = "") => st?.example ? `<img class="${cls}" loading="lazy" alt="" src="${exampleUrl(st.example)}">`
+// the card picture: the style's example in the scene chosen on the Styles page (city street, face, landscape, indoor)
+const sceneExample = (st) => st?.examples?.[STY.scene] || null;
+const styleThumb = (st, cls = "") => sceneExample(st) ? `<img class="${cls}" loading="lazy" alt="" src="${exampleUrl(sceneExample(st))}">`
   : `<span class="${cls} style-ph">${esc((st?.label || "?").slice(0, 2))}</span>`;
 function setVideoStyle(id) {
   S.style = id;
@@ -718,13 +726,15 @@ $("restyle").onchange = () => { S.restyleTouched = true; $("restyleModelBox").cl
 
 // The Styles page. mode "browse": select styles to try on an image (or use one for videos); mode "video": tap one to
 // use it in Create video. STY.image: an image chosen to try styles on (from the image viewer).
-const STY = { mode: "browse", group: "Recent", q: "", sel: new Set(), image: null };
+var STY = { mode: "browse", group: "Recent", q: "", sel: new Set(), image: null, scene: 0 };
+try { STY.scene = Math.max(0, Math.min(3, +store.get("style_scene", 0) || 0)); } catch { /* no storage */ }
 function styleGroups() {
   const groups = [...new Set((S.info?.styles || []).map((s) => s.group))];
   return [...(store.get("recent_styles", []).length ? ["Recent"] : []), "All", ...groups];
 }
 function renderStylesPage() {
   if (!S.info) return;
+  setHtml($("styleScenes"), SCENES.map((name, i) => `<button type="button" data-scene="${i}"${STY.scene === i ? ' class="on"' : ""}>${name}</button>`).join(""));
   const groups = styleGroups();
   if (!groups.includes(STY.group)) STY.group = groups.includes("Basics") ? "Basics" : "All";
   setHtml($("styleGroups"), groups.map((g) => `<button type="button" class="chip${STY.group === g && !STY.q ? " on" : ""}" data-group="${esc(g)}">${esc(g)}</button>`).join(""));
@@ -750,6 +760,10 @@ function renderStylesPage() {
        ${STY.sel.size === 1 ? `<button type="button" class="btn small" data-st="use">Use for videos</button>` : ""}
        <button type="button" class="btn small ghost" data-st="clear">Clear</button>` : ""}`;
 }
+$("styleScenes").onclick = (e) => {
+  const b = e.target.closest("[data-scene]"); if (!b) return;
+  STY.scene = +b.dataset.scene; store.set("style_scene", STY.scene); renderStylesPage(); renderStyles();
+};
 $("styleSearch").oninput = () => { STY.q = $("styleSearch").value; renderStylesPage(); };
 $("styleGroups").onclick = (e) => {
   const b = e.target.closest("[data-group]"); if (!b) return;
@@ -775,41 +789,156 @@ $("styleTool").onclick = async (e) => {
 // A style's details: its example pictures (city street, close-up face, landscape, indoor scene) and its two
 // prompts, editable. "Redraw examples" redoes the pictures with the edited redraw prompt on the GPU.
 const SCENES = ["City street", "Close-up face", "Landscape", "Indoor scene"];
-const SS = { id: null, redrawing: {} };  // redrawing: style id -> tasks still running
-function openStyleSheet(id) {
-  const st = styleById(id); if (!st) return;
-  SS.id = id;
-  $("ssTitle").textContent = st.label;
+const SS = { id: null, redrawing: {}, tries: [] };  // tries: pictures tried in a style here {style, source, task, image}  // redrawing: style id -> tasks still running
+// A new style of the user's own: the panel opens empty (seed: a style to copy from).
+const NEW_STYLE = { id: null, label: "", group: "My styles", look: "", restyle_prompt: "", restyle: true, custom: true, examples: [] };
+function openStyleSheet(id, seed = null) {
+  const st = id ? styleById(id) : { ...NEW_STYLE, ...(seed || {}) }; if (!st) return;
+  SS.id = id; SS.draft = id ? null : st;
+  $("ssTitle").textContent = id ? st.label : "New style";
+  $("ssName").value = id ? st.label : st.label || "";
   $("ssRestyle").value = st.restyle_prompt || "";
   $("ssLook").value = st.look || "";
   renderStyleSheet();
   $("styleSheet").classList.remove("hidden");
+  if (!id) $("ssName").focus();
 }
 function renderStyleSheet() {
-  const st = styleById(SS.id); if (!st) return;
+  const st = SS.id ? styleById(SS.id) : SS.draft; if (!st) return;
+  $("ssNameBlock").classList.toggle("hidden", !st.custom);
+  $("ssRestyleHint").textContent = st.custom ? "turns pictures into this style; leave empty to make it from the look"
+    : "turns keyframes and pictures into this style";
+  $("ssCopy").classList.toggle("hidden", !!st.custom || !SS.id);
+  $("ssReset").textContent = st.custom ? "Delete style" : "Reset to default";
   const running = SS.redrawing[st.id] || [];
   $("ssSub").textContent = `${st.group}${st.edited ? " · edited" : ""}`;
-  $("ssExamples").innerHTML = SCENES.map((name, i) => `<figure>${st.examples?.[i] ? `<img alt="" src="${exampleUrl(st.examples[i])}">`
+  $("ssExamples").innerHTML = SCENES.map((name, i) => `<figure>${st.examples?.[i] ? `<img alt="${name}, tap to enlarge" src="${exampleUrl(st.examples[i])}" data-zoom-scene="${i}">`
     : `<span class="style-ph"></span>`}<figcaption>${name}</figcaption></figure>`).join("");
   $("ssRestyleBlock").classList.toggle("hidden", !st.restyle);
   $("ssRedraw").classList.toggle("hidden", !st.restyle);
   $("ssRedraw").disabled = running.length > 0;
   $("ssRedrawing").classList.toggle("hidden", !running.length);
   $("ssRedrawing").textContent = running.length ? `Redrawing the examples on the GPU: ${running.length} left…` : "";
-  $("ssReset").classList.toggle("hidden", !st.edited);
+  $("ssReset").classList.toggle("hidden", st.custom ? !SS.id : !st.edited);
+  $("ssRedraw").disabled = $("ssRedraw").disabled || !SS.id && !st.custom;
+  $("ssTryBlock").classList.toggle("hidden", !st.restyle);
+  const tries = SS.tries.filter((t) => SS.id && t.style === SS.id);
+  $("ssTries").innerHTML = tries.map((t, i) => `<div class="ss-try">
+      <img alt="Before" src="${imgUrl(t.source)}" data-try="${SS.tries.indexOf(t)}" data-side="before"><span>→</span>
+      ${t.image ? `<img alt="After" src="${imgUrl(t.image)}" data-try="${SS.tries.indexOf(t)}" data-side="after">`
+        : `<div class="ph">${t.error ? esc(t.error.slice(0, 80)) : `<div class="spinner"></div>`}</div>`}</div>`).join("");
+  const r = st.review;
+  $("ssReview").classList.toggle("hidden", !r);
+  $("ssReview").innerHTML = !r ? "" : `<div class="ss-cov"><b>${r.coverage}% styled</b> · ${esc(r.strength)} · <span class="hint">AI check of the examples</span></div>
+    <p>${esc(r.summary)}</p>
+    ${r.unstyled.length ? `<p><b>May stay unstyled:</b> ${r.unstyled.map(esc).join(", ")}. Similar things in your pictures may not take the style well.</p>` : ""}
+    ${r.replaced.length ? `<p class="warn-text"><b>Changed content:</b> ${r.replaced.map(esc).join("; ")}.</p>` : ""}`;
 }
+// Try the style on the user's own picture, from the panel: drop, upload or pick from the Library.
+async function tryOnPicture(imageId) {
+  if (!SS.id) { try { await saveStyle(); } catch (e) { return toast(e.message); } }  // a new style: save it first
+  const id = SS.id, st = styleById(id); if (!st || !imageId) return;
+  try {
+    const [t] = await api("/api/styles/try", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_id: imageId, styles: [id], model: S.imageModel, prompt: $("ssRestyle").value }) });
+    const entry = { style: id, source: imageId, task: t.task, image: null, error: null };
+    SS.tries.unshift(entry);
+    renderStyleSheet();
+    while (entry.task.status === "running") {
+      await new Promise((r) => setTimeout(r, 2500));
+      try { entry.task = await api(`/api/keyframes/tasks/${entry.task.id}`); } catch { entry.task = { status: "failed", error: "the task was lost" }; }
+    }
+    if (entry.task.status === "done") entry.image = entry.task.image_id; else entry.error = entry.task.error || "failed";
+    refreshImages();
+  } catch (e) { toast(e.message); }
+  renderStyleSheet();
+}
+async function tryFiles(files) {
+  for (const id of await uploadImages([...files].filter((f) => f.type.startsWith("image/")))) tryOnPicture(id);
+}
+$("ssDrop").addEventListener("click", (e) => {
+  const a = e.target.closest("[data-sstry]")?.dataset.sstry;
+  if (a === "upload") $("ssFile").click();
+  else if (a === "library") openPicker("sstry");
+});
+$("ssFile").onchange = () => { tryFiles($("ssFile").files); $("ssFile").value = ""; };
+["dragenter", "dragover"].forEach((ev) => $("ssDrop").addEventListener(ev, (e) => { e.preventDefault(); $("ssDrop").classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => $("ssDrop").addEventListener(ev, () => $("ssDrop").classList.remove("over")));
+$("ssDrop").addEventListener("drop", (e) => { e.preventDefault(); tryFiles(e.dataTransfer.files); });
+$("ssTries").onclick = (e) => {
+  const img = e.target.closest("[data-try]"); if (!img) return;
+  const t = SS.tries[+img.dataset.try];
+  ZOOM.custom = { before: imgUrl(t.source), after: t.image ? imgUrl(t.image) : null };
+  ZOOM.before = img.dataset.side === "before" || !t.image;
+  renderZoom(); $("ssZoom").classList.remove("hidden");
+};
+
+// An example full size, over the style panel: After (the redraw) or Before (the original photo), ‹ › for the scenes.
+const ZOOM = { scene: 0, before: false, custom: null };  // custom: {before, after} of a picture tried here
+function renderZoom() {
+  const st = styleById(SS.id); if (!st) return;
+  const c = ZOOM.custom;
+  const url = c ? (ZOOM.before ? c.before : c.after) : ZOOM.before ? `/static/styles/_base-${ZOOM.scene + 1}.jpg` : st.examples?.[ZOOM.scene];
+  $("ssZoomImg").src = url ? exampleUrl(url) : "";
+  $("ssZoomCap").textContent = `${st.label} · ${c ? "your picture" : SCENES[ZOOM.scene]} · ${ZOOM.before ? "original" : "redrawn"}`;
+  document.querySelectorAll("#ssZoom [data-zoom=prev], #ssZoom [data-zoom=next]").forEach((b) => b.classList.toggle("hidden", !!c));
+  document.querySelectorAll("#ssZoom [data-zoom=after], #ssZoom [data-zoom=before]").forEach((b) =>
+    b.classList.toggle("on", (b.dataset.zoom === "before") === ZOOM.before));
+}
+function zoomStep(d) {
+  const st = styleById(SS.id), have = SCENES.map((_, i) => i).filter((i) => st?.examples?.[i]);
+  if (!have.length) return;
+  ZOOM.scene = have[(have.indexOf(ZOOM.scene) + d + have.length) % have.length];
+  renderZoom();
+}
+$("ssExamples").onclick = (e) => {
+  const img = e.target.closest("[data-zoom-scene]"); if (!img) return;
+  ZOOM.scene = +img.dataset.zoomScene; ZOOM.before = false; ZOOM.custom = null;
+  renderZoom(); $("ssZoom").classList.remove("hidden");
+};
+$("ssZoom").addEventListener("click", (e) => {
+  const a = e.target.closest("[data-zoom]")?.dataset.zoom;
+  if (a === "prev" || a === "next") zoomStep(a === "prev" ? -1 : 1);
+  else if (a) { ZOOM.before = a === "before"; renderZoom(); }
+  else if (e.target.id === "ssZoomImg") { ZOOM.before = !ZOOM.before; renderZoom(); }  // tap the picture to compare
+});
+document.addEventListener("keydown", (e) => {
+  if ($("ssZoom").classList.contains("hidden")) return;
+  if (e.key === "ArrowLeft" || e.key === "ArrowRight") zoomStep(e.key === "ArrowLeft" ? -1 : 1);
+  else if (e.key === " ") { e.preventDefault(); ZOOM.before = !ZOOM.before; renderZoom(); }
+});
+
 async function saveStyle() {
+  const st = SS.id ? styleById(SS.id) : SS.draft;
   const body = { look: $("ssLook").value };
-  if (styleById(SS.id).restyle) body.restyle_prompt = $("ssRestyle").value;
-  await api(`/api/styles/${SS.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  await refreshInfo(); renderStylesPage(); renderStyles(); renderStyleSheet();
+  if (st.restyle) body.restyle_prompt = $("ssRestyle").value;
+  if (st.custom) body.label = $("ssName").value;
+  if (!SS.id) {  // a new style: create it, then the panel shows it like any other
+    SS.id = (await api("/api/styles", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).id;
+    SS.draft = null;
+  } else {
+    await api(`/api/styles/${SS.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  }
+  await refreshInfo(); renderStylesPage(); renderStyles();
+  const now = styleById(SS.id);
+  if (now) { $("ssTitle").textContent = now.label; $("ssRestyle").value = now.restyle_prompt || ""; }
+  renderStyleSheet();
 }
+$("styleNew").onclick = () => openStyleSheet(null);
+$("ssCopy").onclick = () => {
+  const st = styleById(SS.id); if (!st) return;
+  openStyleSheet(null, { label: `${st.label} (mine)`, look: st.look, restyle_prompt: st.restyle_prompt || "" });
+};
 $("ssSave").onclick = async () => { try { await saveStyle(); toast("Saved: renders in this style use the new prompts"); } catch (e) { toast(e.message); } };
 $("ssReset").onclick = async () => {
-  if (!confirm("Go back to the original prompts and example pictures for this style?")) return;
+  const st = styleById(SS.id); if (!st) return;
+  if (!confirm(st.custom ? `Delete your style "${st.label}"? Videos already made keep their look.`
+    : "Go back to the original prompts and example pictures for this style?")) return;
   try {
     await api(`/api/styles/${SS.id}`, { method: "DELETE" });
-    await refreshInfo(); openStyleSheet(SS.id); renderStylesPage(); renderStyles();
+    await refreshInfo();
+    if (st.custom) { closeOverlay("styleSheet"); if (S.style === st.id) setVideoStyle("photoreal"); } else openStyleSheet(SS.id);
+    renderStylesPage(); renderStyles();
   } catch (e) { toast(e.message); }
 };
 $("ssRedraw").onclick = async () => {
@@ -871,12 +1000,12 @@ function renderEngines() {
 }
 $("engine").onchange = () => {
   const e = S.info.engines.find((x) => x.id === $("engine").value);
-  const h3 = e.id === "minimax-h3";
-  $("soundBox").classList.toggle("hidden", !h3);
-  $("smooth").checked = !h3;  // H3 already renders 24 fps
-  // H3 has two turbo LoRAs (4 and 8 steps); Wan's fast mode is its 4-step LoRA.
+  const h3 = e.id === "minimax-h3", ltx = e.id === "ltx23";
+  $("soundBox").classList.toggle("hidden", !SOUND_ENGINES.includes(e.id));
+  $("smooth").checked = !SOUND_ENGINES.includes(e.id);  // H3 and LTX already render 24-25 fps
+  // H3 has two turbo LoRAs (4 and 8 steps); Wan's fast mode is its 4-step LoRA; LTX-2.3 runs its distilled model.
   const keep = $("vmode").value;
-  $("vmode").innerHTML = (h3
+  $("vmode").innerHTML = (ltx ? [["fast", "Distilled (8 steps)"]] : h3
     ? [["fast4", "Fast (4 steps)" + (e.turbo4 ? "" : " (not installed)"), !e.turbo4], ["fast", "Balanced (8 steps)"], ["quality", "Quality (20 steps)"]]
     : [["fast", "Fast (4 steps)"], ["quality", "Quality (20 steps)"]])
     .map(([v, label, off]) => `<option value="${v}"${off ? " disabled" : ""}>${label}</option>`).join("");
@@ -890,7 +1019,7 @@ $("vmode").onchange = () => {
   // What the engine gives; its license notes only on hover (owner's choice, Oct 2026; details in the README).
   const el = $("engineLicense"), turbo = h3 && $("vmode").value !== "quality";
   el.className = "hint";
-  el.textContent = h3 ? "24 fps with generated sound" : "16 fps, silent";
+  el.textContent = h3 ? "24 fps with generated sound" : e.id === "ltx23" ? "25 fps with generated sound" : "16 fps, silent";
   el.title = "License: " + e.license + (turbo ? `. ${e.turbo_license}; Quality mode doesn't use it.` : "");
 };
 
@@ -1520,6 +1649,30 @@ $("dirDelete").onclick = async () => {
 };
 
 // ---------------------------------------------------------------- library
+// Masonry grids (Home, Library): each tile spans as many 4 px rows as its height needs, plus the gap, so tiles of
+// any shape pack left to right without holes. Re-measured when pictures load and when the grid's width changes.
+const MASONRY_ROW = 4;
+function masonryFit(tile) {
+  const v = tile.querySelector("video");
+  if (v && !v.style.aspectRatio && !v.videoWidth && v.poster && !tile.dataset.probe) {  // its shape from the poster frame
+    tile.dataset.probe = "1";
+    const im = new Image();
+    im.onload = () => { v.style.aspectRatio = `${im.naturalWidth}/${im.naturalHeight}`; masonryFit(tile); };
+    im.src = v.poster;
+  }
+  const gap = tile.parentElement && innerWidth <= 760 ? 8 : 12;
+  tile.style.gridRowEnd = `span ${Math.max(1, Math.ceil((tile.getBoundingClientRect().height + gap) / MASONRY_ROW))}`;
+}
+// measured on the next frame, once the layout has settled (a width change resizes every tile)
+const masonryLater = (tiles) => requestAnimationFrame(() => tiles.forEach((t) => t.isConnected && masonryFit(t)));
+const masonrySizes = new ResizeObserver((entries) => masonryLater(entries.map((e) => e.target)));  // a tile's height changed
+function watchMasonry(grid) {
+  const watch = () => { [...grid.children].forEach((t) => masonrySizes.observe(t)); masonryLater([...grid.children]); };
+  new MutationObserver(watch).observe(grid, { childList: true });
+  new ResizeObserver(() => masonryLater([...grid.children])).observe(grid);
+  watch();
+}
+watchMasonry($("libGrid")); watchMasonry($("homeGrid"));
 function renderLibrary() {
   const f = S.libFilter;
   const videos = f === "image" ? [] : S.jobs.filter((j) => j.status === "done").map((j) => ({ t: j.finished || j.created, html: videoTile(j) }));
@@ -1542,6 +1695,9 @@ function renderStatus() {
   const c = info.comfy, st = $("status"), card = $("gpuCard"), g = info.gpu || {}, btn = $("gpuBtn");
   const active = S.jobs.filter((j) => ["queued", "running"].includes(j.status)).length;
   const pod = g.mode === "runpod", month = pod ? ` · $${(g.month_cost || 0).toFixed(2)} this month` : "";
+  // the network volume's storage; while the GPU is off, its last reading
+  const storage = (old) => !g.disk ? "" : ` · storage ${((g.disk.total - g.disk.free) / 1e9).toFixed(0)} / ${(g.disk.total / 1e9).toFixed(0)} GB`
+    + (old && g.disk.seen ? ` (${ago(g.disk.seen)})` : "");
   btn.classList.toggle("hidden", !pod || g.state === "stopping");
   if (pod) {
     btn.textContent = g.state === "ready" ? "Stop GPU now" : g.state === "starting" ? "Starting…" : g.state === "failed" ? "Try again" : "Start GPU now";
@@ -1551,7 +1707,7 @@ function renderStatus() {
   if (pod && g.state !== "ready") {
     const wait = fmtTime(Math.max(0, Date.now() / 1000 - g.since));
     const [pill, cls, name, sub] = {
-      off: ["GPU off", "", "GPU off", "Starts by itself when you render" + month],
+      off: ["GPU off", "", "GPU off", "Starts by itself when you render" + month + storage(true)],
       starting: ["GPU starting", "busy", "GPU starting…", `${wait} · usually 2–5 min`],
       stopping: ["GPU stopping", "", "GPU stopping…", "Removing the pod" + month],
       failed: ["GPU failed", "bad", "GPU didn't start", g.error || "unknown error"],
@@ -1567,7 +1723,8 @@ function renderStatus() {
     card.querySelector(".gpu-name").textContent = gpu;
     card.querySelector(".meter span").style.width = total ? `${Math.round(100 * used / total)}%` : "0";
     card.querySelector(".gpu-sub").textContent = (total ? `${used.toFixed(1)} / ${total.toFixed(0)} GB VRAM` : "") +
-      (pod && g.cost_per_hour ? ` · $${g.cost_per_hour}/h` : "") + month;
+      (pod && g.cost_per_hour ? ` · $${g.cost_per_hour}/h` : "") + month +
+      storage(false);
   } else {
     st.textContent = "GPU offline"; st.className = "pill bad";
     card.querySelector(".gpu-name").textContent = "ComfyUI offline";

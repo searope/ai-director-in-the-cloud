@@ -146,7 +146,7 @@ class Jobs:
             "keyframes": [os.path.join(out_dir, "inputs", name) for name in job["inputs"]],
             "prompts": s["prompts"],
             "engine": s.get("engine", "minimax-h3"),
-            "image_model": s.get("image_model", "klein4b"),
+            "image_model": s.get("image_model") or animate.DEFAULT_IMAGE_MODEL,
             "audio": s.get("audio", True),
             "sound": s.get("sound") or None,
             "style": s.get("style"),
@@ -201,7 +201,7 @@ class Jobs:
             keep_awake(False)
 
 
-def save_example_jpg(png_path, jpg_path, width=384):
+def save_example_jpg(png_path, jpg_path, width=640):
     """A style example as a small JPG (the size setup/style_examples.py makes)."""
     from PIL import Image
     with Image.open(png_path) as im:
@@ -209,17 +209,24 @@ def save_example_jpg(png_path, jpg_path, width=384):
         im.resize((width, round(width * im.height / im.width)), Image.LANCZOS).save(jpg_path, "JPEG", quality=82, optimize=True)
 
 
+def style_reviews():
+    """setup/style_review.py's findings per style (styles_review.json)."""
+    try:
+        with open(os.path.join(ROOT, "styles_review.json"), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
 def style_example_urls(style_id):
     """The example pictures of a style, one per scene: the app's redraw (edited prompt) if there is one,
     else the shipped one."""
-    urls = []
+    urls = []  # None for a scene not drawn yet
     for n in range(1, STYLE_SCENES + 1):
         own = os.path.join(STYLE_EXAMPLES_DIR, f"{style_id}-{n}.jpg")
         shipped = os.path.join(STATIC, "styles", f"{style_id}-{n}.jpg")
-        if os.path.exists(own):
-            urls.append(f"/api/styles/{style_id}/example/{n}?v={int(os.path.getmtime(own))}")
-        elif os.path.exists(shipped):
-            urls.append(f"/static/styles/{style_id}-{n}.jpg")
+        urls.append(f"/api/styles/{style_id}/example/{n}?v={int(os.path.getmtime(own))}" if os.path.exists(own)
+                    else f"/static/styles/{style_id}-{n}.jpg?v={int(os.path.getmtime(shipped))}" if os.path.exists(shipped) else None)
     return urls
 
 
@@ -283,13 +290,19 @@ class KeyframeMaker:
             if os.path.exists(p):
                 os.remove(p)
 
-    def start(self, prompt, aspect, source_id=None, seed=None, model="klein4b", cast=(), style=None,
+    def default_model(self):
+        """FLUX 3 Klein when the GPU has it, else FLUX.2 Klein 4B."""
+        missing = animate.missing_image_model_files(MODELS_DIR, animate.DEFAULT_IMAGE_MODEL, model_checker(self.gpu))
+        return animate.FALLBACK_IMAGE_MODEL if missing else animate.DEFAULT_IMAGE_MODEL
+
+    def start(self, prompt, aspect, source_id=None, seed=None, model=None, cast=(), style=None,
               source_file=None, example=None):
         """cast: characters (from Characters.get) whose first reference image goes to the model.
         style: a style id, to redraw source_id in that style (prompt is then the style's restyle prompt).
         source_file and example: redraw a style's example scene (not a library image) into the JPG `example`."""
         if aspect not in animate.KEYFRAME_SIZES:
             raise ValueError("bad aspect")
+        model = model or self.default_model()
         if model not in animate.IMAGE_MODELS:
             raise ValueError("unknown image model")
         source = source_file or (self.path(source_id) if source_id else None)
@@ -510,7 +523,7 @@ def clean_settings(raw, n_keyframes, styles):
     engine = raw.get("engine") or "minimax-h3"
     if engine not in animate.ENGINES:
         raise ValueError(f"unknown engine {engine}")
-    image_model = raw.get("image_model") or "klein4b"
+    image_model = raw.get("image_model") or animate.DEFAULT_IMAGE_MODEL
     if image_model not in animate.IMAGE_MODELS:
         raise ValueError(f"unknown image model {image_model}")
     restyle = raw.get("restyle")
@@ -686,12 +699,16 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
 
     async def info(request):
         styles = animate.load_styles()
+        reviews = style_reviews()
         have = model_checker(gpu)
         turbo4 = animate.DEFAULTS["models"]["h3_lora_4step"]
         h3_missing = [f"{sub}/{animate.DEFAULTS['models'][key]}"
                       for key, sub in (("h3_unet", "diffusion_models"), ("h3_text_encoder", "text_encoders"),
                                        ("h3_vae", "vae"), ("h3_audio_vae", "vae"), ("h3_lora", "loras"))
                       if not have(sub, animate.DEFAULTS["models"][key])]
+        ltx_missing = [f"{sub}/{animate.DEFAULTS['models'][key]}"
+                       for key, sub in (("ltx_ckpt", "checkpoints"), ("ltx_text_encoder", "text_encoders"))
+                       if not have(sub, animate.DEFAULTS["models"][key])]
         comfy = {"online": False}
         gpu_state = gpu.status()
         try:
@@ -709,18 +726,24 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
             "styles": [{"id": k, "label": v.get("label", k), "restyle": bool(v.get("restyle_prompt")), "group": v.get("group", "Other"),
                         "look": v.get("video_prompt", ""),  # searched on the Styles page, editable
                         "restyle_prompt": v.get("restyle_prompt", ""), "negative": v.get("negative", ""),
-                        "edited": bool(v.get("edited")),
+                        "edited": bool(v.get("edited")), "custom": bool(v.get("custom")),
+                        # the AI review of the shipped examples, while it is about the current prompt
+                        "review": (lambda r: {f: r.get(f) for f in ("coverage", "strength", "unstyled", "replaced", "summary")}
+                                   if r and r.get("prompt") == v.get("restyle_prompt") else None)(reviews.get(k)),
                         # example pictures (setup/style_examples.py, or redrawn here after an edit)
-                        **(lambda ex: {"examples": ex, "example": ex[0] if ex else None})(style_example_urls(k))}
+                        **(lambda ex: {"examples": ex, "example": next((u for u in ex if u), None)})(style_example_urls(k))}
                        for k, v in styles.items()],
             "comfy": comfy,
+            "default_image_model": maker.default_model(),
             "image_models": [{"id": k, "label": v["label"], "license": v["license"],
                               "missing": animate.missing_image_model_files(MODELS_DIR, k, have)}
                              for k, v in animate.IMAGE_MODELS.items()],
             "engines": [{"id": "minimax-h3", "label": "MiniMax H3 + sound", "license": animate.LICENSES["minimax-h3"],
                          "ready": not h3_missing, "missing": h3_missing,
                          "turbo4": have("loras", turbo4), "turbo_license": animate.LICENSES["h3-turbo"]},
-                        {"id": "wan22", "label": "Wan 2.2 (silent)", "license": animate.LICENSES["wan22"], "ready": True}],
+                        {"id": "wan22", "label": "Wan 2.2 (silent)", "license": animate.LICENSES["wan22"], "ready": True},
+                        {"id": "ltx23", "label": "LTX-2.3 + sound", "license": animate.LICENSES["ltx23"],
+                         "ready": not ltx_missing, "missing": ltx_missing}],
             "queued": sum(1 for j in jobs.jobs.values() if j["status"] == "queued"),
             "running": any(j["status"] == "running" for j in jobs.jobs.values()),
             "elevenlabs": sound.info(),
@@ -891,13 +914,13 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         if not prompt:
             return web.json_response({"error": "describe the keyframe"}, status=400)
         seed = data.get("seed")
-        model = data.get("model") or "klein4b"
+        model = data.get("model") or maker.default_model()
         if model in animate.IMAGE_MODELS and animate.missing_image_model_files(MODELS_DIR, model, model_checker(gpu)):
             return web.json_response({"error": f"{animate.IMAGE_MODELS[model]['label']} isn't installed on the GPU. "
                                                "Choose another model, or download it (README, Model licenses)."}, status=400)
         try:
             task = maker.start(prompt, data.get("aspect", "16:9"), data.get("source") or None,
-                               int(seed) if str(seed or "").isdigit() else None, data.get("model") or "klein4b",
+                               int(seed) if str(seed or "").isdigit() else None, data.get("model") or maker.default_model(),
                                characters.cast(data.get("characters")))
         except ValueError as e:
             return web.json_response({"error": str(e)}, status=400)
@@ -905,14 +928,50 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
 
     def style_or_404(request):
         style_id = request.match_info["id"]
-        if style_id not in animate.load_default_styles():
+        if style_id not in animate.load_styles():
             raise web.HTTPNotFound()
         return style_id
+
+    def remove_style_examples(style_id):
+        for n in range(1, STYLE_SCENES + 1):
+            path = os.path.join(STYLE_EXAMPLES_DIR, f"{style_id}-{n}.jpg")
+            if os.path.exists(path):
+                os.remove(path)
+
+    def own_style_fields(data, old=None):
+        """A user's style from the panel's fields: the redraw prompt is made from the look when left empty."""
+        old = old or {}
+        label = str(data.get("label", old.get("label", ""))).strip()[:60]
+        look = str(data.get("look", old.get("video_prompt", ""))).strip()[:2000]
+        if not label or not look:
+            raise ValueError("give the style a name and describe its look")
+        restyle = str(data.get("restyle_prompt", old.get("restyle_prompt", ""))).strip()[:2000] or animate.restyle_prompt_for(look)
+        return {"label": label, "video_prompt": look, "restyle_prompt": restyle,
+                "negative": str(data.get("negative", old.get("negative", ""))).strip()[:500]}
+
+    async def create_style(request):
+        """A new style of the user's own ("My styles"), e.g. a copy of a built-in one to change."""
+        data = await request.json()
+        try:
+            style = own_style_fields(data)
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        slug = "".join(c if c.isalnum() else "-" for c in style["label"].lower()).strip("-")[:24] or "style"
+        style_id = f"my-{slug}-{uuid.uuid4().hex[:4]}"
+        animate.save_custom_style(style_id, style)
+        return web.json_response({"id": style_id})
 
     async def edit_style(request):
         """Save edited prompts for a style (empty or default fields go back to styles.json)."""
         style_id = style_or_404(request)
         data = await request.json()
+        custom = animate.load_custom_styles()
+        if style_id in custom:
+            try:
+                animate.save_custom_style(style_id, own_style_fields(data, custom[style_id]))
+            except ValueError as e:
+                return web.json_response({"error": str(e)}, status=400)
+            return web.json_response({"ok": True})
         default = animate.load_default_styles()[style_id]
         fields = {f: (str(data[f]).strip()[:2000] or default.get(f, "")) for f in animate.EDITABLE_STYLE_FIELDS if f in data}
         if "look" in data:
@@ -924,13 +983,13 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         return web.json_response({"ok": True, "edited": style_id in animate.load_user_styles()})
 
     async def reset_style(request):
-        """Back to the prompts in styles.json, and the shipped example pictures."""
+        """Back to the prompts in styles.json, and the shipped example pictures; deletes one of the user's own."""
         style_id = style_or_404(request)
-        animate.save_user_style(style_id, None)
-        for n in range(1, STYLE_SCENES + 1):
-            path = os.path.join(STYLE_EXAMPLES_DIR, f"{style_id}-{n}.jpg")
-            if os.path.exists(path):
-                os.remove(path)
+        if style_id in animate.load_custom_styles():
+            animate.save_custom_style(style_id, None)
+        else:
+            animate.save_user_style(style_id, None)
+        remove_style_examples(style_id)
         return web.json_response({"ok": True})
 
     async def redraw_style_examples(request):
@@ -939,7 +998,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         style = animate.load_styles()[style_id]
         if not style.get("restyle_prompt"):
             return web.json_response({"error": "this style keeps images as they are: nothing to redraw"}, status=400)
-        model = "klein4b"  # the examples are made with the default image model
+        model = maker.default_model()  # the examples are made with the default image model
         if animate.missing_image_model_files(MODELS_DIR, model, model_checker(gpu)):
             return web.json_response({"error": f"{animate.IMAGE_MODELS[model]['label']} isn't installed on the GPU"}, status=400)
         os.makedirs(STYLE_EXAMPLES_DIR, exist_ok=True)
@@ -967,10 +1026,13 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         chosen = [k for k in dict.fromkeys(data.get("styles") or []) if styles.get(k, {}).get("restyle_prompt")]
         if not chosen:
             return web.json_response({"error": "choose at least one style that redraws images"}, status=400)
-        model = data.get("model") or "klein4b"
+        model = data.get("model") or maker.default_model()
         if model in animate.IMAGE_MODELS and animate.missing_image_model_files(MODELS_DIR, model, model_checker(gpu)):
             return web.json_response({"error": f"{animate.IMAGE_MODELS[model]['label']} isn't installed on the GPU"}, status=400)
         seed = data.get("seed")
+        prompt = str(data.get("prompt") or "").strip()[:2000]  # one style with its prompt as typed (not saved yet)
+        if prompt and len(chosen) == 1:
+            styles[chosen[0]] = dict(styles[chosen[0]], restyle_prompt=prompt)
         try:
             tasks = [{"style": k, "task": maker.start(styles[k]["restyle_prompt"], "16:9", data.get("image_id"),
                                                       int(seed) if str(seed or "").isdigit() else None, model, style=k)}
@@ -1138,6 +1200,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         web.get("/api/jobs/{id}/image/{kind}/{name}", image),
         web.post("/api/keyframes/generate", keyframe_generate),
         web.post("/api/styles/try", try_styles),
+        web.post("/api/styles", create_style),
         web.put("/api/styles/{id}", edit_style),
         web.delete("/api/styles/{id}", reset_style),
         web.post("/api/styles/{id}/examples", redraw_style_examples),
