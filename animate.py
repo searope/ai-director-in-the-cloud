@@ -432,6 +432,55 @@ def build_text_to_image_graph(cfg, prompt, seed, width, height, prefix):
     })
 
 
+PAIR_HEIGHT = 1024  # each photo's height in a side-by-side restyle
+PAIR_GAP = 48       # white gap between the two photos
+
+
+def restyle_keyframes(comfy, cfg, instruction, paths, out_dir, seed, prefix, report, should_cancel):
+    """Redraw keyframes in a style so they share it, while each keeps its own pose and layout.
+
+    Keyframe 1 is redrawn side by side with each later keyframe, as one picture in one pass, then cut
+    apart: one pass gives both halves the same style, and the shared first keyframe keeps all pairs alike.
+    (Passing a redrawn keyframe as a separate style reference made the model copy its whole picture.)
+    Returns the paths of the redrawn keyframes in out_dir, in order.
+    """
+    from PIL import Image
+    pair_instruction = (instruction + " The image is two separate pictures side by side with a white gap between "
+                        "them: redraw both in exactly the same style, keep each picture's own pose, composition and "
+                        "framing, and keep the white gap.")
+    photos = [Image.open(p).convert("RGB") for p in paths]
+    fit = [im.resize((max(16, round(im.width * PAIR_HEIGHT / im.height)), PAIR_HEIGHT)) for im in photos]
+    outputs = []
+    for i in range(1, len(paths)) if len(paths) > 1 else [0]:
+        left, right = fit[0], fit[i]
+        canvas = Image.new("RGB", (left.width + PAIR_GAP + right.width, PAIR_HEIGHT), (255, 255, 255))
+        canvas.paste(left, (0, 0))
+        canvas.paste(right, (left.width + PAIR_GAP, 0))
+        pair_path = os.path.join(out_dir, f"_pair_{i:02d}.png")
+        canvas.save(pair_path)
+        name = comfy.upload_image(pair_path, f"{os.path.basename(out_dir)}_pair_{i:02d}.png")
+        megapixels = min(2.0, canvas.width * canvas.height / (1024 * 1024))
+        graph = build_restyle_graph(cfg, name, pair_instruction, seed, f"{prefix}_{i:02d}", megapixels=megapixels)
+        result = comfy.wait(comfy.queue(graph), f"restyle keyframes 1+{i + 1}/{len(paths)}", report, should_cancel)
+        with open(pair_path, "wb") as f:
+            f.write(comfy.fetch(result["save"]["images"][0]))
+        out = Image.open(pair_path).convert("RGB")
+        scale = out.width / canvas.width
+        halves = [out.crop((0, 0, round(left.width * scale), out.height)),
+                  out.crop((round((left.width + PAIR_GAP) * scale), 0, out.width, out.height))]
+        os.remove(pair_path)
+        if i <= 1:  # keyframe 1 comes from the first pair; later pairs only supply their right half
+            outputs.append(halves[0])
+        if len(paths) > 1:
+            outputs.append(halves[1])
+    saved = []
+    for n, im in enumerate(outputs):
+        path = os.path.join(out_dir, f"{n + 1:02d}.png")
+        im.save(path)
+        saved.append(path)
+    return saved
+
+
 # ---------------------------------------------------------------- keyframe maker
 
 KEYFRAME_SIZES = {"16:9": (1024, 576), "9:16": (576, 1024), "1:1": (1024, 1024), "4:3": (1024, 768), "3:4": (768, 1024)}
@@ -653,15 +702,9 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
     if cfg["restyle"]:
         styled_dir = os.path.splitext(cfg["output"])[0] + "_keyframes"
         os.makedirs(styled_dir, exist_ok=True)
-        # Each keyframe is redrawn on its own (same style prompt and seed). Passing the first redrawn keyframe
-        # as a style reference made the model copy its whole picture, so every keyframe came out with the
-        # first one's pose and layout, leaving the video nothing to animate.
-        for i, p in enumerate(keys):
-            graph = build_restyle_graph(cfg, uploaded[p], style["restyle_prompt"], seed, f"keyframe_anim/{run_id}/styled")
-            outputs = comfy.wait(comfy.queue(graph), f"restyle keyframe {i + 1}/{len(keys)}", report, should_cancel)
-            local = os.path.join(styled_dir, f"{i + 1:02d}.png")
-            with open(local, "wb") as f:
-                f.write(comfy.fetch(outputs["save"]["images"][0]))
+        styled = restyle_keyframes(comfy, cfg, style["restyle_prompt"], keys, styled_dir, seed,
+                                   f"keyframe_anim/{run_id}/styled", report, should_cancel)
+        for i, (p, local) in enumerate(zip(keys, styled)):
             uploaded[p] = comfy.upload_image(local, f"{run_id}_styled_{i:02d}.png")
         report(f"restyled keyframes saved in {styled_dir}", final=True)
 
