@@ -124,6 +124,15 @@ class RunpodGPU:
     def models(self):
         return self.cached_models
 
+    def volume_size(self):
+        """The network volume's size in bytes (from Runpod), or None."""
+        if not getattr(self, "_volume_size", None):
+            try:
+                self._volume_size = int(self.api("GET", f"/networkvolumes/{self.cfg['volume_id']}")["size"]) * 10**9
+            except Exception:
+                return None
+        return self._volume_size
+
     # ---- Runpod API
 
     def api(self, method, path, body=None, timeout=60):
@@ -209,8 +218,11 @@ class RunpodGPU:
                 data = json.loads(resp.read())
             if data.get("comfy"):
                 self.cached_models = data.get("models")
-                if data.get("disk") and data["disk"] != {k: (self.cached_disk or {}).get(k) for k in ("total", "free")}:
-                    self.cached_disk = dict(data["disk"], seen=time.time())  # {"total", "free"} bytes, and when
+                used = (data.get("disk") or {}).get("used")
+                if used is not None and used != (self.cached_disk or {}).get("used"):
+                    size = self.volume_size()
+                    self.cached_disk = {"used": used, "total": size, "free": size - used if size else None,
+                                        "seen": time.time()}  # bytes on the network volume, and when
                     try:
                         with open(self.disk_path, "w", encoding="utf-8") as f:
                             json.dump(self.cached_disk, f)

@@ -1701,7 +1701,7 @@ function renderStatus() {
   const active = S.jobs.filter((j) => ["queued", "running"].includes(j.status)).length;
   const pod = g.mode === "runpod", month = pod ? ` · $${(g.month_cost || 0).toFixed(2)} this month` : "";
   // the network volume's storage; while the GPU is off, its last reading
-  const storage = (old) => !g.disk ? "" : ` · storage ${((g.disk.total - g.disk.free) / 1e9).toFixed(0)} / ${(g.disk.total / 1e9).toFixed(0)} GB`
+  const storage = (old) => !g.disk?.used ? "" : ` · storage ${(g.disk.used / 1e9).toFixed(0)}${g.disk.total ? ` / ${(g.disk.total / 1e9).toFixed(0)}` : ""} GB`
     + (old && g.disk.seen ? ` (${ago(g.disk.seen)})` : "");
   btn.classList.toggle("hidden", !pod || g.state === "stopping");
   if (pod) {

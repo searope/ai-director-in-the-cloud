@@ -14,7 +14,6 @@ import asyncio
 import hmac
 import json
 import os
-import shutil
 import threading
 import time
 import urllib.request
@@ -27,6 +26,28 @@ COMFY = "http://127.0.0.1:8188"
 MODEL_DIRS = ("diffusion_models", "text_encoders", "vae", "loras", "unet", "clip", "checkpoints", "upscale_models")
 HOP = {"connection", "keep-alive", "transfer-encoding", "te", "trailer", "upgrade", "proxy-authorization",
        "proxy-authenticate", "host", "content-length", "x-gateway-token"}
+
+
+VOLUME = "/workspace" if os.path.isdir("/workspace") else os.path.dirname(HERE)  # the network volume's mount
+_used = {"bytes": None, "at": 0.0, "busy": False}
+
+
+def volume_used():
+    """Bytes stored on the network volume. Its free space can't be read (the network filesystem reports the whole
+    cluster), so the files are added up, in the background and at most every 10 minutes."""
+    def walk():
+        total = 0
+        for d, _, files in os.walk(VOLUME):
+            for f in files:
+                try:
+                    total += os.lstat(os.path.join(d, f)).st_size
+                except OSError:
+                    pass
+        _used.update(bytes=total, at=time.time(), busy=False)
+    if not _used["busy"] and time.time() - _used["at"] > 600:
+        _used["busy"] = True
+        threading.Thread(target=walk, daemon=True).start()
+    return _used["bytes"]
 
 
 def list_models():
@@ -61,11 +82,8 @@ def make_app(token, activity):
                 comfy = r.status == 200
         except Exception:
             comfy = False
-        try:  # the network volume's space, so the app can warn before a big model download
-            du = shutil.disk_usage(MODELS)
-            disk = {"total": du.total, "free": du.free}
-        except OSError:
-            disk = None
+        used = volume_used()  # the app knows the volume's size; None until the first count is done
+        disk = {"used": used} if used is not None else None
         return web.json_response({"comfy": comfy, "models": await asyncio.to_thread(list_models) if comfy else None,
                                   "disk": disk})
 
