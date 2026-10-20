@@ -139,7 +139,7 @@ powershell -ExecutionPolicy Bypass -File setup\windows\register_startup.ps1
 
 After pulling new code (or if the app misbehaves), restart it in PowerShell **as Administrator**:
 ```powershell
-powershell -ExecutionPolicy Bypass -File setup\windowsestart_pc.ps1
+powershell -ExecutionPolicy Bypass -File setup\windows\restart_pc.ps1
 ```
 It stops the startup task and its leftover processes, starts it again and waits until the app
 answers. Check that nothing is rendering first: a running render is cancelled. If the app crashes
