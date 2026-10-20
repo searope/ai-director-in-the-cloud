@@ -55,7 +55,7 @@ const S = {
   pending: [],                       // image generations in flight: {task, prompt, error}
   imgMode: "text", source: null,     // edit mode: library image id to edit
   aspect: store.get("aspect", "16:9"), count: 1,
-  imageModel: store.get("image_model", "klein4b"),
+  imageModel: store.get("image_model", null),  // null: the server's default (FLUX 3 Klein when installed)
   tray: store.get("tray", []),       // library image ids for the next video, in order
   motion: store.get("motion", []),   // one motion prompt per gap
   style: "photoreal", restyleTouched: false,
@@ -180,7 +180,7 @@ $("editSource").onclick = (e) => { if (e.target.closest("[data-pick-source]")) o
 
 function renderImageModels() {
   const models = S.info.image_models;
-  if (!models.some((m) => m.id === S.imageModel && !m.missing.length)) S.imageModel = "klein4b";
+  if (!models.some((m) => m.id === S.imageModel && !m.missing.length)) S.imageModel = S.info.default_image_model;
   document.querySelectorAll("select.imageModel").forEach((sel) => {
     sel.innerHTML = models.map((m) => `<option value="${m.id}"${m.missing.length ? " disabled" : ""}>${esc(m.label)}${m.missing.length ? " (not installed)" : ""}</option>`).join("");
     sel.value = S.imageModel;
@@ -194,8 +194,9 @@ function renderImageModels() {
 }
 function renderModelLicense() {
   const m = S.info.image_models.find((x) => x.id === S.imageModel);
-  const el = $("imgModelLicense");
-  el.className = "license " + licenseClass(m.license); el.textContent = "License: " + m.license;
+  // the owner chose (Oct 2026) not to show license text here: it is a tooltip on the menu
+  $("imgModelLicense").classList.add("hidden");
+  document.querySelectorAll("select.imageModel").forEach((sel) => { sel.title = m ? "License: " + m.license : ""; });
 }
 
 async function generateImages() {
@@ -1646,6 +1647,30 @@ $("dirDelete").onclick = async () => {
 };
 
 // ---------------------------------------------------------------- library
+// Masonry grids (Home, Library): each tile spans as many 4 px rows as its height needs, plus the gap, so tiles of
+// any shape pack left to right without holes. Re-measured when pictures load and when the grid's width changes.
+const MASONRY_ROW = 4;
+function masonryFit(tile) {
+  const v = tile.querySelector("video");
+  if (v && !v.style.aspectRatio && !v.videoWidth && v.poster && !tile.dataset.probe) {  // its shape from the poster frame
+    tile.dataset.probe = "1";
+    const im = new Image();
+    im.onload = () => { v.style.aspectRatio = `${im.naturalWidth}/${im.naturalHeight}`; masonryFit(tile); };
+    im.src = v.poster;
+  }
+  const gap = tile.parentElement && innerWidth <= 760 ? 8 : 12;
+  tile.style.gridRowEnd = `span ${Math.max(1, Math.ceil((tile.getBoundingClientRect().height + gap) / MASONRY_ROW))}`;
+}
+// measured on the next frame, once the layout has settled (a width change resizes every tile)
+const masonryLater = (tiles) => requestAnimationFrame(() => tiles.forEach((t) => t.isConnected && masonryFit(t)));
+const masonrySizes = new ResizeObserver((entries) => masonryLater(entries.map((e) => e.target)));  // a tile's height changed
+function watchMasonry(grid) {
+  const watch = () => { [...grid.children].forEach((t) => masonrySizes.observe(t)); masonryLater([...grid.children]); };
+  new MutationObserver(watch).observe(grid, { childList: true });
+  new ResizeObserver(() => masonryLater([...grid.children])).observe(grid);
+  watch();
+}
+watchMasonry($("libGrid")); watchMasonry($("homeGrid"));
 function renderLibrary() {
   const f = S.libFilter;
   const videos = f === "image" ? [] : S.jobs.filter((j) => j.status === "done").map((j) => ({ t: j.finished || j.created, html: videoTile(j) }));

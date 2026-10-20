@@ -59,14 +59,18 @@ run in US/EU datacenters, so a license must cover both.
 - **Commercial-safe default set:** **MiniMax H3** (the default video engine, under the owner's
   license below), **Wan 2.2 14B** (+ umt5 text encoder, Wan VAE; Apache 2.0),
   **FLUX.2 Klein 4B** (+ Qwen3 4B text encoder; Apache 2.0), **FILM** interpolation (Apache 2.0).
-  Defaults in code (engine, image model, download profiles) must come only from this set.
+  Defaults in code (engine, image model, download profiles) must come only from this set, except
+  FLUX 3 Klein below.
+- **FLUX 3 Klein: the default image model (owner's choice, Oct 2026).** FLUX Kommunity License: free
+  commercial use only under $5M annual revenue (above that, a paid Black Forest Labs license). The owner
+  accepted that cap. FLUX.2 Klein 4B stays the fallback when FLUX 3 isn't installed, and docs must tell
+  anyone else running the app about the cap.
 - **MiniMax H3: licensed to the owner (Oct 2026).** The owner holds a written license from MiniMax
   covering all use, including commercial, with no requirement to show "MiniMax H3" anywhere. It is
   the owner's license: the public community license still excludes the US, EU, UK and South Korea,
   so docs must tell anyone else running the app that they need their own license (or use Wan 2.2).
 - **Opt-in only, clearly labelled** in the app and docs:
   - FLUX.2 Klein 9B: non-commercial (commercial use needs a paid Black Forest Labs license).
-  - FLUX 3 Klein: FLUX Kommunity License, free commercial use only under $5M annual revenue.
 - **Unverified:** the lightx2v speed LoRAs: Wan 2.2 4-step, and MiniMax H3 turbo 8-step v1.0 and
   4-step v1.3 (lightx2v/Minimax-h3-Turbo has no license on its repo; other uploaders call it Apache
   2.0). They power the fast modes; check before commercial use. Quality modes work without them.
@@ -74,6 +78,6 @@ run in US/EU datacenters, so a license must cover both.
   carry the same terms); acceptable, but label it.
 - Every model added to `setup/models.json` needs a `license` note, and every engine or image model
   in `animate.py` needs an entry in `LICENSES`. The owner chose (Oct 2026) not to show video engine
-  license text in Create video: it is only a hover tooltip there. Restricted image models (non-commercial
-  or revenue-capped) keep their visible warning. These notes summarize secondary
+  license text in Create video, nor image model license text in Create image (Oct 2026): both are hover
+  tooltips on their menus. These notes summarize secondary
   sources (Oct 2026); verify the LICENSE file on the official model card before relying on them.

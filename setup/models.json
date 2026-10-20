@@ -127,7 +127,7 @@
       ]
     },
     "flux3-klein": {
-      "description": "OPTIONAL image model: FLUX 3 Image Klein distilled (newest, released Oct 2026). Reuses flux2-vae from the restyle profile. ~22 GB.",
+      "description": "Default image model (owner, Oct 2026): FLUX 3 Image Klein distilled (newest, released Oct 2026); FLUX.2 Klein 4B (restyle) is the fallback. Reuses flux2-vae from the restyle profile. ~22 GB.",
       "license": "FLUX 3 Klein: FLUX Kommunity License, free commercial use only under $5M annual revenue; above that a paid BFL license.",
       "files": [
         {

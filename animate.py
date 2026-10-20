@@ -80,8 +80,14 @@ IMAGE_MODELS = {
 }
 
 
+# FLUX 3 Klein is the default (owner's choice, Oct 2026; free commercial use under $5M annual revenue); FLUX.2
+# Klein 4B (Apache 2.0) is used when FLUX 3 isn't installed.
+DEFAULT_IMAGE_MODEL = "flux3klein"
+FALLBACK_IMAGE_MODEL = "klein4b"
+
+
 def image_model(cfg):
-    name = cfg.get("image_model") or "klein4b"
+    name = cfg.get("image_model") or DEFAULT_IMAGE_MODEL
     if name not in IMAGE_MODELS:
         raise ValueError(f"image_model must be one of: {', '.join(IMAGE_MODELS)}")
     return IMAGE_MODELS[name]
@@ -112,7 +118,7 @@ DEFAULTS = {
     "style": "photoreal",     # preset name from styles.json, or a style dict
     "custom_style": None,     # free-text style description; overrides "style"
     "restyle": None,          # redraw keyframes in the style first; None = only if the style has a restyle_prompt
-    "image_model": "klein4b", # model for restyling and the keyframe maker, see IMAGE_MODELS
+    "image_model": None,      # model for restyling and the keyframe maker (None: DEFAULT_IMAGE_MODEL), see IMAGE_MODELS
     "negative": DEFAULT_NEGATIVE,
     "crf": 18,
     "output": "output/animation.mp4",
@@ -529,7 +535,7 @@ EDIT_SUFFIX = (" Keep the same characters, art style, lighting, colors, backgrou
 
 
 def make_keyframe(server, prompt, out_path, seed=None, aspect="16:9", source=None,
-                  report=lambda text, final=False: None, model="klein4b", references=(), keep_look=True):
+                  report=lambda text, final=False: None, model=None, references=(), keep_look=True):
     """Create one keyframe image with an IMAGE_MODELS model and save it to out_path.
 
     Without source: text-to-image at the given aspect. With source (an image path):
@@ -540,7 +546,7 @@ def make_keyframe(server, prompt, out_path, seed=None, aspect="16:9", source=Non
     """
     from PIL import Image
 
-    cfg = {"image_model": model}
+    cfg = {"image_model": model or DEFAULT_IMAGE_MODEL}
     image_model(cfg)  # validate
     seed = seed if seed is not None else random.randint(0, 2**32 - 1)
     comfy = Comfy(server)
@@ -889,7 +895,7 @@ def main():
     ap.add_argument("--no-restyle", dest="restyle", action="store_false", help="keep keyframes as they are")
     ap.add_argument("--list-styles", action="store_true")
     ap.add_argument("--engine", choices=ENGINES, help="video model (default minimax-h3)")
-    ap.add_argument("--image-model", choices=list(IMAGE_MODELS), help="model for --restyle (default klein4b)")
+    ap.add_argument("--image-model", choices=list(IMAGE_MODELS), help=f"model for --restyle (default {DEFAULT_IMAGE_MODEL})")
     ap.add_argument("--sound", help="MiniMax H3: describe the soundtrack")
     ap.add_argument("--turbo-steps", type=int, choices=(4, 8), help="MiniMax H3 fast mode: 8 (default) or 4 steps")
     ap.add_argument("--no-audio", dest="audio", action="store_false", default=None, help="MiniMax H3: drop the soundtrack")

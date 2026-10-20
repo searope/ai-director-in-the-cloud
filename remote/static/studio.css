@@ -110,8 +110,9 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 .pending-grid:not(:empty) { margin-bottom: 12px; }
 
 /* ---------- grids & tiles */
-.masonry { columns: 5 220px; column-gap: 12px; }
-.masonry .tile { break-inside: avoid; margin-bottom: 12px; }
+/* masonry: a grid filled left to right (newest first); each tile spans rows to fit its picture (studio.js) */
+.masonry { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); grid-auto-rows: 4px; column-gap: 12px; grid-auto-flow: row dense; }
+.masonry .tile { align-self: start; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
 .tile { position: relative; border-radius: 12px; overflow: hidden; background: var(--card); border: 1px solid var(--line); cursor: zoom-in; }
 .tile img, .tile video { display: block; width: 100%; height: auto; }
@@ -389,7 +390,7 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
   .hero-prompt textarea { min-height: 84px; }
   .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
   .tools { grid-template-columns: 1fr; gap: 10px; }
-  .masonry { columns: 2 140px; column-gap: 8px; } .masonry .tile { margin-bottom: 8px; }
+  .masonry { grid-template-columns: repeat(2, 1fr); column-gap: 8px; }
   .grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .tile .acts { opacity: 1; padding-top: 18px; }
   .overlay { padding: 0; place-items: stretch; }

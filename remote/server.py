@@ -146,7 +146,7 @@ class Jobs:
             "keyframes": [os.path.join(out_dir, "inputs", name) for name in job["inputs"]],
             "prompts": s["prompts"],
             "engine": s.get("engine", "minimax-h3"),
-            "image_model": s.get("image_model", "klein4b"),
+            "image_model": s.get("image_model") or animate.DEFAULT_IMAGE_MODEL,
             "audio": s.get("audio", True),
             "sound": s.get("sound") or None,
             "style": s.get("style"),
@@ -290,13 +290,19 @@ class KeyframeMaker:
             if os.path.exists(p):
                 os.remove(p)
 
-    def start(self, prompt, aspect, source_id=None, seed=None, model="klein4b", cast=(), style=None,
+    def default_model(self):
+        """FLUX 3 Klein when the GPU has it, else FLUX.2 Klein 4B."""
+        missing = animate.missing_image_model_files(MODELS_DIR, animate.DEFAULT_IMAGE_MODEL, model_checker(self.gpu))
+        return animate.FALLBACK_IMAGE_MODEL if missing else animate.DEFAULT_IMAGE_MODEL
+
+    def start(self, prompt, aspect, source_id=None, seed=None, model=None, cast=(), style=None,
               source_file=None, example=None):
         """cast: characters (from Characters.get) whose first reference image goes to the model.
         style: a style id, to redraw source_id in that style (prompt is then the style's restyle prompt).
         source_file and example: redraw a style's example scene (not a library image) into the JPG `example`."""
         if aspect not in animate.KEYFRAME_SIZES:
             raise ValueError("bad aspect")
+        model = model or self.default_model()
         if model not in animate.IMAGE_MODELS:
             raise ValueError("unknown image model")
         source = source_file or (self.path(source_id) if source_id else None)
@@ -517,7 +523,7 @@ def clean_settings(raw, n_keyframes, styles):
     engine = raw.get("engine") or "minimax-h3"
     if engine not in animate.ENGINES:
         raise ValueError(f"unknown engine {engine}")
-    image_model = raw.get("image_model") or "klein4b"
+    image_model = raw.get("image_model") or animate.DEFAULT_IMAGE_MODEL
     if image_model not in animate.IMAGE_MODELS:
         raise ValueError(f"unknown image model {image_model}")
     restyle = raw.get("restyle")
@@ -725,6 +731,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
                         **(lambda ex: {"examples": ex, "example": next((u for u in ex if u), None)})(style_example_urls(k))}
                        for k, v in styles.items()],
             "comfy": comfy,
+            "default_image_model": maker.default_model(),
             "image_models": [{"id": k, "label": v["label"], "license": v["license"],
                               "missing": animate.missing_image_model_files(MODELS_DIR, k, have)}
                              for k, v in animate.IMAGE_MODELS.items()],
@@ -902,13 +909,13 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         if not prompt:
             return web.json_response({"error": "describe the keyframe"}, status=400)
         seed = data.get("seed")
-        model = data.get("model") or "klein4b"
+        model = data.get("model") or maker.default_model()
         if model in animate.IMAGE_MODELS and animate.missing_image_model_files(MODELS_DIR, model, model_checker(gpu)):
             return web.json_response({"error": f"{animate.IMAGE_MODELS[model]['label']} isn't installed on the GPU. "
                                                "Choose another model, or download it (README, Model licenses)."}, status=400)
         try:
             task = maker.start(prompt, data.get("aspect", "16:9"), data.get("source") or None,
-                               int(seed) if str(seed or "").isdigit() else None, data.get("model") or "klein4b",
+                               int(seed) if str(seed or "").isdigit() else None, data.get("model") or maker.default_model(),
                                characters.cast(data.get("characters")))
         except ValueError as e:
             return web.json_response({"error": str(e)}, status=400)
@@ -986,7 +993,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         style = animate.load_styles()[style_id]
         if not style.get("restyle_prompt"):
             return web.json_response({"error": "this style keeps images as they are: nothing to redraw"}, status=400)
-        model = "klein4b"  # the examples are made with the default image model
+        model = maker.default_model()  # the examples are made with the default image model
         if animate.missing_image_model_files(MODELS_DIR, model, model_checker(gpu)):
             return web.json_response({"error": f"{animate.IMAGE_MODELS[model]['label']} isn't installed on the GPU"}, status=400)
         os.makedirs(STYLE_EXAMPLES_DIR, exist_ok=True)
@@ -1014,7 +1021,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         chosen = [k for k in dict.fromkeys(data.get("styles") or []) if styles.get(k, {}).get("restyle_prompt")]
         if not chosen:
             return web.json_response({"error": "choose at least one style that redraws images"}, status=400)
-        model = data.get("model") or "klein4b"
+        model = data.get("model") or maker.default_model()
         if model in animate.IMAGE_MODELS and animate.missing_image_model_files(MODELS_DIR, model, model_checker(gpu)):
             return web.json_response({"error": f"{animate.IMAGE_MODELS[model]['label']} isn't installed on the GPU"}, status=400)
         seed = data.get("seed")

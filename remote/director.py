@@ -584,7 +584,7 @@ class Director:
         writer = raw.get("writer") if raw.get("writer") in self.writers else next(iter(self.writers), None)
         project = {"id": uuid.uuid4().hex[:12], "title": title, "created": time.time(), "logline": "",
                    "brief": self._clean_brief(raw.get("brief")), "cast": self._clean_cast(raw.get("cast")),
-                   "writer": writer, "image_model": "klein4b", "fast": True, "shots": [],
+                   "writer": writer, "image_model": None, "fast": True, "shots": [],
                    "engine": raw.get("engine") if raw.get("engine") in VIDEO_ENGINES else VIDEO_ENGINES[0],
                    "ai": {"status": "idle"}, "film": {"status": "idle"}}
         with self.lock:
@@ -810,7 +810,7 @@ class Director:
                 cast = [c for c in map(self.characters.get, project["cast"]) if c and c["refs"]
                         and c["name"].strip().lower() == item["name"].strip().lower()] if key.startswith("ref") else []
                 try:  # (the maker names the cast member's reference image in the prompt)
-                    image = self._wait_task(self.maker.start(item["prompt"], "16:9", None, None, project.get("image_model", "klein4b"),
+                    image = self._wait_task(self.maker.start(item["prompt"], "16:9", None, None, project.get("image_model"),
                                                              self.characters.cast([cast[0]["id"]]) if cast else ()))
                     change = {"image": image, "img_status": "done", "img_error": None}
                 except Exception as e:  # keep drawing the others
@@ -865,7 +865,7 @@ class Director:
 
     def _keyframes(self, project_id, shot_id, project, shot, cast, keep_start=False):
         try:
-            model, aspect = project.get("image_model", "klein4b"), project["brief"]["aspect"]
+            model, aspect = project.get("image_model"), project["brief"]["aspect"]
             if keep_start:
                 start = shot["start_image"]
             else:
@@ -889,7 +889,7 @@ class Director:
             raise ValueError("make the keyframes first")
         engine = project.get("engine", "wan22")  # films made before H3 became the default rendered with Wan
         job = self.queue_job(paths, {"prompts": [shot["motion"] or "smooth natural motion"], "engine": engine,
-                                     "image_model": project.get("image_model", "klein4b"), "style": "photoreal",
+                                     "image_model": project.get("image_model") or self.maker.default_model(), "style": "photoreal",
                                      # the film's style keeps the clip in it (and tells Check clip what to judge)
                                      "custom_style": project["brief"].get("style", ""),
                                      "restyle": False, "fast": project.get("fast", True), "audio": True,

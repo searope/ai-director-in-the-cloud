@@ -42,7 +42,7 @@ minutes.
 
 | Piece | Where |
 |---|---|
-| Keyframe maker: text → keyframe 1, edits → next keyframes (FLUX.2 Klein 4B default; Klein 9B, FLUX 3 Klein optional) | web app, Keyframes tab |
+| Keyframe maker: text → keyframe 1, edits → next keyframes (FLUX 3 Klein default, FLUX.2 Klein 4B when FLUX 3 isn't installed; Klein 9B optional) | web app, Keyframes tab |
 | Keyframes → video: MiniMax H3 first/last frame with generated sound (default; see licenses); Wan 2.2 14B (silent) | web app, Create tab; `animate.py` |
 | Styles: 120 presets in 8 groups, custom text styles, keyframe redraw, Wan style LoRAs. The Styles page shows an example of each style and tries selected styles on any image; Create video shows only the recently used ones. Examples are made on the GPU with `python setup/style_examples.py --pod` | `styles.json`, `setup/style_examples.py` |
 | Studio web app (dark, OpenArt-style layout): Home, Create image (text → image, edit image), Create video (keyframes from the library, motion per gap), Library of all images and videos; job queue; works on phone and desktop; prints the public link on RunPod. The previous single-page app is at `/classic` | `remote/server.py`, `remote/static/` |
@@ -70,11 +70,11 @@ before commercial use. Details per download profile are in `setup/models.json` (
 | Model | License | Commercial use |
 |---|---|---|
 | Wan 2.2 14B (+ umt5, Wan VAE) | Apache 2.0 | ✅ free (default video engine) |
-| FLUX.2 Klein 4B (+ Qwen3 4B) | Apache 2.0 | ✅ free (default image model) |
+| FLUX.2 Klein 4B (+ Qwen3 4B) | Apache 2.0 | ✅ free (fallback image model) |
 | FILM interpolation | Apache 2.0 | ✅ free |
 | Lightx2v Wan 2.2 4-step LoRAs (fast mode) | not yet verified | ❓ quality mode doesn't use them |
 | Lightx2v MiniMax H3 turbo LoRAs (8-step v1.0, 4-step v1.3; Balanced and Fast modes) | none on the repo; Apache 2.0 per other uploaders | ❓ quality mode doesn't use them |
-| FLUX 3 Klein | FLUX Kommunity License | ⚠️ free only under $5M annual revenue |
+| FLUX 3 Klein (default image model) | FLUX Kommunity License | ⚠️ free only under $5M annual revenue; above that a paid Black Forest Labs license (choose FLUX.2 Klein 4B in the Model menu to avoid it) |
 | FLUX.2 Klein 9B | FLUX non-commercial | ❌ needs a paid Black Forest Labs license |
 | MiniMax H3 | The owner's written license from MiniMax (Oct 2026); public: MiniMax H3 Community License | ✅ for the owner (all use, no attribution). ❌ for anyone else in the US, EU, UK or South Korea without their own license: use Wan 2.2 |
 | ElevenLabs (sound, opt-in API, not a model) | ElevenLabs terms; paid per use | ⚠️ needs a paid ElevenLabs plan (free-plan dubs are watermarked); check the terms for music |
