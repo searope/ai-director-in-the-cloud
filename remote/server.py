@@ -179,6 +179,40 @@ class KeyframeMaker:
             raise ValueError("bad image id")
         return os.path.join(KEYFRAMES_DIR, image_id + ".png")
 
+    def save_meta(self, image_id, **meta):
+        """Sidecar JSON next to the PNG, so every device's library shows the prompt, model and seed."""
+        meta = {"id": image_id, "created": time.time(), **meta}
+        try:
+            from PIL import Image
+            with Image.open(self.path(image_id)) as im:
+                meta["width"], meta["height"] = im.size
+        except Exception:
+            pass
+        with open(self.path(image_id)[:-4] + ".json", "w", encoding="utf-8") as f:
+            json.dump(meta, f, indent=1)
+
+    def list(self, limit=300):
+        items = []
+        for name in os.listdir(KEYFRAMES_DIR):
+            if not name.endswith(".png"):
+                continue
+            image_id, path = name[:-4], os.path.join(KEYFRAMES_DIR, name)
+            meta = {"id": image_id, "created": os.path.getmtime(path), "kind": "image"}
+            try:
+                with open(path[:-4] + ".json", encoding="utf-8") as f:
+                    meta.update(json.load(f))
+            except (OSError, ValueError):
+                pass  # images made before metadata existed
+            items.append(meta)
+        items.sort(key=lambda m: m["created"], reverse=True)
+        return items[:limit]
+
+    def delete(self, image_id):
+        path = self.path(image_id)
+        for p in (path, path[:-4] + ".json"):
+            if os.path.exists(p):
+                os.remove(p)
+
     def start(self, prompt, aspect, source_id=None, seed=None, model="klein4b"):
         if aspect not in animate.KEYFRAME_SIZES:
             raise ValueError("bad aspect")
@@ -202,6 +236,9 @@ class KeyframeMaker:
 
         try:
             used = animate.make_keyframe(self.comfy_url, prompt, self.path(image_id), seed, aspect, source, report, model)
+            self.save_meta(image_id, kind="edit" if source else "text", prompt=prompt, model=model,
+                           aspect=None if source else aspect, seed=used,
+                           source=os.path.basename(source)[:-4] if source else None)
             task.update(status="done", image_id=image_id, seed=used)
         except Exception as e:
             task.update(status="failed", error=str(e)[-1500:])
@@ -278,7 +315,10 @@ def make_app(jobs, token, maker):
             given = request.headers.get("X-Token") or request.query.get("t", "")
             if not hmac.compare_digest(given.encode(), token.encode()):
                 return web.json_response({"error": "bad or missing token"}, status=401)
-        return await handler(request)
+        response = await handler(request)
+        if request.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-cache"  # pick up app updates after a git pull
+        return response
 
     def get_job(request):
         job = jobs.jobs.get(request.match_info["id"])
@@ -288,6 +328,9 @@ def make_app(jobs, token, maker):
 
     async def index(request):
         return web.FileResponse(os.path.join(STATIC, "index.html"), headers={"Cache-Control": "no-cache"})
+
+    async def classic(request):
+        return web.FileResponse(os.path.join(STATIC, "classic.html"), headers={"Cache-Control": "no-cache"})
 
     async def info(request):
         styles = animate.load_styles()
@@ -328,6 +371,14 @@ def make_app(jobs, token, maker):
         async for part in reader:
             if part.name == "keyframes":
                 files.append(await part.read(decode=False))
+            elif part.name == "keyframe_id":  # an image already in the library, in upload order
+                try:
+                    path = maker.path((await part.text()).strip())
+                except ValueError:
+                    return web.json_response({"error": "bad keyframe id"}, status=400)
+                if not os.path.exists(path):
+                    return web.json_response({"error": "a chosen keyframe is no longer in the library"}, status=400)
+                files.append(await asyncio.to_thread(_read_bytes, path))
             elif part.name == "settings":
                 raw = json.loads(await part.text())
         if not 2 <= len(files) <= MAX_KEYFRAMES:
@@ -420,9 +471,20 @@ def make_app(jobs, token, maker):
         image_id = uuid.uuid4().hex[:16]
         try:
             await asyncio.to_thread(save_keyframe, data, maker.path(image_id))
+            maker.save_meta(image_id, kind="upload", prompt="", name=os.path.basename(part.filename or "")[:120])
         except Exception as e:
             return web.json_response({"error": f"could not read the image: {e}"}, status=400)
         return web.json_response({"image_id": image_id})
+
+    async def list_images(request):
+        return web.json_response(await asyncio.to_thread(maker.list))
+
+    async def delete_image(request):
+        try:
+            maker.delete(request.match_info["id"])
+        except ValueError:
+            raise web.HTTPNotFound()
+        return web.json_response({"ok": True})
 
     async def keyframe_image(request):
         try:
@@ -436,6 +498,7 @@ def make_app(jobs, token, maker):
     app = web.Application(middlewares=[auth], client_max_size=300 * 1024 * 1024)
     app.add_routes([
         web.get("/", index),
+        web.get("/classic", classic),
         web.get("/api/info", info),
         web.get("/api/jobs", list_jobs),
         web.post("/api/jobs", create_job),
@@ -448,9 +511,16 @@ def make_app(jobs, token, maker):
         web.get("/api/keyframes/tasks/{id}", keyframe_task),
         web.post("/api/keyframes/upload", keyframe_upload),
         web.get("/api/keyframes/image/{id}", keyframe_image),
+        web.get("/api/images", list_images),
+        web.delete("/api/images/{id}", delete_image),
         web.static("/static", STATIC),
     ])
     return app
+
+
+def _read_bytes(path):
+    with open(path, "rb") as f:
+        return f.read()
 
 
 def _fetch_json(url):

@@ -38,7 +38,7 @@ any device sees the same state.
 | Keyframe maker: text → keyframe 1, edits → next keyframes (FLUX.2 Klein 4B default; Klein 9B, FLUX 3 Klein optional) | web app, Keyframes tab |
 | Keyframes → video: Wan 2.2 14B first/last frame (default); MiniMax H3 with sound (optional, see licenses) | web app, Create tab; `animate.py` |
 | Styles: presets, custom text styles, keyframe redraw, Wan style LoRAs | `styles.json` |
-| Browser app with job queue, works from any device; prints the public link on RunPod | `remote/server.py` |
+| Studio web app (dark, OpenArt-style layout): Home, Create image (text → image, edit image), Create video (keyframes from the library, motion per gap), Library of all images and videos; job queue; works on phone and desktop; prints the public link on RunPod. The previous single-page app is at `/classic` | `remote/server.py`, `remote/static/` |
 | Model downloader with profiles | `setup/download_models.py`, `setup/models.json` |
 
 ## Roadmap (director workflow)
