@@ -330,8 +330,8 @@ LTX_SIGMAS = "1., 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.
 
 
 def build_ltx_segment_graph(cfg, start_name, end_name, prompt, seed, width, height, prefix):
-    """API-format graph equivalent to ComfyUI's 'LTX-2.3: FLF2V' template (video_ltx2_3_flf2v.json): the distilled
-    fp8 model, the start and end keyframes as guides at frames 0 and -1, video and audio sampled together in 8 steps."""
+    """Based on ComfyUI's 'LTX-2.3: FLF2V' template (video_ltx2_3_flf2v.json): the distilled fp8 model, video and audio
+    sampled together in 8 steps; the start keyframe written into frame 0, the end keyframe a guide at frame -1."""
     m = cfg["models"]
     n = ltx_length(cfg["length"])
     g = {
@@ -352,14 +352,23 @@ def build_ltx_segment_graph(cfg, start_name, end_name, prompt, seed, width, heig
     prev = {"positive": ["cond", 0], "negative": ["cond", 1], "latent": ["latent", 0]}
     # tunable (defaults = the template): how firmly each keyframe is held, how much its detail is softened before
     # it guides (LTXVPreprocess), and where the last keyframe sits (-1 = the last frame; earlier leaves a tail)
-    strengths = (cfg.get("ltx_first_strength", 0.7), cfg.get("ltx_last_strength", 0.7))
-    compression = cfg.get("ltx_img_compression", 25)
+    # Defaults from side-by-side tests (Oct 2026): with the template's two guides (0.7/0.7, compression 25) clips cut
+    # from the first keyframe through a blank frame to a new shot; the first keyframe written into frame 0 (as
+    # Lightricks' own pipeline does) plays as one continuous move. 33 is the image compression LTX-2.3 was trained on.
+    strengths = (cfg.get("ltx_first_strength", 1.0), cfg.get("ltx_last_strength", 0.7))
+    compression = cfg.get("ltx_img_compression", 33)
     last_idx = cfg.get("ltx_last_frame", -1)
+    first_inplace = cfg.get("ltx_first_inplace", True)  # the first keyframe written into frame 0 (LTXVImgToVideoInplace)
     for key, name, idx in (("first", start_name, 0), ("last", end_name, last_idx)):
         g[f"{key}_load"] = {"class_type": "LoadImage", "inputs": {"image": name}}
         g[f"{key}_scale"] = {"class_type": "ImageScale", "inputs": {
             "image": [f"{key}_load", 0], "upscale_method": "lanczos", "width": width, "height": height, "crop": "center"}}
         g[f"{key}_prep"] = {"class_type": "LTXVPreprocess", "inputs": {"image": [f"{key}_scale", 0], "img_compression": compression}}
+        if key == "first" and first_inplace:
+            g["first_inplace"] = {"class_type": "LTXVImgToVideoInplace", "inputs": {
+                "vae": ["ckpt", 2], "image": [f"{key}_prep", 0], "latent": prev["latent"], "strength": strengths[0], "bypass": False}}
+            prev = dict(prev, latent=["first_inplace", 0])
+            continue
         g[f"{key}_guide"] = {"class_type": "LTXVAddGuide", "inputs": {
             "positive": prev["positive"], "negative": prev["negative"], "vae": ["ckpt", 2], "latent": prev["latent"],
             "image": [f"{key}_prep", 0], "frame_idx": idx, "strength": strengths[0 if key == "first" else 1]}}
