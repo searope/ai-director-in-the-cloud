@@ -1170,7 +1170,9 @@ function jobCard(j) {
       ${reviewBlock(r, ["rerender", "Render again with this prompt"], j.styled.length > 0)}
     </details>
     <div class="row">
-      ${j.status === "done" && j.kind !== "film" && r?.status !== "working" ? `<button type="button" class="btn small" data-job-act="check">${r ? "Check again" : "Check clip"}</button>` : ""}
+      ${j.status === "done" && j.kind !== "film" ? (r?.status === "working"
+        ? `<button type="button" class="btn small busy" disabled><span class="spinner"></span>Checking clip…</button>`
+        : `<button type="button" class="btn small" data-job-act="check">${r ? "Check again" : "Check clip"}</button>`) : ""}
       ${j.status === "done" ? `<button type="button" class="btn small" data-job-act="sound">Sound</button>
         <a class="btn small" href="${jobVideo(j, null, true)}">Download</a>` : ""}
       ${active || j.status === "approve" ? `<button type="button" class="btn small" data-job-act="cancel">Cancel</button>` : ""}
@@ -1238,7 +1240,14 @@ $("jobList").onclick = async (e) => {
   }
   const act = e.target.closest("[data-job-act]")?.dataset.jobAct; if (!act) return;
   const id = card.dataset.id;
-  if (act === "check") { detailsOpen.set(id, true); if (await checkClip(id)) renderJobs(); return; }
+  if (act === "check") {
+    const btn = e.target.closest("[data-job-act]");  // react at once: the request takes a moment
+    btn.disabled = true; btn.classList.add("busy"); btn.innerHTML = `<span class="spinner"></span>Starting the check…`;
+    detailsOpen.set(id, true);
+    if (await checkClip(id)) { toast(`Checking the clip with ${reviewWriter()?.label || "the AI model"}: the result appears under Details`); renderJobs(); }
+    else { btn.disabled = false; btn.classList.remove("busy"); btn.textContent = "Check clip"; }
+    return;
+  }
   if (act === "delete") return deleteJob(id);
   if (act === "sound") return openSound(id);
   if (act === "retry") {  // the same render again: same keyframes, settings and prompts (redrawn keyframes are reused)
