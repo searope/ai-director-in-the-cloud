@@ -5,7 +5,8 @@ subscription, the Anthropic API, any OpenAI-compatible endpoint, or any command-
 Every writer gets the same instructions and returns JSON that matches SCRIPT_SCHEMA, so the
 rest of the pipeline doesn't depend on which model wrote it. Each shot then becomes a start
 keyframe (text to image, with the shot's characters as references), an end keyframe (an edit of
-the start), and a 2-5 s Wan 2.2 clip between the two. "Make film" joins the clips in order.
+the start), and a 2-5 s clip between the two (MiniMax H3 with sound by default, or Wan 2.2).
+"Make film" joins the clips in order, keeping their sound.
 
 Projects are output/director/<id>.json. Writers are configured in remote/config.json:
 
@@ -35,6 +36,7 @@ import uuid
 SECONDS = (2, 3, 4, 5)
 LENGTH_FOR_SECONDS = {2: 33, 3: 49, 4: 65, 5: 81}  # Wan 2.2 frames at 16 fps
 MAX_SHOTS = 40
+VIDEO_ENGINES = ("minimax-h3", "wan22")  # the first is the default for new films
 TEXT_FIELDS = {"scene": 200, "action": 600, "start_frame": 1500, "end_change": 600, "motion": 600, "narration": 600}
 
 SCRIPT_SCHEMA = {
@@ -66,7 +68,7 @@ SYSTEM_PROMPT = """You write shot lists for short AI-animated films.
 
 The film is made shot by shot. For each shot, an image model draws the first frame from
 `start_frame`, then edits it into the last frame with `end_change`, and a video model
-(Wan 2.2) animates the 2-5 seconds between those two frames following `motion`. Shots are
+(MiniMax H3 or Wan 2.2) animates the 2-5 seconds between those two frames following `motion`. Shots are
 joined with hard cuts.
 
 For each shot, in order:
@@ -175,6 +177,15 @@ def _image_note(image):
 def _image_b64(image):
     with open(image, "rb") as f:
         return base64.standard_b64encode(f.read()).decode()
+
+
+def _probe(video_path):
+    """Seconds, frame rate and whether there is a sound track."""
+    import av
+    with av.open(video_path) as container:
+        v = container.streams.video[0]
+        seconds = float(v.duration * v.time_base) if v.duration and v.time_base else float(container.duration or 0) / 1e6
+        return {"seconds": seconds, "fps": float(v.average_rate or 16), "audio": bool(container.streams.audio)}
 
 
 class ClaudeCodeWriter:
@@ -497,6 +508,7 @@ class Director:
         project = {"id": uuid.uuid4().hex[:12], "title": title, "created": time.time(), "logline": "",
                    "brief": self._clean_brief(raw.get("brief")), "cast": self._clean_cast(raw.get("cast")),
                    "writer": writer, "image_model": "klein4b", "fast": True, "shots": [],
+                   "engine": raw.get("engine") if raw.get("engine") in VIDEO_ENGINES else VIDEO_ENGINES[0],
                    "ai": {"status": "idle"}, "film": {"status": "idle"}}
         with self.lock:
             self._save(project)
@@ -514,6 +526,8 @@ class Director:
                 p["writer"] = raw["writer"]
             if "fast" in raw:
                 p["fast"] = bool(raw["fast"])
+            if raw.get("engine") in VIDEO_ENGINES and raw["engine"] != p.get("engine"):
+                p["engine"] = raw["engine"]
             if "shots" in raw:  # the full list in its new order: known ids are edited, new ones added, missing ones removed
                 old = {s["id"]: s for s in p["shots"]}
                 p["shots"] = [self._clean_shot(s, old.get(s.get("id"))) for s in raw["shots"][:MAX_SHOTS]]
@@ -701,10 +715,12 @@ class Director:
             if shot.get("start_image") and shot.get("end_image") else None
         if not paths or not all(os.path.exists(p) for p in paths):
             raise ValueError("make the keyframes first")
-        job = self.queue_job(paths, {"prompts": [shot["motion"] or "smooth natural motion"], "engine": "wan22",
+        engine = project.get("engine", "wan22")  # films made before H3 became the default rendered with Wan
+        job = self.queue_job(paths, {"prompts": [shot["motion"] or "smooth natural motion"], "engine": engine,
                                      "image_model": project.get("image_model", "klein4b"), "style": "photoreal",
-                                     "restyle": False, "fast": project.get("fast", True),
-                                     "length": LENGTH_FOR_SECONDS[shot["seconds"]], "size": "standard", "smooth": True})
+                                     "restyle": False, "fast": project.get("fast", True), "audio": True,
+                                     "length": LENGTH_FOR_SECONDS[shot["seconds"]], "size": "standard",
+                                     "smooth": engine == "wan22"})  # H3 already renders 24 fps
         self.update(project_id, lambda p: self._shot(p, shot_id).update(job_id=job["id"]))
         return job
 
@@ -727,27 +743,44 @@ class Director:
                 keyframes.append(self.maker.path(shot["start_image"]))
             if shot["narration"]:
                 narration.append({"start": round(start, 2), "text": shot["narration"], "shot": i + 1})
-            start += (LENGTH_FOR_SECONDS[shot["seconds"]] - 1) / 16  # a Wan clip lasts (frames - 1) / 16 s
+            start += _probe(clips[-1])["seconds"]
         if not clips:
             raise ValueError("there are no shots")
         if project.get("film", {}).get("status") == "working":
             raise ValueError("the film is already being made")
         info = {"title": project["title"], "fast": project.get("fast", True), "narration": narration,
-                "prompts": [s["action"] or s["motion"] for s in project["shots"]]}
+                "prompts": [s["action"] or s["motion"] for s in project["shots"]],
+                "engine": "minimax-h3" if any(_probe(c)["audio"] for c in clips) else "wan22"}
         self.update(project_id, lambda p: p.update(film={"status": "working", "started": time.time()}))
         self._task_started(project_id)
         threading.Thread(target=self._film, args=(project_id, clips, keyframes, info), daemon=True).start()
 
     @staticmethod
     def _join(clips, out_path):
+        """Join the clips with hard cuts, re-encoding so mixed sizes, frame rates and engines fit together.
+        Sound is kept (H3 clips have it); a silent clip gets silence of its length."""
         import imageio_ffmpeg
         ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
-        # Re-encode while joining: the clips are all Wan output, but this also copes with mixed sizes.
-        streams = "".join(f"[{i}:v]scale=trunc(iw/2)*2:trunc(ih/2)*2,setsar=1,fps=32[v{i}];" for i in range(len(clips)))
-        joined = "".join(f"[v{i}]" for i in range(len(clips)))
-        cmd = [ffmpeg, "-y", "-loglevel", "error"] + sum((["-i", c] for c in clips), []) + [
-            "-filter_complex", f"{streams}{joined}concat=n={len(clips)}:v=1:a=0[out]",
-            "-map", "[out]", "-c:v", "libx264", "-crf", "17", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out_path]
+        info = [_probe(c) for c in clips]
+        fps = max(round(i["fps"]) for i in info)  # 24 for H3 only, 32 for smoothed Wan
+        inputs = sum((["-i", c] for c in clips), [])
+        parts = [f"[{n}:v]scale=trunc(iw/2)*2:trunc(ih/2)*2,setsar=1,fps={fps}[v{n}];" for n in range(len(clips))]
+        extra = len(clips)  # index of the next generated input
+        with_audio = any(m["audio"] for m in info)
+        if with_audio:
+            for n, meta in enumerate(info):
+                if meta["audio"]:
+                    parts.append(f"[{n}:a]aresample=48000,aformat=channel_layouts=stereo[a{n}];")
+                else:  # silence as long as the clip
+                    inputs += ["-f", "lavfi", "-t", f"{meta['seconds']:.3f}", "-i", "anullsrc=r=48000:cl=stereo"]
+                    parts.append(f"[{extra}:a]anull[a{n}];")
+                    extra += 1
+        joined = "".join(f"[v{n}]" + (f"[a{n}]" if with_audio else "") for n in range(len(clips)))
+        maps = ["-map", "[out]"] + (["-map", "[aout]", "-c:a", "aac", "-b:a", "192k"] if with_audio else [])
+        outs = "[out][aout]" if with_audio else "[out]"
+        cmd = [ffmpeg, "-y", "-loglevel", "error"] + inputs + [
+            "-filter_complex", "".join(parts) + f"{joined}concat=n={len(clips)}:v=1:a={int(with_audio)}{outs}",
+            *maps, "-c:v", "libx264", "-crf", "17", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out_path]
         proc = _run(cmd, None, 1800)
         if proc.returncode:
             raise RuntimeError(proc.stderr.strip()[-600:] or "ffmpeg failed")

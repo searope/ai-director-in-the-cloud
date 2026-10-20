@@ -46,7 +46,7 @@ terminal**.
 | 1.2 | Deploy an **RTX 5090 pod** with a PyTorch / CUDA 13 Linux template, the volume mounted at `/workspace`, and **HTTP port 8700 exposed**. Do **not** expose 8188. Optional, for the paid ElevenLabs sound: add the environment variable `ELEVENLABS_API_KEY` = `{{ RUNPOD_SECRET_elevenlabs_api_key }}` (after saving the key as the Runpod secret `elevenlabs_api_key`). | 8700 is the web app (token-protected); 8188 is ComfyUI (must stay private) |
 | 1.3 | Open the pod's **web terminal** and run: `cd /workspace && git clone https://github.com/searope/ai-director-in-the-cloud.git && cd ai-director-in-the-cloud` | The repo lives on the persistent volume. The repo is private, so `git clone` asks for credentials: use your GitHub username and a [fine-grained token](https://github.com/settings/personal-access-tokens) with read access to this repo only |
 | 1.4 | `export HF_TOKEN=hf_...` then `bash setup/install_linux.sh` | Installs ComfyUI + PyTorch and downloads the default models. Note how long it takes |
-| 1.5 | Optional comparison models: `.venv/bin/python setup/download_models.py --profile klein9b --profile flux3-klein` | Not for commercial work (see the README's license table). Skip `minimax-h3`: its license doesn't cover the US |
+| 1.5 | Optional comparison models: `.venv/bin/python setup/download_models.py --profile klein9b --profile flux3-klein` | Not for commercial work (see the README's license table). MiniMax H3 is part of the default install now (owner's license) |
 | 1.6 | Start everything inside `tmux` (so it keeps running if the web terminal closes): `tmux new -s anim` then `./start_all.sh` | It prints an **`https://…proxy.runpod.net/?t=…`** link and a QR code |
 | 1.7 | Open that link on your **phone**, then on **another device**. The status pill should show the 5090 and ~32 GB. | Same link works everywhere; bookmark it / "Add to Home Screen" |
 | 1.8 | Render one short test (Preview, 2 s) from the phone. Close the browser, reopen the link from another device, and check the job is there. | Confirms jobs live on the server, not the device |
@@ -73,8 +73,8 @@ Run each test twice: the first run is "cold" (models loading), the second "warm"
 | T3 | Wan 2.2 fast, Preview, 2 s | pair A |
 | T4 | Wan 2.2 fast, Standard (~480p), 5 s | pairs A, B, C |
 | T5 | Wan 2.2 **quality**, ~720p, 5 s | pair A (web terminal: `./animate.sh --keyframes … --quality --width 1280 --height 720`) |
-| T6 | ~~MiniMax H3 fast, 5 s, with sound~~ | skipped: H3's license excludes the US |
-| T7 | ~~MiniMax H3 quality (20 steps), 5 s~~ | skipped, same reason |
+| T6 | MiniMax H3 fast, 5 s, with sound | pair A |
+| T7 | MiniMax H3 quality (20 steps), 5 s | pair A |
 | T8 | Full storyboard, 3 keyframes, anime style with restyle | `examples/storyboard.json` |
 
 **Record for each run** (in a shared spreadsheet, so you can fill it in from any device):

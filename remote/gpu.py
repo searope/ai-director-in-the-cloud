@@ -141,7 +141,9 @@ class RunpodGPU:
         body = {
             "name": "ai-director-gpu",
             "image": c["image"],
-            "cmd": ["bash", "-c", f"(/start.sh >/dev/null 2>&1 &) ; exec bash {root}/remote/pod_start.sh"],
+            # Update the pod-side code on the volume from GitHub first (a second or two; a failure keeps the old code).
+            "cmd": ["bash", "-c", f"(/start.sh >/dev/null 2>&1 &) ; (cd {root} && timeout 60 git pull --ff-only -q) ; "
+                                  f"exec bash {root}/remote/pod_start.sh"],
             "disk": c["disk_gb"],
             "ports": [f"{GATEWAY_PORT}/http"],
             "env": {"GATEWAY_TOKEN": c["gateway_token"], "GATEWAY_IDLE_MINUTES": str(c.get("pod_safety_minutes", 30)),

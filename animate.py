@@ -17,7 +17,8 @@ Usage:
     python animate.py --keyframes my_frames/ --prompt "the camera slowly orbits the character"
     python animate.py --keyframes my_frames/ --style anime
     python animate.py --keyframes my_frames/ --custom-style "paper cut-out stop motion"
-    python animate.py --keyframes my_frames/ --engine minimax-h3 --sound "birds, soft wind"
+    python animate.py --keyframes my_frames/ --sound "birds, soft wind"     # MiniMax H3 (default) with sound
+    python animate.py --keyframes my_frames/ --engine wan22                 # Wan 2.2, silent
     python animate.py --list-styles
 
 ComfyUI must be running (run_comfyui.bat / run_comfyui.sh). Needs only the
@@ -53,7 +54,7 @@ ENGINES = ("wan22", "minimax-h3")
 # Short license notes shown in the app (details in setup/models.json; verify on each model card).
 LICENSES = {
     "wan22": "Apache 2.0, commercial OK",
-    "minimax-h3": "not licensed in the US, EU, UK or South Korea",
+    "minimax-h3": "commercial OK under the owner's written MiniMax license (Oct 2026)",
     "klein4b": "Apache 2.0, commercial OK",
     "klein9b": "non-commercial",
     "flux3klein": "commercial only under $5M revenue",
@@ -89,7 +90,7 @@ def missing_image_model_files(models_dir, name, exists=None):
 
 DEFAULTS = {
     "server": "http://127.0.0.1:8188",
-    "engine": "wan22",        # "wan22" (default, commercial OK) or "minimax-h3" (with sound; see LICENSES)
+    "engine": "minimax-h3",   # "minimax-h3" (default, with sound) or "wan22" (silent; see LICENSES)
     "width": "auto",          # "auto" = match the first keyframe's aspect ratio
     "height": "auto",
     "area": 832 * 480,        # pixel budget for "auto" sizing; fits 8 GB VRAM
@@ -706,7 +707,7 @@ def main():
     ap.add_argument("--restyle", dest="restyle", action="store_true", default=None, help="redraw keyframes in the style first")
     ap.add_argument("--no-restyle", dest="restyle", action="store_false", help="keep keyframes as they are")
     ap.add_argument("--list-styles", action="store_true")
-    ap.add_argument("--engine", choices=ENGINES, help="video model (default wan22)")
+    ap.add_argument("--engine", choices=ENGINES, help="video model (default minimax-h3)")
     ap.add_argument("--image-model", choices=list(IMAGE_MODELS), help="model for --restyle (default klein4b)")
     ap.add_argument("--sound", help="MiniMax H3: describe the soundtrack")
     ap.add_argument("--no-audio", dest="audio", action="store_false", default=None, help="MiniMax H3: drop the soundtrack")

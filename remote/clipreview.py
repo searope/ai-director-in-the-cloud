@@ -37,7 +37,7 @@ REVIEW_SCHEMA = {
 
 SYSTEM_PROMPT = """You review short AI-generated video clips for visual problems and write a better prompt.
 
-How the clip was made: a video model (Wan 2.2, image-to-video with first and last frame)
+How the clip was made: a video model (MiniMax H3 or Wan 2.2, image-to-video with first and last frame)
 animated between a START keyframe and an END keyframe, following a short motion prompt.
 You see one contact sheet: the two keyframes on top, then frames sampled evenly through the
 clip, each labelled with its time in seconds.
@@ -54,7 +54,7 @@ viewer wouldn't notice are fine.
 
 Then write `motion_prompt`: a better motion prompt for the same two keyframes that avoids the
 problems: describe one clear, simple action, what stays still, and the camera (e.g. "static
-camera"). Name the things that must keep their shape. Keep it under about 120 words. Wan follows plain
+camera"). Name the things that must keep their shape. Keep it under about 120 words. Video models follow plain
 physical descriptions better than abstract ones; describing how something moves works better
 than listing what must not happen.
 

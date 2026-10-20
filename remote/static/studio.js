@@ -360,7 +360,7 @@ function openImage(id) {
 
 function jobSummary(j) {
   const s = j.settings;
-  if (j.kind === "film") return { style: "", engine: "Wan 2.2", text: `Film · ${j.title} · ${s.prompts.length} shots` };
+  if (j.kind === "film") return { style: "", engine: "", text: `Film · ${j.title} · ${s.prompts.length} shots` };
   const style = s.custom_style || (S.info?.styles.find((x) => x.id === s.style) || {}).label || s.style;
   const engine = (S.info?.engines.find((e) => e.id === s.engine) || {}).label || s.engine;
   return { style, engine, text: `${engine} · ${style} · ${j.inputs.length} keyframes${s.loop ? " · loop" : ""} · ${s.fast ? "fast" : "quality"}` };
@@ -660,11 +660,14 @@ function renderEngines() {
   const sel = $("engine");
   sel.innerHTML = S.info.engines.map((e) =>
     `<option value="${e.id}"${e.ready ? "" : " disabled"}>${esc(e.label)}${e.ready ? "" : " (not installed)"}</option>`).join("");
-  sel.value = "wan22";  // commercial-safe default; MiniMax H3 only by explicit choice
+  // Keep the current choice if it's still available; otherwise MiniMax H3 (the default) when installed, else Wan.
+  const ok = (id) => S.info.engines.some((e) => e.id === id && e.ready);
+  sel.value = ok(sel.dataset.chosen) ? sel.dataset.chosen : ok("minimax-h3") ? "minimax-h3" : "wan22";
   sel.onchange();
 }
 $("engine").onchange = () => {
   const e = S.info.engines.find((x) => x.id === $("engine").value);
+  $("engine").dataset.chosen = e.id;
   const h3 = e.id === "minimax-h3";
   $("soundBox").classList.toggle("hidden", !h3);
   $("smooth").checked = !h3;  // H3 already renders 24 fps
@@ -941,6 +944,8 @@ function renderDirPanel(p) {
   setHtml($("dirCast"), S.characters.length ? S.characters.map((c) => `<button type="button" class="cast-chip${p.cast.includes(c.id) ? " on" : ""}" data-dcast="${c.id}">
       ${c.refs[0] ? `<img alt="" src="${imgUrl(c.refs[0])}">` : ""}${esc(c.name)}</button>`).join("")
     : `<p class="hint" style="margin:0">No characters yet. <a href="#/characters">Create them</a> to keep faces consistent; without a cast the AI describes everyone in each prompt.</p>`);
+  setHtml($("dirEngine"), S.info.engines.map((e) => `<option value="${e.id}"${e.ready ? "" : " disabled"}>${esc(e.label)}${e.ready ? "" : " (not installed)"}</option>`).join(""));
+  $("dirEngine").value = p.engine || "wan22";
   const writers = S.info.writers || [];
   setHtml($("dirWriter"), writers.length ? writers.map((w) => `<option value="${w.id}"${w.ready ? "" : " disabled"}>${esc(w.label)}${w.model ? ` · ${esc(w.model)}` : ""}${w.ready ? "" : " (not set up)"}</option>`).join("")
     : `<option value="">No AI model set up</option>`);
@@ -1068,6 +1073,7 @@ $("dirCast").onclick = (e) => {
   saveProject({ cast });
 };
 $("dirFast").onchange = () => saveProject({ fast: $("dirFast").checked });
+$("dirEngine").onchange = () => saveProject({ engine: $("dirEngine").value });
 $("dirWrite").onclick = async () => {
   const p = D.project; if (!p) return;
   const w = writerById($("dirWriter").value);

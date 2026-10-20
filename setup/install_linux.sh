@@ -48,7 +48,7 @@ step "Verifying the GPU is visible to PyTorch"
 "$PY" -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'; print(torch.__version__, torch.cuda.get_device_name(0), 'sm_%d%d' % torch.cuda.get_device_capability(0))"
 
 if [ "$SKIP_MODELS" = 0 ]; then
-  step "Downloading models (~50 GB, resumable)"
+  step "Downloading models (~90 GB, resumable)"
   "$PY" "$ROOT/setup/download_models.py"
 fi
 

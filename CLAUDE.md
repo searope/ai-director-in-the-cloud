@@ -56,15 +56,17 @@ port 8700. If the app itself runs on a pod (the older setup), add
 reasonable price that the owner has approved. The owner is in the **USA**, and rented pods usually
 run in US/EU datacenters, so a license must cover both.
 
-- **Commercial-safe default set** (Apache 2.0): **Wan 2.2 14B** (+ umt5 text encoder, Wan VAE),
-  **FLUX.2 Klein 4B** (+ Qwen3 4B text encoder), **FILM** interpolation. Defaults in code
-  (engine, image model, download profiles) must come only from this set.
+- **Commercial-safe default set:** **MiniMax H3** (+ its turbo LoRA; the default video engine, under
+  the owner's license below), **Wan 2.2 14B** (+ umt5 text encoder, Wan VAE; Apache 2.0),
+  **FLUX.2 Klein 4B** (+ Qwen3 4B text encoder; Apache 2.0), **FILM** interpolation (Apache 2.0).
+  Defaults in code (engine, image model, download profiles) must come only from this set.
+- **MiniMax H3: licensed to the owner (Oct 2026).** The owner holds a written license from MiniMax
+  covering all use, including commercial, with no requirement to show "MiniMax H3" anywhere. It is
+  the owner's license: the public community license still excludes the US, EU, UK and South Korea,
+  so docs must tell anyone else running the app that they need their own license (or use Wan 2.2).
 - **Opt-in only, clearly labelled** in the app and docs:
   - FLUX.2 Klein 9B: non-commercial (commercial use needs a paid Black Forest Labs license).
   - FLUX 3 Klein: FLUX Kommunity License, free commercial use only under $5M annual revenue.
-  - MiniMax H3 (+ its turbo LoRA): its community license excludes the US, EU, UK and South Korea,
-    so it is **not usable by the owner** without a separate license from MiniMax. Kept in the code
-    for completeness; don't make it a default or build new features on it.
 - **Unverified:** Lightx2v Wan 2.2 4-step speed LoRAs. Check the model card before commercial use;
   Wan's quality mode works without them.
 - **Planned:** LTX-2.x is free for commercial use under $10M annual revenue (LoRAs trained on it

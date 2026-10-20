@@ -137,7 +137,7 @@ class Jobs:
             "server": None,  # set once the GPU is up
             "keyframes": [os.path.join(out_dir, "inputs", name) for name in job["inputs"]],
             "prompts": s["prompts"],
-            "engine": s.get("engine", "wan22"),
+            "engine": s.get("engine", "minimax-h3"),
             "image_model": s.get("image_model", "klein4b"),
             "audio": s.get("audio", True),
             "sound": s.get("sound") or None,
@@ -449,7 +449,7 @@ def clean_settings(raw, n_keyframes, styles):
     style = raw.get("style") or "photoreal"
     if not custom and style not in styles:
         raise ValueError(f"unknown style {style}")
-    engine = raw.get("engine") or "wan22"
+    engine = raw.get("engine") or "minimax-h3"
     if engine not in animate.ENGINES:
         raise ValueError(f"unknown engine {engine}")
     image_model = raw.get("image_model") or "klein4b"
@@ -559,7 +559,7 @@ def add_film_job(jobs, make_video, keyframes, info):
     now = time.time()
     job = {"id": job_id, "kind": "film", "title": info["title"], "narration": info.get("narration", []),
            "created": now, "started": now, "finished": now, "status": "done", "progress": "done",
-           "settings": {"prompts": info["prompts"], "engine": "wan22", "style": "photoreal", "custom_style": "",
+           "settings": {"prompts": info["prompts"], "engine": info.get("engine", "wan22"), "style": "photoreal", "custom_style": "",
                         "fast": info.get("fast", True), "loop": False, "seed": None},
            "inputs": names, "styled": [], "log": []}
     jobs.add(job)  # the worker skips jobs that aren't queued
@@ -621,9 +621,9 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
             "image_models": [{"id": k, "label": v["label"], "license": v["license"],
                               "missing": animate.missing_image_model_files(MODELS_DIR, k, have)}
                              for k, v in animate.IMAGE_MODELS.items()],
-            "engines": [{"id": "wan22", "label": "Wan 2.2", "license": animate.LICENSES["wan22"], "ready": True},
-                        {"id": "minimax-h3", "label": "MiniMax H3 + sound", "license": animate.LICENSES["minimax-h3"],
-                         "ready": not h3_missing, "missing": h3_missing}],
+            "engines": [{"id": "minimax-h3", "label": "MiniMax H3 + sound", "license": animate.LICENSES["minimax-h3"],
+                         "ready": not h3_missing, "missing": h3_missing},
+                        {"id": "wan22", "label": "Wan 2.2 (silent)", "license": animate.LICENSES["wan22"], "ready": True}],
             "queued": sum(1 for j in jobs.jobs.values() if j["status"] == "queued"),
             "running": any(j["status"] == "running" for j in jobs.jobs.values()),
             "elevenlabs": sound.info(),

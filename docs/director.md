@@ -12,7 +12,8 @@
 4. **Keyframes:** for each shot, a start frame (text to image, with the shot's characters' reference
    images) and an end frame (an edit of the start frame). To use your own photo, choose
    **Use a library image as the start frame**, then **Make end keyframe**.
-5. **Shots:** each shot is a 2-5 s Wan 2.2 clip between its two keyframes, rendered on the GPU.
+5. **Shots:** each shot is a 2-5 s clip between its two keyframes, rendered on the GPU with the film's
+   **Video model**: MiniMax H3 with generated sound (default) or Wan 2.2 (silent).
    **Check clip** has the AI model look at the rendered clip (see below) and suggest a better prompt.
 6. **Film:** the clips joined in order with hard cuts. The film appears in the Library like any
    video; its **Sound** button lists the script's narration with each line's start time, so a
@@ -95,7 +96,7 @@ and a `command` writer gets the file's path. One check is one request (~20-30 s 
 
 ## Tips
 
-- Keep each shot's **end change** small (one pose or camera change): Wan animates only 2-5 s.
+- Keep each shot's **end change** small (one pose or camera change): a shot is only 2-5 s.
 - Tag at most 3 characters per shot. Their main reference image goes to the image model.
 - **Fast renders** (4 steps) are good for a first pass; turn it off for the final render.
 - "Make all keyframes" and "Render all shots" start the GPU when needed; it stops itself after 10
