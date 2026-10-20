@@ -676,10 +676,10 @@ def review_job(jobs, job, writer):
     threading.Thread(target=run, daemon=True).start()
 
 
-def rerender_job(jobs, job, prompts, keep_styled=False):
+def rerender_job(jobs, job, prompts, keep_styled=False, engine=None):
     """Render a job again with new motion prompts, from its original keyframes and with its settings, so a
     restyle runs again too (a bad restyle is often what the clip check found). keep_styled reuses the
-    restyled keyframes instead and skips the restyle, so only the prompt changes."""
+    restyled keyframes instead and skips the restyle, so only the prompt changes. engine: another video model."""
     if job.get("kind") == "film":
         raise ValueError("a film can't be rendered again; render its shots in the Director")
     prompts = [str(p).strip()[:1500] for p in prompts][:len(job["settings"]["prompts"])]
@@ -689,8 +689,13 @@ def rerender_job(jobs, job, prompts, keep_styled=False):
     reuse = keep_styled and bool(job.get("styled"))
     keyframes = job_keyframes(jobs, job) if reuse else [os.path.join(jobs.dir(job["id"]), "inputs", n) for n in job["inputs"]]
     settings = dict(job["settings"], prompts=prompts, seed=None, restyle=False if reuse else job["settings"].get("restyle"))
-    return queue_job(jobs, keyframes, {"smooth": settings.get("interpolate", 2) > 1, "length": settings["length"],
-                                       "size": settings["size"], "fast": settings["fast"], **settings},
+    smooth = settings.get("interpolate", 2) > 1
+    if engine and engine != settings.get("engine"):
+        if engine not in animate.ENGINES:
+            raise ValueError(f"unknown engine {engine}")
+        settings["engine"], smooth = engine, engine == "wan22"  # H3 and LTX render 24-25 fps themselves
+    return queue_job(jobs, keyframes, {"smooth": smooth, "length": settings.get("length", 81),
+                                       "size": settings.get("size", "standard"), "fast": settings.get("fast", True), **settings},
                      extra={"retry_of": job["id"]})
 
 
@@ -824,7 +829,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
 
     async def create_job(request):
         reader = await request.multipart()
-        files, raw = [], {}
+        files, raw, ids = [], {}, []
         async for part in reader:
             if part.name == "keyframes":
                 files.append(await part.read(decode=False))
@@ -836,13 +841,30 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
                 if not os.path.exists(path):
                     return web.json_response({"error": "a chosen keyframe is no longer in the library"}, status=400)
                 files.append(await asyncio.to_thread(_read_bytes, path))
+                ids.append(os.path.basename(path)[:-4])
             elif part.name == "settings":
                 raw = json.loads(await part.text())
         try:
-            job = await asyncio.to_thread(queue_job, jobs, files, raw)
+            job = await asyncio.to_thread(queue_job, jobs, files, raw,
+                                          {"keyframe_ids": ids} if len(ids) == len(files) else None)
         except (ValueError, TypeError) as e:
             return web.json_response({"error": str(e)}, status=400)
         return web.json_response(jobs.public(job))
+
+    async def job_keyframe_ids(request):
+        """The library images of a render's keyframes, for 'Edit and render again': the ones it was made from, or
+        (renders from before that was recorded, uploads) its keyframes added to the library once."""
+        job = get_job(request)
+        ids = [i for i in job.get("keyframe_ids") or [] if maker.exists(i)]
+        if len(ids) != len(job["inputs"]):
+            ids = []
+            for name in job["inputs"]:
+                image_id = uuid.uuid4().hex[:16]
+                await asyncio.to_thread(shutil.copyfile, os.path.join(jobs.dir(job["id"]), "inputs", name), maker.path(image_id))
+                maker.save_meta(image_id, kind="upload", prompt=f"keyframe of render {job['id']}")
+                ids.append(image_id)
+            jobs.update(job, keyframe_ids=ids)
+        return web.json_response({"ids": ids})
 
     async def job_detail(request):
         return web.json_response(jobs.public(get_job(request)))
@@ -885,7 +907,8 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
     async def rerender(request):
         job, raw = get_job(request), await request.json()
         try:
-            new = await asyncio.to_thread(rerender_job, jobs, job, raw.get("prompts") or [], bool(raw.get("keep_styled")))
+            new = await asyncio.to_thread(rerender_job, jobs, job, raw.get("prompts") or [], bool(raw.get("keep_styled")),
+                                          raw.get("engine"))
         except (ValueError, TypeError) as e:
             return web.json_response({"error": str(e)}, status=400)
         return web.json_response(jobs.public(new))
@@ -1242,6 +1265,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         web.post("/api/jobs/{id}/review", check_clip),
         web.post("/api/jobs/{id}/approve", approve_keyframes),
         web.post("/api/jobs/{id}/rerender", rerender),
+        web.post("/api/jobs/{id}/keyframe-ids", job_keyframe_ids),
         web.get("/api/jobs/{id}/video", video),
         web.get("/api/voices", voices),
         web.post("/api/jobs/{id}/audio", add_track),
