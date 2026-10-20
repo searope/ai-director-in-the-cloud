@@ -5,62 +5,959 @@
     "video_prompt": "photorealistic, natural lighting, realistic physics and motion, shot on a cinema camera, shallow depth of field",
     "negative": "cartoon, anime, illustration, painting, drawing, 3d render, cgi",
     "restyle_prompt": null,
-    "loras": []
+    "loras": [],
+    "group": "Basics"
   },
   "photoreal-from-art": {
     "label": "Photorealistic (convert drawings)",
     "video_prompt": "photorealistic, natural lighting, realistic physics and motion, shot on a cinema camera",
     "negative": "cartoon, anime, illustration, painting, drawing, 3d render, cgi",
     "restyle_prompt": "Turn this image into a realistic photograph with natural lighting and real-world materials. Keep the exact composition, pose, framing, characters and colors.",
-    "loras": []
+    "loras": [],
+    "group": "Basics"
   },
   "anime": {
     "label": "Anime",
     "video_prompt": "2D anime style, cel shading, clean line art, vibrant flat colors, hand-drawn animation",
     "negative": "photorealistic, photo, 3d render, realistic skin texture",
     "restyle_prompt": "Redraw this image as a 2D anime illustration with cel shading, clean line art and vibrant flat colors. Keep the exact composition, pose, framing and characters.",
-    "loras": []
+    "loras": [],
+    "group": "Basics"
   },
   "3d-cartoon": {
     "label": "3D cartoon",
     "video_prompt": "stylized 3D animated film look, soft global illumination, expressive cartoon characters, smooth subsurface skin",
     "negative": "photorealistic, photo, 2d, flat, sketch",
     "restyle_prompt": "Re-render this image as a stylized 3D animated movie frame with soft lighting and expressive cartoon proportions. Keep the exact composition, pose, framing and characters.",
-    "loras": []
+    "loras": [],
+    "group": "Basics"
   },
   "claymation": {
     "label": "Claymation",
     "video_prompt": "claymation stop-motion, plasticine figures with fingerprints, handmade miniature set, slightly jerky stop-motion movement",
     "negative": "photorealistic, smooth cgi, 2d, anime",
     "restyle_prompt": "Recreate this image as a claymation stop-motion scene made of plasticine with visible fingerprints on a handmade miniature set. Keep the exact composition, pose, framing and characters.",
-    "loras": []
+    "loras": [],
+    "group": "Basics"
   },
   "watercolor": {
     "label": "Watercolor",
     "video_prompt": "animated watercolor painting, soft bleeding pigments, visible paper texture, gentle brush strokes",
     "negative": "photorealistic, photo, 3d render, sharp digital lines",
     "restyle_prompt": "Repaint this image as a soft watercolor painting with bleeding pigments and visible paper texture. Keep the exact composition, pose, framing and characters.",
-    "loras": []
+    "loras": [],
+    "group": "Basics"
   },
   "comic": {
     "label": "Comic / ink",
     "video_prompt": "comic book style, bold black ink outlines, halftone shading, flat saturated colors",
     "negative": "photorealistic, photo, 3d render, soft gradients",
     "restyle_prompt": "Redraw this image as a comic book panel with bold black ink outlines, halftone shading and flat saturated colors. Keep the exact composition, pose, framing and characters.",
-    "loras": []
+    "loras": [],
+    "group": "Basics"
   },
   "oil-painting": {
     "label": "Oil painting",
     "video_prompt": "living oil painting, thick impasto brush strokes, rich colors, painterly texture in motion",
     "negative": "photorealistic, photo, 3d render, flat cartoon",
     "restyle_prompt": "Repaint this image as an oil painting with thick impasto brush strokes and rich colors. Keep the exact composition, pose, framing and characters.",
-    "loras": []
+    "loras": [],
+    "group": "Basics"
   },
   "pixel-art": {
     "label": "Pixel art",
     "video_prompt": "retro 16-bit pixel art animation, limited color palette, crisp pixels",
     "negative": "photorealistic, photo, blurry, smooth gradients, 3d render",
     "restyle_prompt": "Redraw this image as retro 16-bit pixel art with a limited color palette and crisp pixels. Keep the exact composition, pose, framing and characters.",
-    "loras": []
+    "loras": [],
+    "group": "Basics"
+  },
+  "film-noir": {
+    "label": "Film noir",
+    "video_prompt": "1940s film noir, black and white, hard low-key lighting, deep shadows, venetian-blind light, smoky atmosphere",
+    "negative": "color, bright flat lighting, cartoon",
+    "restyle_prompt": "Turn this image into a 1940s black-and-white film noir frame with hard low-key lighting, deep shadows and a smoky atmosphere. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Film looks"
+  },
+  "western": {
+    "label": "Western",
+    "video_prompt": "classic western film, dusty sun-baked frontier light, warm earthy tones, wide-open landscape feel, film grain",
+    "negative": "neon, futuristic, cartoon",
+    "restyle_prompt": "Restyle this image as a frame from a classic western film: dusty, sun-baked light, warm earthy tones and film grain. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Film looks"
+  },
+  "sci-fi": {
+    "label": "Sci-fi",
+    "video_prompt": "science fiction film, cool futuristic lighting, sleek high-tech surfaces, subtle holographic glow",
+    "negative": "medieval, rustic, cartoon",
+    "restyle_prompt": "Restyle this image as a science-fiction film frame with cool futuristic lighting, sleek high-tech surfaces and a subtle holographic glow. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Film looks"
+  },
+  "technicolor-50s": {
+    "label": "1950s Technicolor",
+    "video_prompt": "1950s Technicolor melodrama, lush saturated colors, soft glamorous studio lighting, painted-backdrop warmth",
+    "negative": "desaturated, gritty, modern digital look",
+    "restyle_prompt": "Restyle this image as a 1950s Technicolor film frame with lush saturated colors and soft, glamorous studio lighting. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Film looks"
+  },
+  "eighties": {
+    "label": "1980s film",
+    "video_prompt": "1980s film look, warm film grain, slight bloom, saturated pastel and neon accents, soft analog contrast",
+    "negative": "modern digital sharpness, black and white",
+    "restyle_prompt": "Restyle this image as a frame from a 1980s film: warm grain, slight bloom, soft analog contrast and pastel-and-neon accents. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Film looks"
+  },
+  "retro-film": {
+    "label": "Retro film",
+    "video_prompt": "vintage film stock, heavy grain, faded warm colors, soft vignette, slight light leaks",
+    "negative": "clean digital look, oversaturated",
+    "restyle_prompt": "Give this image the look of vintage film stock: heavy grain, faded warm colors, a soft vignette and slight light leaks. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Film looks"
+  },
+  "golden-hour": {
+    "label": "Golden hour",
+    "video_prompt": "golden hour sunlight, warm amber glow, long soft shadows, gentle lens flare",
+    "negative": "cold blue light, harsh midday sun, overcast",
+    "restyle_prompt": "Relight this image as golden hour: low warm amber sunlight, long soft shadows and a gentle glow. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Film looks"
+  },
+  "blue-hour": {
+    "label": "Blue hour",
+    "video_prompt": "blue hour twilight, cool deep-blue ambient light, soft glowing practical lights, calm melancholy mood",
+    "negative": "warm sunlight, midday",
+    "restyle_prompt": "Relight this image as blue-hour twilight: cool deep-blue ambient light with a few warm, softly glowing lights. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Film looks"
+  },
+  "cyberpunk": {
+    "label": "Cyberpunk",
+    "video_prompt": "cyberpunk, neon pink and cyan lighting, rain-slick reflections, gritty high-tech city atmosphere",
+    "negative": "daylight, pastoral, muted colors",
+    "restyle_prompt": "Restyle this image as cyberpunk: neon pink and cyan lighting, rain-slick reflective surfaces and a gritty high-tech atmosphere. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Film looks"
+  },
+  "steampunk": {
+    "label": "Steampunk",
+    "video_prompt": "steampunk, Victorian brass and copper machinery, warm gaslight, sepia-tinged palette, gears and rivets",
+    "negative": "modern plastic, neon, minimalist",
+    "restyle_prompt": "Restyle this image as steampunk: Victorian brass-and-copper details, warm gaslight and a sepia-tinged palette. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Film looks"
+  },
+  "documentary": {
+    "label": "Documentary",
+    "video_prompt": "documentary footage, natural available light, handheld camera feel, candid and unpolished, realistic color",
+    "negative": "stylized, cartoon, heavy color grading",
+    "restyle_prompt": "Make this image look like candid documentary footage: natural available light, realistic color and a slightly unpolished feel. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Film looks"
+  },
+  "surreal": {
+    "label": "Surreal / dreamlike",
+    "video_prompt": "surreal dreamlike film, soft hazy light, slightly distorted perspective, uncanny saturated colors",
+    "negative": "plain realistic, documentary",
+    "restyle_prompt": "Restyle this image as a surreal, dreamlike film frame with soft hazy light and uncanny, saturated colors. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Film looks"
+  },
+  "symmetric-pastel": {
+    "label": "Symmetrical pastel",
+    "video_prompt": "storybook pastel palette, centered symmetrical composition, flat even lighting, whimsical miniature-set feel",
+    "negative": "gritty, handheld, dark",
+    "restyle_prompt": "Restyle this image with a storybook pastel palette, flat even lighting and a whimsical, miniature-set feel. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Film looks"
+  },
+  "cold-symmetry": {
+    "label": "Cold symmetry",
+    "video_prompt": "cold clinical lighting, one-point perspective, precise symmetrical framing, unsettling calm",
+    "negative": "warm cozy light, handheld, cartoon",
+    "restyle_prompt": "Restyle this image with cold, clinical lighting and a precise, unsettlingly calm look. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Film looks"
+  },
+  "pop-art": {
+    "label": "Pop art",
+    "video_prompt": "a bold pop-art print with flat primary colors, thick outlines and halftone dots",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a bold pop-art print with flat primary colors, thick outlines and halftone dots. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "art-deco": {
+    "label": "Art deco",
+    "video_prompt": "an art deco illustration with elegant geometric shapes, gold accents and streamlined lines",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as an art deco illustration with elegant geometric shapes, gold accents and streamlined lines. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "art-nouveau": {
+    "label": "Art nouveau",
+    "video_prompt": "an art nouveau illustration with flowing organic lines, floral ornament and soft muted colors",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as an art nouveau illustration with flowing organic lines, floral ornament and soft muted colors. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "baroque": {
+    "label": "Baroque",
+    "video_prompt": "a baroque oil painting with dramatic light, rich deep colors and ornate grandeur",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a baroque oil painting with dramatic light, rich deep colors and ornate grandeur. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "rococo": {
+    "label": "Rococo",
+    "video_prompt": "a rococo painting with soft pastel colors, delicate ornament and playful elegance",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a rococo painting with soft pastel colors, delicate ornament and playful elegance. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "renaissance": {
+    "label": "Renaissance",
+    "video_prompt": "a Renaissance painting with balanced composition, soft sfumato modelling and warm earthy pigments",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a Renaissance painting with balanced composition, soft sfumato modelling and warm earthy pigments. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "romanticism": {
+    "label": "Romanticism",
+    "video_prompt": "a Romantic-era painting with dramatic skies, moody light and emotional atmosphere",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a Romantic-era painting with dramatic skies, moody light and emotional atmosphere. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "pre-raphaelite": {
+    "label": "Pre-Raphaelite",
+    "video_prompt": "a Pre-Raphaelite painting with jewel-like colors, fine detail and luminous skin",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a Pre-Raphaelite painting with jewel-like colors, fine detail and luminous skin. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "neoclassicism": {
+    "label": "Neoclassicism",
+    "video_prompt": "a neoclassical painting with crisp contours, calm idealized forms and cool restrained colors",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a neoclassical painting with crisp contours, calm idealized forms and cool restrained colors. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "impressionism": {
+    "label": "Impressionism",
+    "video_prompt": "an impressionist painting with loose visible brushstrokes, dappled light and soft color",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as an impressionist painting with loose visible brushstrokes, dappled light and soft color. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "post-impressionism": {
+    "label": "Post-impressionism",
+    "video_prompt": "a post-impressionist painting with bold swirling brushstrokes and vivid expressive color",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a post-impressionist painting with bold swirling brushstrokes and vivid expressive color. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "pointillism": {
+    "label": "Pointillism",
+    "video_prompt": "a pointillist painting made of small dots of pure color",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a pointillist painting made of small dots of pure color. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "expressionism": {
+    "label": "Expressionism",
+    "video_prompt": "an expressionist painting with distorted forms, raw brushwork and intense emotional color",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as an expressionist painting with distorted forms, raw brushwork and intense emotional color. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "fauvism": {
+    "label": "Fauvism",
+    "video_prompt": "a fauvist painting with wild unnatural colors and simplified bold shapes",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a fauvist painting with wild unnatural colors and simplified bold shapes. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "cubism": {
+    "label": "Cubism",
+    "video_prompt": "a cubist painting with fragmented geometric planes and multiple viewpoints",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a cubist painting with fragmented geometric planes and multiple viewpoints. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "futurism": {
+    "label": "Futurism",
+    "video_prompt": "a futurist painting with dynamic lines of motion and fragmented speed",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a futurist painting with dynamic lines of motion and fragmented speed. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "dadaism": {
+    "label": "Dadaism",
+    "video_prompt": "a dada collage with cut-out shapes, newsprint textures and playful absurdity",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a dada collage with cut-out shapes, newsprint textures and playful absurdity. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "bauhaus": {
+    "label": "Bauhaus",
+    "video_prompt": "a Bauhaus poster with simple geometric shapes, primary colors and clean typography-like layout",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a Bauhaus poster with simple geometric shapes, primary colors and clean typography-like layout. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "constructivism": {
+    "label": "Constructivism",
+    "video_prompt": "a constructivist poster with bold diagonal shapes, red black and cream",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a constructivist poster with bold diagonal shapes, red black and cream. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "minimalism": {
+    "label": "Minimalism",
+    "video_prompt": "a minimalist illustration with very few flat shapes, lots of empty space and a limited palette",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a minimalist illustration with very few flat shapes, lots of empty space and a limited palette. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "symbolism": {
+    "label": "Symbolism",
+    "video_prompt": "a symbolist painting with dreamy mystical light and muted jewel tones",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a symbolist painting with dreamy mystical light and muted jewel tones. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "precisionism": {
+    "label": "Precisionism",
+    "video_prompt": "a precisionist painting with crisp geometric forms, clean edges and smooth flat color",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a precisionist painting with crisp geometric forms, clean edges and smooth flat color. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "mexican-muralism": {
+    "label": "Mexican muralism",
+    "video_prompt": "a Mexican mural with bold monumental figures, earthy colors and strong outlines",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a Mexican mural with bold monumental figures, earthy colors and strong outlines. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Art movements"
+  },
+  "acrylic": {
+    "label": "Acrylic painting",
+    "video_prompt": "a vibrant acrylic painting with smooth opaque color and visible brush texture",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a vibrant acrylic painting with smooth opaque color and visible brush texture. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "gouache": {
+    "label": "Gouache",
+    "video_prompt": "a gouache illustration with matte opaque color and soft flat shapes",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a gouache illustration with matte opaque color and soft flat shapes. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "pastels": {
+    "label": "Pastels",
+    "video_prompt": "a soft pastel drawing with chalky blended color",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a soft pastel drawing with chalky blended color. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "pencil-sketch": {
+    "label": "Pencil sketch",
+    "video_prompt": "a graphite pencil sketch with fine shading on white paper",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a graphite pencil sketch with fine shading on white paper. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "coloured-pencil": {
+    "label": "Coloured pencil",
+    "video_prompt": "a coloured-pencil drawing with visible strokes and paper grain",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a coloured-pencil drawing with visible strokes and paper grain. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "charcoal": {
+    "label": "Charcoal",
+    "video_prompt": "a charcoal drawing with smudged dark tones and rough texture",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a charcoal drawing with smudged dark tones and rough texture. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "chalk": {
+    "label": "Chalk drawing",
+    "video_prompt": "a colorful chalk drawing on a dark board",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a colorful chalk drawing on a dark board. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "crayons": {
+    "label": "Crayons",
+    "video_prompt": "a child-like wax crayon drawing with waxy uneven strokes",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a child-like wax crayon drawing with waxy uneven strokes. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "ink-wash": {
+    "label": "Ink wash",
+    "video_prompt": "a Chinese ink-wash painting with flowing black ink and soft watercolor tints",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a Chinese ink-wash painting with flowing black ink and soft watercolor tints. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "ukiyo-e": {
+    "label": "Ukiyo-e",
+    "video_prompt": "a Japanese ukiyo-e woodblock print with flat colors, fine outlines and patterned textures",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a Japanese ukiyo-e woodblock print with flat colors, fine outlines and patterned textures. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "etching": {
+    "label": "Etching",
+    "video_prompt": "a fine-line etching with cross-hatched shading in black ink",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a fine-line etching with cross-hatched shading in black ink. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "cross-hatching": {
+    "label": "Cross hatching",
+    "video_prompt": "a pen-and-ink drawing shaded entirely with cross hatching",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a pen-and-ink drawing shaded entirely with cross hatching. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "grisaille": {
+    "label": "Grisaille",
+    "video_prompt": "a grisaille painting in shades of grey",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a grisaille painting in shades of grey. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "chiaroscuro": {
+    "label": "Chiaroscuro",
+    "video_prompt": "a chiaroscuro painting with strong light against deep darkness",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a chiaroscuro painting with strong light against deep darkness. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "airbrush": {
+    "label": "Airbrush",
+    "video_prompt": "a glossy airbrush illustration with smooth gradients and soft highlights",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a glossy airbrush illustration with smooth gradients and soft highlights. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "action-painting": {
+    "label": "Action painting",
+    "video_prompt": "an abstract action painting with splashes and drips of paint over the forms",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as an abstract action painting with splashes and drips of paint over the forms. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "zentangle": {
+    "label": "Zentangle",
+    "video_prompt": "a black-and-white zentangle drawing filled with intricate repeating patterns",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a black-and-white zentangle drawing filled with intricate repeating patterns. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "hand-painted-anime": {
+    "label": "Hand-painted anime film",
+    "video_prompt": "a hand-painted anime film frame with soft watercolor backgrounds, gentle light and warm colors",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a hand-painted anime film frame with soft watercolor backgrounds, gentle light and warm colors. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "kawaii-chibi": {
+    "label": "Kawaii chibi",
+    "video_prompt": "a cute kawaii chibi illustration with big heads, big eyes and pastel colors",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a cute kawaii chibi illustration with big heads, big eyes and pastel colors. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Painting & drawing"
+  },
+  "linocut": {
+    "label": "Linocut",
+    "video_prompt": "a linocut print with bold carved black lines and a few flat colors",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a linocut print with bold carved black lines and a few flat colors. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "letterpress": {
+    "label": "Letterpress print",
+    "video_prompt": "a letterpress print with slightly uneven ink and paper texture",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a letterpress print with slightly uneven ink and paper texture. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "halftone": {
+    "label": "Halftone print",
+    "video_prompt": "a halftone print made of large visible color dots",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a halftone print made of large visible color dots. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "cyanotype": {
+    "label": "Cyanotype",
+    "video_prompt": "a cyanotype print in deep Prussian blue and white",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a cyanotype print in deep Prussian blue and white. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "papercut": {
+    "label": "Papercut",
+    "video_prompt": "a layered papercut artwork with cut paper shapes and soft drop shadows",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a layered papercut artwork with cut paper shapes and soft drop shadows. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "origami": {
+    "label": "Origami",
+    "video_prompt": "an origami scene where everything is folded paper",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as an origami scene where everything is folded paper. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "paper-quilling": {
+    "label": "Paper quilling",
+    "video_prompt": "a paper-quilling artwork of rolled and coiled paper strips",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a paper-quilling artwork of rolled and coiled paper strips. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "embroidery": {
+    "label": "Embroidery",
+    "video_prompt": "an embroidery with stitched colorful thread on fabric",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as an embroidery with stitched colorful thread on fabric. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "cross-stitch": {
+    "label": "Cross stitch",
+    "video_prompt": "a cross-stitch pattern on fabric with visible x-shaped stitches",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a cross-stitch pattern on fabric with visible x-shaped stitches. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "knitted": {
+    "label": "Knitted",
+    "video_prompt": "a knitted wool scene with visible knit stitches",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a knitted wool scene with visible knit stitches. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "amigurumi": {
+    "label": "Amigurumi",
+    "video_prompt": "a scene where everything is a crocheted amigurumi toy",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a scene where everything is a crocheted amigurumi toy. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "patchwork": {
+    "label": "Patchwork",
+    "video_prompt": "a patchwork quilt made of patterned fabric pieces",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a patchwork quilt made of patterned fabric pieces. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "batik": {
+    "label": "Batik",
+    "video_prompt": "a batik textile with wax-resist patterns and crackle lines",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a batik textile with wax-resist patterns and crackle lines. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "mosaic": {
+    "label": "Mosaic",
+    "video_prompt": "a mosaic made of small colored tiles",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a mosaic made of small colored tiles. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "stained-glass": {
+    "label": "Stained glass",
+    "video_prompt": "a stained-glass window with bright colored glass and dark lead lines",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a stained-glass window with bright colored glass and dark lead lines. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "enamel": {
+    "label": "Enamel",
+    "video_prompt": "a glossy cloisonné enamel artwork with metal outlines",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a glossy cloisonné enamel artwork with metal outlines. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "azulejo": {
+    "label": "Azulejo tiles",
+    "video_prompt": "a painting on blue-and-white Portuguese azulejo tiles",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a painting on blue-and-white Portuguese azulejo tiles. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "sticker": {
+    "label": "Sticker",
+    "video_prompt": "a glossy die-cut sticker with a thick white border and flat colors",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a glossy die-cut sticker with a thick white border and flat colors. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "tie-dye": {
+    "label": "Tie-dye",
+    "video_prompt": "a tie-dye fabric artwork with swirling bright dye patterns",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a tie-dye fabric artwork with swirling bright dye patterns. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "sculpture": {
+    "label": "Marble sculpture",
+    "video_prompt": "a carved white marble sculpture",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a carved white marble sculpture. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Print & craft"
+  },
+  "vaporwave": {
+    "label": "Vaporwave",
+    "video_prompt": "a vaporwave image with pink and teal gradients, retro grids and dreamy nostalgia",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a vaporwave image with pink and teal gradients, retro grids and dreamy nostalgia. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "synthwave": {
+    "label": "Synthwave",
+    "video_prompt": "a synthwave image with a neon sunset, magenta and cyan glow and retro-futuristic grids",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a synthwave image with a neon sunset, magenta and cyan glow and retro-futuristic grids. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "glitchcore": {
+    "label": "Glitchcore",
+    "video_prompt": "a glitch-art image with RGB channel shifts, pixel smearing and digital noise",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a glitch-art image with RGB channel shifts, pixel smearing and digital noise. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "holographic": {
+    "label": "Holographic",
+    "video_prompt": "a holographic image with iridescent rainbow sheen",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a holographic image with iridescent rainbow sheen. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "glassmorphism": {
+    "label": "Glassmorphism",
+    "video_prompt": "a glassmorphism render with frosted translucent glass shapes and soft light",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a glassmorphism render with frosted translucent glass shapes and soft light. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "neon": {
+    "label": "Neon",
+    "video_prompt": "a neon artwork with glowing neon-tube outlines on a dark background",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a neon artwork with glowing neon-tube outlines on a dark background. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "low-poly": {
+    "label": "Low poly",
+    "video_prompt": "a low-poly 3D render made of flat-shaded triangles",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a low-poly 3D render made of flat-shaded triangles. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "vector": {
+    "label": "Vector art",
+    "video_prompt": "a clean vector illustration with flat colors and smooth shapes",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a clean vector illustration with flat colors and smooth shapes. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "voxel": {
+    "label": "Voxel blocks",
+    "video_prompt": "a voxel world built from colored cubes",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a voxel world built from colored cubes. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "isometric": {
+    "label": "Isometric",
+    "video_prompt": "an isometric illustration with clean geometric shapes and soft colors",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as an isometric illustration with clean geometric shapes and soft colors. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "graffiti": {
+    "label": "Graffiti",
+    "video_prompt": "a spray-painted graffiti mural with bold outlines and drips",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a spray-painted graffiti mural with bold outlines and drips. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "game-box-art": {
+    "label": "Game box art",
+    "video_prompt": "a stylized video-game cover illustration with bold outlines and saturated colors",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a stylized video-game cover illustration with bold outlines and saturated colors. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "psychedelic": {
+    "label": "Psychedelic",
+    "video_prompt": "a psychedelic poster with swirling saturated colors and flowing patterns",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a psychedelic poster with swirling saturated colors and flowing patterns. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "kaleidoscope": {
+    "label": "Kaleidoscope",
+    "video_prompt": "a kaleidoscopic image with mirrored symmetric color patterns",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a kaleidoscopic image with mirrored symmetric color patterns. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "fractal": {
+    "label": "Fractal",
+    "video_prompt": "a fractal artwork with infinitely repeating colorful patterns",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a fractal artwork with infinitely repeating colorful patterns. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "optical-illusion": {
+    "label": "Optical illusion",
+    "video_prompt": "an op-art image of black-and-white optical illusion patterns",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as an op-art image of black-and-white optical illusion patterns. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Digital & retro"
+  },
+  "polaroid": {
+    "label": "Polaroid",
+    "video_prompt": "a Polaroid instant photo with soft faded colors and a slight color cast",
+    "negative": "cartoon, illustration, painting, drawing",
+    "restyle_prompt": "Redraw this image as a Polaroid instant photo with soft faded colors and a slight color cast. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Photo looks"
+  },
+  "infrared": {
+    "label": "Infrared photography",
+    "video_prompt": "an infrared photograph where foliage glows pink and white and skies turn dark",
+    "negative": "cartoon, illustration, painting, drawing",
+    "restyle_prompt": "Redraw this image as an infrared photograph where foliage glows pink and white and skies turn dark. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Photo looks"
+  },
+  "thermal": {
+    "label": "Thermal camera",
+    "video_prompt": "a thermal-camera image in false colors from deep blue to bright yellow",
+    "negative": "cartoon, illustration, painting, drawing",
+    "restyle_prompt": "Redraw this image as a thermal-camera image in false colors from deep blue to bright yellow. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Photo looks"
+  },
+  "photocopy": {
+    "label": "Photocopy",
+    "video_prompt": "a high-contrast black-and-white photocopy with toner speckles",
+    "negative": "cartoon, illustration, painting, drawing",
+    "restyle_prompt": "Redraw this image as a high-contrast black-and-white photocopy with toner speckles. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Photo looks"
+  },
+  "photogram": {
+    "label": "Photogram",
+    "video_prompt": "a black-and-white photogram of white silhouettes on a black background",
+    "negative": "cartoon, illustration, painting, drawing",
+    "restyle_prompt": "Redraw this image as a black-and-white photogram of white silhouettes on a black background. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Photo looks"
+  },
+  "cross-processing": {
+    "label": "Cross processing",
+    "video_prompt": "a cross-processed photo with shifted colors, strong contrast and yellow-green tints",
+    "negative": "cartoon, illustration, painting, drawing",
+    "restyle_prompt": "Redraw this image as a cross-processed photo with shifted colors, strong contrast and yellow-green tints. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Photo looks"
+  },
+  "wabi-sabi": {
+    "label": "Wabi-sabi",
+    "video_prompt": "a quiet wabi-sabi photograph with muted earthy tones and soft imperfect textures",
+    "negative": "cartoon, illustration, painting, drawing",
+    "restyle_prompt": "Redraw this image as a quiet wabi-sabi photograph with muted earthy tones and soft imperfect textures. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Photo looks"
+  },
+  "fantasy": {
+    "label": "Fantasy",
+    "video_prompt": "an epic fantasy painting with magical glowing light and rich detail",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as an epic fantasy painting with magical glowing light and rich detail. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Fantasy & cultural"
+  },
+  "dark-fantasy": {
+    "label": "Dark fantasy",
+    "video_prompt": "a dark fantasy painting with gloomy moody light and ominous atmosphere",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a dark fantasy painting with gloomy moody light and ominous atmosphere. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Fantasy & cultural"
+  },
+  "gothic": {
+    "label": "Gothic",
+    "video_prompt": "a gothic painting with dark dramatic shadows and a melancholy mood",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a gothic painting with dark dramatic shadows and a melancholy mood. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Fantasy & cultural"
+  },
+  "dystopian": {
+    "label": "Dystopian",
+    "video_prompt": "a dystopian scene with grim desaturated colors and oppressive haze",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a dystopian scene with grim desaturated colors and oppressive haze. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Fantasy & cultural"
+  },
+  "post-apocalyptic": {
+    "label": "Post-apocalyptic",
+    "video_prompt": "a post-apocalyptic scene with dust, rust, overgrowth and decay",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a post-apocalyptic scene with dust, rust, overgrowth and decay. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Fantasy & cultural"
+  },
+  "medieval": {
+    "label": "Medieval manuscript",
+    "video_prompt": "a medieval illuminated manuscript painting with gold leaf and flat colors",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a medieval illuminated manuscript painting with gold leaf and flat colors. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Fantasy & cultural"
+  },
+  "byzantine": {
+    "label": "Byzantine icon",
+    "video_prompt": "a Byzantine icon painting with gold background and stylized figures",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a Byzantine icon painting with gold background and stylized figures. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Fantasy & cultural"
+  },
+  "ancient-egyptian": {
+    "label": "Ancient Egyptian",
+    "video_prompt": "an ancient Egyptian wall painting with flat profile figures and ochre colors",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as an ancient Egyptian wall painting with flat profile figures and ochre colors. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Fantasy & cultural"
+  },
+  "celtic": {
+    "label": "Celtic art",
+    "video_prompt": "a Celtic artwork with interlaced knotwork borders",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a Celtic artwork with interlaced knotwork borders. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Fantasy & cultural"
+  },
+  "arabesque": {
+    "label": "Arabesque",
+    "video_prompt": "an arabesque artwork with intricate interlacing ornamental patterns",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as an arabesque artwork with intricate interlacing ornamental patterns. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Fantasy & cultural"
+  },
+  "alebrije": {
+    "label": "Alebrije",
+    "video_prompt": "a scene of brightly painted alebrije folk-art figures covered in colorful patterns",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a scene of brightly painted alebrije folk-art figures covered in colorful patterns. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Fantasy & cultural"
+  },
+  "magical-realism": {
+    "label": "Magical realism",
+    "video_prompt": "a magical-realist painting where ordinary scenes have a quiet surreal glow",
+    "negative": "photorealistic, photo, 3d render",
+    "restyle_prompt": "Redraw this image as a magical-realist painting where ordinary scenes have a quiet surreal glow. Keep the exact composition, pose, framing and characters.",
+    "loras": [],
+    "group": "Fantasy & cultural"
   }
 }

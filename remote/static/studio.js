@@ -68,7 +68,7 @@ const charById = (id) => S.characters.find((c) => c.id === id);
 const modelLabel = (id) => (S.info?.image_models.find((m) => m.id === id) || {}).label || id || "";
 
 // ---------------------------------------------------------------- router
-const TITLES = { home: "Home", image: "Create image", video: "Create video", library: "Library", director: "Director", characters: "Characters" };
+const TITLES = { home: "Home", image: "Create image", video: "Create video", library: "Library", director: "Director", characters: "Characters", styles: "Styles" };
 function route() {
   const name = (location.hash.match(/^#\/(\w+)/) || [])[1];
   const page = TITLES[name] ? name : "home";
@@ -86,7 +86,7 @@ const go = (page) => { if (location.hash === "#/" + page) route(); else location
 
 // ---------------------------------------------------------------- tiles
 function imageTile(m, acts = true) {
-  const tag = m.kind === "upload" ? "Upload" : m.kind === "edit" ? "Edit" : "";
+  const tag = m.kind === "upload" ? "Upload" : m.kind === "edit" ? "Edit" : m.kind === "style" ? styleLabel(m.style) : "";
   const ratio = m.width && m.height ? ` style="aspect-ratio:${m.width}/${m.height}"` : "";
   return `<div class="tile" data-img="${m.id}" tabindex="0">
     <img loading="lazy" alt="${esc(m.prompt || "image")}" src="${imgUrl(m.id)}"${ratio}>
@@ -327,7 +327,7 @@ document.querySelectorAll(".overlay").forEach((o) => o.addEventListener("click",
 function openImage(id) {
   const m = imageById(id); if (!m) return;
   $("lbMedia").innerHTML = `<img alt="" src="${imgUrl(m.id)}">`;
-  const kind = { text: "Text to image", edit: "Edit", upload: "Uploaded" }[m.kind] || "Image";
+  const kind = m.kind === "style" ? `Style: ${styleLabel(m.style)}` : { text: "Text to image", edit: "Edit", upload: "Uploaded" }[m.kind] || "Image";
   const cast = (m.characters || []).map((c) => c.name).join(", ");
   const rows = [["Type", kind], ["Model", modelLabel(m.model)], ["Characters", cast], ["Size", m.width ? `${m.width} × ${m.height}` : ""],
                 ["Seed", m.seed ?? ""], ["Created", ago(m.created)]].filter(([, v]) => v !== "" && v !== undefined);
@@ -339,6 +339,7 @@ function openImage(id) {
       <button type="button" class="btn" data-lb="animate">Animate</button>
       ${m.prompt ? `<button type="button" class="btn" data-lb="reuse">Reuse prompt</button>` : ""}
       <button type="button" class="btn" data-lb="character">New character</button>
+      <button type="button" class="btn" data-lb="styles">Try styles</button>
       <a class="btn" href="${imgUrl(m.id)}" download="image-${m.id}.png">Download</a>
       <button type="button" class="btn danger" data-lb="delete">Delete</button>
     </div>`;
@@ -353,6 +354,7 @@ function openImage(id) {
       S.cast = (m.characters || []).map((c) => c.id).filter(charById); store.set("cast", S.cast);
       go("image");
     } else if (a === "character") { closeOverlay("lightbox"); openCharacter(null, [id]); }
+    else if (a === "styles") { closeOverlay("lightbox"); STY.image = id; STY.mode = "browse"; go("styles"); }
     else if (a === "delete" && await deleteImage(id)) closeOverlay("lightbox");
   };
   $("lightbox").classList.remove("hidden");
@@ -587,11 +589,11 @@ $("sndDub").onclick = async () => {
 
 // ---------------------------------------------------------------- picker (library images)
 const picker = { mode: "tray", sel: [] };
-const pickOne = () => picker.mode === "source" || picker.mode === "shotstart";  // single choice, not a list
+const pickOne = () => ["source", "shotstart", "trystyle"].includes(picker.mode);  // single choice, not a list
 function openPicker(mode) {
   picker.mode = mode; picker.sel = [];
   $("pickerTitle").textContent = { source: "Choose the image to edit", refs: "Add reference images",
-                                   shotstart: "Choose the shot's start frame" }[mode] || "Add keyframes, in order";
+                                   shotstart: "Choose the shot's start frame", trystyle: "Choose the image to try the styles on" }[mode] || "Add keyframes, in order";
   $("pickerDone").textContent = pickOne() ? "Use image" : "Add";
   renderPicker();
   $("picker").classList.remove("hidden");
@@ -615,6 +617,7 @@ $("pickerDone").onclick = () => {
   if (picker.mode === "source") { S.source = picker.sel[0]; renderSource(); }
   else if (picker.mode === "refs") addRefs(picker.sel);
   else if (picker.mode === "shotstart") setShotStart(picker.shot, picker.sel[0]);
+  else if (picker.mode === "trystyle") tryStyles(picker.sel[0]);
   else addToTray(picker.sel);
   closeOverlay("picker");
 };
@@ -681,20 +684,101 @@ $("motion").oninput = (e) => {
 };
 $("loop").onchange = renderMotion;
 
-function renderStyles() {
-  $("styles").innerHTML = [...S.info.styles, { id: "__custom", label: "Custom…" }].map((s) =>
-    `<button type="button" class="chip${S.style === s.id ? " on" : ""}" data-style="${s.id}">${esc(s.label)}</button>`).join("");
-}
-$("styles").onclick = (e) => {
-  const b = e.target.closest("[data-style]"); if (!b) return;
-  S.style = b.dataset.style;
-  const st = S.info.styles.find((x) => x.id === S.style);
-  $("customStyle").classList.toggle("hidden", S.style !== "__custom");
-  if (!S.restyleTouched) $("restyle").checked = S.style === "__custom" || !!st?.restyle;
+// ---------------------------------------------------------------- styles (Create video's style, and the Styles page)
+const styleById = (id) => (S.info?.styles || []).find((s) => s.id === id);
+const styleLabel = (id) => id === "__custom" ? "Custom" : styleById(id)?.label || id;
+const styleThumb = (st, cls = "") => st?.example ? `<img class="${cls}" loading="lazy" alt="" src="${st.example}">`
+  : `<span class="${cls} style-ph">${esc((st?.label || "?").slice(0, 2))}</span>`;
+function setVideoStyle(id) {
+  S.style = id;
+  if (id !== "__custom") store.set("recent_styles", [id, ...store.get("recent_styles", []).filter((x) => x !== id)].slice(0, 8));
+  const st = styleById(id);
+  $("customStyle").classList.toggle("hidden", id !== "__custom");
+  if (!S.restyleTouched) $("restyle").checked = id === "__custom" || !!st?.restyle;
   $("restyleModelBox").classList.toggle("hidden", !$("restyle").checked);
   renderStyles();
+}
+// Create video shows only recently used styles (the current one highlighted) and "More styles…" (the Styles page).
+const DEFAULT_RECENT = ["photoreal", "anime", "watercolor", "oil-painting"];
+function renderStyles() {
+  // recently used first, topped up with a few basics until there are four
+  let recent = [...new Set([...store.get("recent_styles", []), ...DEFAULT_RECENT])].filter(styleById).slice(0, Math.max(4, store.get("recent_styles", []).length));
+  if (S.style !== "__custom" && !recent.includes(S.style)) recent = [S.style, ...recent];
+  const card = (id, inner) => `<button type="button" class="rs-card${S.style === id ? " on" : ""}" data-style="${id}">${inner}</button>`;
+  $("styleCurrent").innerHTML = recent.slice(0, 6).map((id) => card(id, `${styleThumb(styleById(id))}<span>${esc(styleLabel(id))}</span>`)).join("")
+    + (S.style === "__custom" ? card("__custom", `<span class="style-ph">✎</span><span>Custom</span>`) : "")
+    + `<button type="button" class="rs-card more" data-style-change><span class="style-ph">⋯</span><span>More styles…</span></button>`;
+}
+$("styleCurrent").onclick = (e) => {
+  if (e.target.closest("[data-style-change]")) { STY.mode = "video"; go("styles"); return; }
+  const b = e.target.closest("[data-style]"); if (b) setVideoStyle(b.dataset.style);
 };
 $("restyle").onchange = () => { S.restyleTouched = true; $("restyleModelBox").classList.toggle("hidden", !$("restyle").checked); };
+
+// The Styles page. mode "browse": select styles to try on an image (or use one for videos); mode "video": tap one to
+// use it in Create video. STY.image: an image chosen to try styles on (from the image viewer).
+const STY = { mode: "browse", group: "Recent", q: "", sel: new Set(), image: null };
+function styleGroups() {
+  const groups = [...new Set((S.info?.styles || []).map((s) => s.group))];
+  return [...(store.get("recent_styles", []).length ? ["Recent"] : []), "All", ...groups];
+}
+function renderStylesPage() {
+  if (!S.info) return;
+  const groups = styleGroups();
+  if (!groups.includes(STY.group)) STY.group = groups.includes("Basics") ? "Basics" : "All";
+  setHtml($("styleGroups"), groups.map((g) => `<button type="button" class="chip${STY.group === g && !STY.q ? " on" : ""}" data-group="${esc(g)}">${esc(g)}</button>`).join(""));
+  const q = STY.q.trim().toLowerCase();
+  let list = S.info.styles;
+  if (q) list = list.filter((s) => `${s.label} ${s.group} ${s.id} ${s.look || ""}`.toLowerCase().includes(q));
+  else if (STY.group === "Recent") list = store.get("recent_styles", []).map(styleById).filter(Boolean);
+  else if (STY.group !== "All") list = list.filter((s) => s.group === STY.group);
+  const pick = STY.mode === "video";
+  const cards = list.map((s) => `<div class="style-card${STY.sel.has(s.id) ? " sel" : ""}${S.style === s.id ? " current" : ""}" data-sid="${s.id}" tabindex="0">
+      ${styleThumb(s, "sc-img")}${!pick && STY.sel.has(s.id) ? `<span class="num">✓</span>` : ""}
+      <div class="sc-label"><b>${esc(s.label)}</b>${S.style === s.id ? `<span class="in-use">in use</span>` : ""}</div>
+      ${!pick && s.restyle === false ? `<span class="sc-note">no redraw</span>` : ""}
+    </div>`).join("");
+  const custom = pick && !q ? `<div class="style-card" data-sid="__custom" tabindex="0"><span class="sc-img style-ph">✎</span><div class="sc-label"><b>Custom…</b></div></div>` : "";
+  setHtml($("styleGrid"), cards + custom || emptyState("No style matches that search."));
+  const tool = $("styleTool"), img = STY.image && imageById(STY.image);
+  tool.classList.toggle("hidden", !pick && !STY.sel.size && !img);
+  tool.innerHTML = pick ? `<span>Tap a style to use it in Create video.</span><button type="button" class="btn small ghost" data-st="cancel">Back</button>`
+    : `${img ? `<img alt="" src="${imgUrl(img.id)}">` : ""}<span>${STY.sel.size ? `${STY.sel.size} selected` : "Select the styles to try"}${img ? " on this image" : ""}</span>
+       ${STY.sel.size ? `<button type="button" class="btn small primary" data-st="try">Try ${STY.sel.size} on ${img ? "it" : "an image"}</button>
+       ${STY.sel.size === 1 ? `<button type="button" class="btn small" data-st="use">Use for videos</button>` : ""}
+       <button type="button" class="btn small ghost" data-st="clear">Clear</button>` : ""}`;
+}
+$("styleSearch").oninput = () => { STY.q = $("styleSearch").value; renderStylesPage(); };
+$("styleGroups").onclick = (e) => {
+  const b = e.target.closest("[data-group]"); if (!b) return;
+  STY.group = b.dataset.group; STY.q = ""; $("styleSearch").value = ""; renderStylesPage();
+};
+$("styleGrid").onclick = (e) => {
+  const card = e.target.closest("[data-sid]"); if (!card) return;
+  const id = card.dataset.sid;
+  if (STY.mode === "video") { setVideoStyle(id); STY.mode = "browse"; go("video"); return; }
+  if (styleById(id)?.restyle === false) return toast(`${styleLabel(id)} keeps images as they are: nothing to redraw`);
+  STY.sel.has(id) ? STY.sel.delete(id) : STY.sel.add(id);
+  renderStylesPage();
+};
+$("styleTool").onclick = async (e) => {
+  const a = e.target.closest("[data-st]")?.dataset.st; if (!a) return;
+  if (a === "cancel") { STY.mode = "browse"; go("video"); }
+  else if (a === "clear") { STY.sel.clear(); STY.image = null; renderStylesPage(); }
+  else if (a === "use") { setVideoStyle([...STY.sel][0]); toast(`${styleLabel(S.style)} is now the style for videos`); renderStylesPage(); }
+  else if (a === "try") { if (STY.image) tryStyles(STY.image); else openPicker("trystyle"); }
+};
+async function tryStyles(imageId) {
+  const ids = [...STY.sel];
+  try {
+    const tasks = await api("/api/styles/try", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_id: imageId, styles: ids, model: S.imageModel }) });
+    for (const t of tasks) S.pending.unshift({ key: Math.random().toString(36).slice(2), prompt: `Style: ${styleLabel(t.style)}`, task: t.task });
+    STY.sel.clear(); STY.image = null;
+    toast(`Trying ${tasks.length} style${tasks.length === 1 ? "" : "s"}; results appear in Create image`);
+    go("image"); pollTasks();
+  } catch (err) { toast(err.message); }
+}
 
 function renderCheckOption() {
   const w = reviewWriter();
@@ -1371,6 +1455,7 @@ function renderAll() {
   if (S.page === "video") renderVideoPage();
   if (S.page === "library") renderLibrary();
   if (S.page === "characters") renderCharacters();
+  if (S.page === "styles") renderStylesPage();
   if (S.page === "director") renderDirector();
   if (!$("soundSheet").classList.contains("hidden")) renderSound();
 }

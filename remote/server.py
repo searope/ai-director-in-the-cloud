@@ -258,8 +258,9 @@ class KeyframeMaker:
             if os.path.exists(p):
                 os.remove(p)
 
-    def start(self, prompt, aspect, source_id=None, seed=None, model="klein4b", cast=()):
-        """cast: characters (from Characters.get) whose first reference image goes to the model."""
+    def start(self, prompt, aspect, source_id=None, seed=None, model="klein4b", cast=(), style=None):
+        """cast: characters (from Characters.get) whose first reference image goes to the model.
+        style: a style id, to redraw source_id in that style (prompt is then the style's restyle prompt)."""
         if aspect not in animate.KEYFRAME_SIZES:
             raise ValueError("bad aspect")
         if model not in animate.IMAGE_MODELS:
@@ -271,7 +272,7 @@ class KeyframeMaker:
         task = {"id": task_id, "status": "running", "progress": "waiting for the GPU", "started": time.time()}
         with self.lock:
             self.tasks[task_id] = task
-        threading.Thread(target=self._run, args=(task, prompt, aspect, source, seed, model, list(cast)), daemon=True).start()
+        threading.Thread(target=self._run, args=(task, prompt, aspect, source, seed, model, list(cast), style), daemon=True).start()
         return task
 
     @staticmethod
@@ -284,7 +285,7 @@ class KeyframeMaker:
         return (f"{prompt.strip().rstrip('.')}. {who}. Keep each character's face, hair, body and outfit "
                 "exactly as in their reference image.")
 
-    def _run(self, task, prompt, aspect, source, seed, model, cast):
+    def _run(self, task, prompt, aspect, source, seed, model, cast, style=None):
         image_id = uuid.uuid4().hex[:16]
 
         def report(text, final=False):
@@ -294,8 +295,9 @@ class KeyframeMaker:
             server = self.gpu.ensure(report)
             refs = [self.path(c["refs"][0]) for c in cast]
             used = animate.make_keyframe(server, self.cast_prompt(prompt, cast, 2 if source else 1), self.path(image_id),
-                                         seed, aspect, source, report, model, refs)
-            self.save_meta(image_id, kind="edit" if source else "text", prompt=prompt, model=model,
+                                         seed, aspect, source, report, model, refs, keep_look=not style)
+            self.save_meta(image_id, kind="style" if style else "edit" if source else "text", prompt=prompt, model=model,
+                           style=style,
                            aspect=None if source else aspect, seed=used,
                            source=os.path.basename(source)[:-4] if source else None,
                            characters=[{"id": c["id"], "name": c["name"]} for c in cast])
@@ -669,7 +671,11 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
             pass
         left = idle.seconds_left()
         return web.json_response({
-            "styles": [{"id": k, "label": v.get("label", k), "restyle": bool(v.get("restyle_prompt"))} for k, v in styles.items()],
+            "styles": [{"id": k, "label": v.get("label", k), "restyle": bool(v.get("restyle_prompt")), "group": v.get("group", "Other"),
+                        "look": v.get("video_prompt", ""),  # searched on the Styles page
+                        # a pre-rendered example (static/styles/<id>.jpg), made with setup/style_examples.py
+                        "example": f"/static/styles/{k}.jpg" if os.path.exists(os.path.join(STATIC, "styles", f"{k}.jpg")) else None}
+                       for k, v in styles.items()],
             "comfy": comfy,
             "image_models": [{"id": k, "label": v["label"], "license": v["license"],
                               "missing": animate.missing_image_model_files(MODELS_DIR, k, have)}
@@ -860,6 +866,25 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
             return web.json_response({"error": str(e)}, status=400)
         return web.json_response(task)
 
+    async def try_styles(request):
+        """Redraw one library image in several styles, to compare them: one image task per style."""
+        data = await request.json()
+        styles = animate.load_styles()
+        chosen = [k for k in dict.fromkeys(data.get("styles") or []) if styles.get(k, {}).get("restyle_prompt")]
+        if not chosen:
+            return web.json_response({"error": "choose at least one style that redraws images"}, status=400)
+        model = data.get("model") or "klein4b"
+        if model in animate.IMAGE_MODELS and animate.missing_image_model_files(MODELS_DIR, model, model_checker(gpu)):
+            return web.json_response({"error": f"{animate.IMAGE_MODELS[model]['label']} isn't installed on the GPU"}, status=400)
+        seed = data.get("seed")
+        try:
+            tasks = [{"style": k, "task": maker.start(styles[k]["restyle_prompt"], "16:9", data.get("image_id"),
+                                                      int(seed) if str(seed or "").isdigit() else None, model, style=k)}
+                     for k in chosen]
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        return web.json_response(tasks)
+
     async def keyframe_task(request):
         task = maker.get(request.match_info["id"])
         if not task:
@@ -1013,6 +1038,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         web.delete("/api/jobs/{id}/dubs/{lang}", delete_dub),
         web.get("/api/jobs/{id}/image/{kind}/{name}", image),
         web.post("/api/keyframes/generate", keyframe_generate),
+        web.post("/api/styles/try", try_styles),
         web.get("/api/keyframes/tasks/{id}", keyframe_task),
         web.post("/api/keyframes/upload", keyframe_upload),
         web.get("/api/keyframes/image/{id}", keyframe_image),

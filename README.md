@@ -44,7 +44,7 @@ minutes.
 |---|---|
 | Keyframe maker: text → keyframe 1, edits → next keyframes (FLUX.2 Klein 4B default; Klein 9B, FLUX 3 Klein optional) | web app, Keyframes tab |
 | Keyframes → video: MiniMax H3 first/last frame with generated sound (default; see licenses); Wan 2.2 14B (silent) | web app, Create tab; `animate.py` |
-| Styles: presets, custom text styles, keyframe redraw, Wan style LoRAs | `styles.json` |
+| Styles: 120 presets in 8 groups, custom text styles, keyframe redraw, Wan style LoRAs. The Styles page shows an example of each style and tries selected styles on any image; Create video shows only the recently used ones. Examples are made on the GPU with `python setup/style_examples.py --pod` | `styles.json`, `setup/style_examples.py` |
 | Studio web app (dark, OpenArt-style layout): Home, Create image (text → image, edit image), Create video (keyframes from the library, motion per gap), Library of all images and videos; job queue; works on phone and desktop; prints the public link on RunPod. The previous single-page app is at `/classic` | `remote/server.py`, `remote/static/` |
 | Sound for finished videos (**opt-in, paid ElevenLabs credits**): voice-over, multi-voice dialogue, sound effects and music as layers with their own start time and volume, mixed into a copy of the video; dubbing of the speech layers into other languages. Off unless `ELEVENLABS_API_KEY` is set | Sound button on a video; `remote/soundtrack.py` |
 | Characters: named characters with up to 4 reference images; tag up to 3 when making an image, and the main reference image of each goes to the image model so faces and outfits stay the same | Characters page; Create image |
