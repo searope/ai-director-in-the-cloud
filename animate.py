@@ -79,11 +79,12 @@ def image_model(cfg):
     return IMAGE_MODELS[name]
 
 
-def missing_image_model_files(models_dir, name):
-    """Model files of IMAGE_MODELS[name] not present under ComfyUI/models."""
+def missing_image_model_files(models_dir, name, exists=None):
+    """Model files of IMAGE_MODELS[name] not present under ComfyUI/models (or per exists(folder, file))."""
     m = IMAGE_MODELS[name]
     files = [("diffusion_models", m["unet"]), ("text_encoders", m["text_encoder"]), ("vae", m["vae"])]
-    return [f"{d}/{f}" for d, f in files if not os.path.exists(os.path.join(models_dir, d, f))]
+    exists = exists or (lambda d, f: os.path.exists(os.path.join(models_dir, d, f)))
+    return [f"{d}/{f}" for d, f in files if not exists(d, f)]
 
 DEFAULTS = {
     "server": "http://127.0.0.1:8188",
@@ -130,12 +131,14 @@ class Cancelled(Exception):
 # ---------------------------------------------------------------- ComfyUI API
 
 class Comfy:
+    headers = {}  # extra headers for every request, e.g. the token of a remote GPU gateway (remote/gpu.py)
+
     def __init__(self, server):
         self.server = server.rstrip("/")
         self.client_id = uuid.uuid4().hex
 
     def _request(self, path, data=None, headers=None):
-        req = urllib.request.Request(self.server + path, data=data, headers=headers or {})
+        req = urllib.request.Request(self.server + path, data=data, headers={**self.headers, **(headers or {})})
         try:
             with urllib.request.urlopen(req, timeout=60) as resp:
                 return resp.read()

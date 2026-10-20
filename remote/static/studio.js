@@ -736,22 +736,42 @@ $("libFilter").onclick = (e) => {
 // ---------------------------------------------------------------- status + polling
 function renderStatus() {
   const info = S.info; if (!info) return;
-  const c = info.comfy, st = $("status"), card = $("gpuCard");
+  const c = info.comfy, st = $("status"), card = $("gpuCard"), g = info.gpu || {}, btn = $("gpuBtn");
   const active = S.jobs.filter((j) => ["queued", "running"].includes(j.status)).length;
-  if (c.online) {
+  const pod = g.mode === "runpod", month = pod ? ` · $${(g.month_cost || 0).toFixed(2)} this month` : "";
+  btn.classList.toggle("hidden", !pod || g.state === "stopping");
+  if (pod) {
+    btn.textContent = g.state === "ready" ? "Stop GPU now" : g.state === "starting" ? "Starting…" : g.state === "failed" ? "Try again" : "Start GPU now";
+    btn.disabled = g.state === "starting";
+    btn.dataset.act = g.state === "ready" ? "stop" : "start";
+  }
+  if (pod && g.state !== "ready") {
+    const wait = fmtTime(Math.max(0, Date.now() / 1000 - g.since));
+    const [pill, cls, name, sub] = {
+      off: ["GPU off", "", "GPU off", "Starts by itself when you render" + month],
+      starting: ["GPU starting", "busy", "GPU starting…", `${wait} · usually 2–5 min`],
+      stopping: ["GPU stopping", "", "GPU stopping…", "Removing the pod" + month],
+      failed: ["GPU failed", "bad", "GPU didn't start", g.error || "unknown error"],
+    }[g.state] || ["GPU", "", "GPU", ""];
+    st.textContent = pill; st.className = "pill " + cls;
+    card.querySelector(".gpu-name").textContent = name;
+    card.querySelector(".gpu-sub").textContent = sub;
+    card.querySelector(".meter span").style.width = "0";
+  } else if (c.online) {
     const gpu = (c.gpu || "GPU").replace(/^cuda:\d+\s*/, "").replace(/\s*:.*$/, "");
     const total = c.vram_total / 2 ** 30, used = (c.vram_total - c.vram_free) / 2 ** 30;
     st.textContent = info.running ? "Rendering" : "Ready"; st.className = "pill " + (info.running ? "busy" : "ok");
     card.querySelector(".gpu-name").textContent = gpu;
     card.querySelector(".meter span").style.width = total ? `${Math.round(100 * used / total)}%` : "0";
-    card.querySelector(".gpu-sub").textContent = total ? `${used.toFixed(1)} / ${total.toFixed(0)} GB VRAM` : "";
+    card.querySelector(".gpu-sub").textContent = (total ? `${used.toFixed(1)} / ${total.toFixed(0)} GB VRAM` : "") +
+      (pod && g.cost_per_hour ? ` · $${g.cost_per_hour}/h` : "") + month;
   } else {
     st.textContent = "GPU offline"; st.className = "pill bad";
     card.querySelector(".gpu-name").textContent = "ComfyUI offline";
     card.querySelector(".gpu-sub").textContent = "Start it with start_all.sh";
     card.querySelector(".meter span").style.width = "0";
   }
-  const idle = info.idle_stop, ip = $("idlePill");
+  const idle = info.idle_stop || (g.seconds_left != null ? { seconds_left: g.seconds_left } : null), ip = $("idlePill");
   ip.classList.toggle("hidden", !idle || idle.seconds_left > 600);
   if (idle) ip.innerHTML = `Stops in ${Math.max(1, Math.ceil(idle.seconds_left / 60))} min<span class="wide-only"> · keep running</span>`;
   const q = $("queuePill");
@@ -759,6 +779,11 @@ function renderStatus() {
   const badge = $("tabBadge"); badge.classList.toggle("hidden", !active); badge.textContent = active;
 }
 
+$("gpuBtn").onclick = async () => {
+  const act = $("gpuBtn").dataset.act;
+  if (act === "stop" && !confirm("Stop the GPU now? It starts again by itself when you render.")) return;
+  try { await api(`/api/gpu/${act}`, { method: "POST" }); await refreshInfo(); } catch (e) { toast(e.message); }
+};
 $("idlePill").onclick = async () => {
   try { await api("/api/keepalive", { method: "POST" }); await refreshInfo(); toast("The pod keeps running."); } catch (e) { toast(e.message); }
 };

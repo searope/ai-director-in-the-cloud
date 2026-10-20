@@ -38,6 +38,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 import animate  # noqa: E402
+import gpu as gpus  # noqa: E402
 import soundtrack  # noqa: E402
 
 STATIC = os.path.join(HERE, "static")
@@ -54,8 +55,8 @@ LENGTHS = {33, 49, 65, 81}
 # ---------------------------------------------------------------- job store
 
 class Jobs:
-    def __init__(self, comfy_url):
-        self.comfy_url = comfy_url
+    def __init__(self, gpu):
+        self.gpu = gpu
         self.lock = threading.Lock()
         self.jobs = {}
         self.pending = queue.Queue()
@@ -104,6 +105,10 @@ class Jobs:
             self.save(job)
         self.pending.put(job["id"])
 
+    def busy(self):
+        with self.lock:
+            return any(j["status"] in ("queued", "running") for j in self.jobs.values())
+
     def delete(self, job_id):
         with self.lock:
             self.jobs.pop(job_id, None)
@@ -121,7 +126,7 @@ class Jobs:
         out_dir = self.dir(job["id"])
         s = job["settings"]
         overrides = {
-            "server": self.comfy_url,
+            "server": None,  # set once the GPU is up
             "keyframes": [os.path.join(out_dir, "inputs", name) for name in job["inputs"]],
             "prompts": s["prompts"],
             "engine": s.get("engine", "wan22"),
@@ -150,6 +155,7 @@ class Jobs:
         self.update(job, status="running", started=time.time(), progress="starting")
         keep_awake(True)
         try:
+            overrides["server"] = self.gpu.ensure(report, lambda: job.get("cancel", False))
             cfg = animate.make_config(overrides, out_dir)
             animate.run(cfg, report, lambda: job.get("cancel", False))
             styled_dir = os.path.join(out_dir, "result_keyframes")
@@ -170,8 +176,8 @@ class KeyframeMaker:
     ComfyUI's queue, so they only wait for a video segment that is already rendering.
     """
 
-    def __init__(self, comfy_url):
-        self.comfy_url = comfy_url
+    def __init__(self, gpu):
+        self.gpu = gpu
         self.tasks = {}
         self.lock = threading.Lock()
         os.makedirs(KEYFRAMES_DIR, exist_ok=True)
@@ -238,7 +244,8 @@ class KeyframeMaker:
             task["progress"] = text
 
         try:
-            used = animate.make_keyframe(self.comfy_url, prompt, self.path(image_id), seed, aspect, source, report, model)
+            server = self.gpu.ensure(report)
+            used = animate.make_keyframe(server, prompt, self.path(image_id), seed, aspect, source, report, model)
             self.save_meta(image_id, kind="edit" if source else "text", prompt=prompt, model=model,
                            aspect=None if source else aspect, seed=used,
                            source=os.path.basename(source)[:-4] if source else None)
@@ -248,6 +255,9 @@ class KeyframeMaker:
 
     def get(self, task_id):
         return self.tasks.get(task_id)
+
+    def busy(self):
+        return any(t["status"] == "running" for t in list(self.tasks.values()))
 
 
 class IdleStop:
@@ -272,10 +282,7 @@ class IdleStop:
         self.last = time.time()
 
     def busy(self):
-        with self.jobs.lock:
-            if any(j["status"] in ("queued", "running") for j in self.jobs.jobs.values()):
-                return True
-        return any(t["status"] == "running" for t in list(self.maker.tasks.values())) or self.sound.busy()
+        return self.jobs.busy() or self.maker.busy() or self.sound.busy()
 
     def seconds_left(self):
         if not self.enabled:
@@ -288,8 +295,9 @@ class IdleStop:
         if self.command:
             subprocess.run(self.command, shell=True, check=True, timeout=120)
             return
-        req = urllib.request.Request(f"https://rest.runpod.io/v1/pods/{self.pod_id}/stop", method="POST",
-                                     headers={"Authorization": f"Bearer {self.api_key}"})
+        req = urllib.request.Request(f"https://api.runpod.io/v2/pods/{self.pod_id}/action", method="POST",
+                                     data=json.dumps({"action": "stop"}).encode(),
+                                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"})
         urllib.request.urlopen(req, timeout=60).close()
 
     def _watch(self):
@@ -366,7 +374,7 @@ def clean_settings(raw, n_keyframes, styles):
 
 # ---------------------------------------------------------------- web app
 
-def make_app(jobs, token, maker, idle, sound):
+def make_app(jobs, token, maker, idle, sound, gpu):
     @web.middleware
     async def auth(request, handler):
         if request.path.startswith("/api/"):
@@ -375,6 +383,7 @@ def make_app(jobs, token, maker, idle, sound):
                 return web.json_response({"error": "bad or missing token"}, status=401)
             if request.method != "GET":
                 idle.touch()
+                gpu.touch()
         response = await handler(request)
         if request.path.startswith("/static/"):
             response.headers["Cache-Control"] = "no-cache"  # pick up app updates after a git pull
@@ -395,13 +404,22 @@ def make_app(jobs, token, maker, idle, sound):
     async def info(request):
         styles = animate.load_styles()
         models_dir = os.path.join(ROOT, "ComfyUI", "models")
+        remote_models = gpu.models()  # file lists from a remote GPU pod; None = check the local folder
+
+        def have(sub, name):
+            if gpu.remote:
+                return remote_models is None or name in remote_models.get(sub, [])  # unknown until the pod has run
+            return os.path.exists(os.path.join(models_dir, sub, name))
         h3_missing = [f"{sub}/{animate.DEFAULTS['models'][key]}"
                       for key, sub in (("h3_unet", "diffusion_models"), ("h3_text_encoder", "text_encoders"),
                                        ("h3_vae", "vae"), ("h3_audio_vae", "vae"), ("h3_lora", "loras"))
-                      if not os.path.exists(os.path.join(models_dir, sub, animate.DEFAULTS["models"][key]))]
+                      if not have(sub, animate.DEFAULTS["models"][key])]
         comfy = {"online": False}
+        gpu_state = gpu.status()
         try:
-            stats = await asyncio.to_thread(_fetch_json, jobs.comfy_url + "/system_stats")
+            if gpu.remote and gpu_state["state"] != "ready":
+                raise ConnectionError("GPU pod not running")
+            stats = await asyncio.to_thread(_fetch_json, gpu.url() + "/system_stats", gpu.headers)
             dev = (stats.get("devices") or [{}])[0]
             comfy = {"online": True, "gpu": dev.get("name", ""), "vram_total": dev.get("vram_total"),
                      "vram_free": dev.get("vram_free"), "ram_total": stats.get("system", {}).get("ram_total"),
@@ -413,7 +431,7 @@ def make_app(jobs, token, maker, idle, sound):
             "styles": [{"id": k, "label": v.get("label", k), "restyle": bool(v.get("restyle_prompt"))} for k, v in styles.items()],
             "comfy": comfy,
             "image_models": [{"id": k, "label": v["label"], "license": v["license"],
-                              "missing": animate.missing_image_model_files(models_dir, k)}
+                              "missing": animate.missing_image_model_files(models_dir, k, have)}
                              for k, v in animate.IMAGE_MODELS.items()],
             "engines": [{"id": "wan22", "label": "Wan 2.2", "license": animate.LICENSES["wan22"], "ready": True},
                         {"id": "minimax-h3", "label": "MiniMax H3 + sound", "license": animate.LICENSES["minimax-h3"],
@@ -422,10 +440,21 @@ def make_app(jobs, token, maker, idle, sound):
             "running": any(j["status"] == "running" for j in jobs.jobs.values()),
             "elevenlabs": sound.info(),
             "idle_stop": None if left is None else {"minutes": idle.seconds // 60, "seconds_left": round(left)},
+            "gpu": gpu_state,
         })
 
     async def keepalive(request):
-        return web.json_response({"ok": True})  # the middleware already reset the idle timer
+        return web.json_response({"ok": True})  # the middleware already reset the idle timers
+
+    async def gpu_start(request):
+        gpu.start_now()
+        return web.json_response(gpu.status())
+
+    async def gpu_stop(request):
+        if jobs.busy() or maker.busy():
+            return web.json_response({"error": "something is still rendering; cancel it first"}, status=409)
+        gpu.stop_now()
+        return web.json_response({"ok": True})
 
     async def list_jobs(request):
         items = sorted(jobs.jobs.values(), key=lambda j: j["created"], reverse=True)
@@ -612,6 +641,8 @@ def make_app(jobs, token, maker, idle, sound):
         web.get("/classic", classic),
         web.get("/api/info", info),
         web.post("/api/keepalive", keepalive),
+        web.post("/api/gpu/start", gpu_start),
+        web.post("/api/gpu/stop", gpu_stop),
         web.get("/api/jobs", list_jobs),
         web.post("/api/jobs", create_job),
         web.get("/api/jobs/{id}", job_detail),
@@ -642,12 +673,23 @@ def _read_bytes(path):
         return f.read()
 
 
-def _fetch_json(url):
-    with urllib.request.urlopen(url, timeout=5) as resp:
+def _fetch_json(url, headers=None):
+    with urllib.request.urlopen(urllib.request.Request(url, headers=headers or {}), timeout=10) as resp:
         return json.loads(resp.read())
 
 
 # ---------------------------------------------------------------- startup
+
+def make_gpu(config, comfy_url, busy):
+    """ComfyUI on this machine, or (with a "gpu" section in config.json) on a Runpod pod made on demand."""
+    cfg = dict(config.get("gpu") or {})
+    if not cfg:
+        return gpus.LocalGPU(comfy_url)
+    cfg["api_key"] = os.environ.get("RUNPOD_API_KEY") or cfg.get("api_key")
+    os.makedirs(os.path.join(ROOT, "output"), exist_ok=True)
+    return gpus.RunpodGPU(cfg, os.path.join(ROOT, "output", "gpu_pod.json"), busy,
+                          os.path.join(ROOT, "output", "gpu_sessions.jsonl"))
+
 
 def load_config():
     if not os.path.exists(CONFIG):
@@ -728,11 +770,18 @@ def main():
     args = ap.parse_args()
 
     token = load_token(args.new_token)
-    jobs = Jobs(args.comfy)
-    maker = KeyframeMaker(args.comfy)
-    sound = soundtrack.Soundtrack(jobs, os.environ.get("ELEVENLABS_API_KEY") or load_config().get("elevenlabs_api_key"))
+    config = load_config()
+    holder = {}
+    gpu = make_gpu(config, args.comfy, lambda: bool(holder) and (holder["jobs"].busy() or holder["maker"].busy()))
+    animate.Comfy.headers = gpu.headers
+    jobs = Jobs(gpu)
+    maker = KeyframeMaker(gpu)
+    holder.update(jobs=jobs, maker=maker)
+    sound = soundtrack.Soundtrack(jobs, os.environ.get("ELEVENLABS_API_KEY") or config.get("elevenlabs_api_key"))
     idle = IdleStop(args.idle_stop, jobs, maker, sound)
-    print_links(args.port, token, args.public_url or default_public_url(args.port))
+    print_links(args.port, token, args.public_url or config.get("public_url") or default_public_url(args.port))
+    if gpu.remote:
+        print(f"GPU: a Runpod pod is created when a job needs it and removed after {gpu.cfg['idle_minutes']} idle min.\n")
     if idle.enabled:
         print(f"Auto-stop: the pod stops after {args.idle_stop} min with no work and no user action "
               "(--idle-stop 0 turns this off).\n")
@@ -741,7 +790,7 @@ def main():
               "Remember to stop the pod when you're done.\n")
     print("ElevenLabs sound (paid per use): " + ("on.\n" if sound.enabled else
           "off. Set ELEVENLABS_API_KEY to turn it on.\n"))
-    web.run_app(make_app(jobs, token, maker, idle, sound), host=args.host, port=args.port, print=None)
+    web.run_app(make_app(jobs, token, maker, idle, sound, gpu), host=args.host, port=args.port, print=None)
 
 
 if __name__ == "__main__":

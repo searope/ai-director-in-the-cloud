@@ -23,10 +23,13 @@ use needs a paid ElevenLabs plan; **the owner has one** (free-plan dubs are wate
 secondary sources say free-plan output is non-commercial and needs attribution). Check ElevenLabs'
 terms before using generated music commercially.
 
-**Creating Runpod pods** (Claude, via the Runpod plugin or API): always add the environment
-variable `ELEVENLABS_API_KEY={{ RUNPOD_SECRET_elevenlabs_api_key }}` (the owner stores the key as the
-Runpod secret `elevenlabs_api_key`). Expose only HTTP port 8700. Confirm GPU type, cloud and
-expected hourly cost with the owner before creating a pod, since it bills from the moment it starts.
+**Runpod pods:** the web app runs on the owner's always-on Windows PC (`docs/home-server.md`) and
+creates the GPU pod itself when a job needs it, removing it after 10 idle minutes (`remote/gpu.py`).
+GPU time should be paid only around jobs: don't leave pods running. When Claude creates a pod by hand
+(e.g. the one-time network-volume setup), it confirms GPU type, cloud and expected hourly cost with the
+owner first, since a pod bills from the moment it starts, and terminates it when done. Expose only HTTP
+port 8700. If the app itself runs on a pod (the older setup), add
+`ELEVENLABS_API_KEY={{ RUNPOD_SECRET_elevenlabs_api_key }}` (the owner's Runpod secret).
 
 **Consequences for the code:**
 

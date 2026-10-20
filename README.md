@@ -23,13 +23,20 @@ APIs or credits. **Commercial use must be allowed**, so the defaults use only Ap
 
 ## Architecture
 
+Recommended: the app on an always-on home PC, the GPU on Runpod only while there's work
+([docs/home-server.md](docs/home-server.md)):
+
 ```
-any device (browser) ──HTTPS──▶ rented GPU: web app (port 8700, token-protected)
-                                              └──▶ ComfyUI (127.0.0.1:8188, never exposed)
+any device (browser) ──HTTPS──▶ home PC: web app (queue, library, sound), Caddy for HTTPS
+                                   └─ creates a GPU pod when a job needs it, removes it after 10 idle min
+                                        ▼
+                                 Runpod pod: token-protected gateway ──▶ ComfyUI (never exposed)
+                                             models on the network volume
 ```
 
-Everything (models, jobs, keyframes, projects) lives on the cloud machine's persistent volume, so
-any device sees the same state.
+Alternative (the original setup): everything on the rented GPU pod, with ComfyUI on 127.0.0.1 and the
+web app on port 8700. The app is then reachable only while the pod runs; it stops the pod after 30 idle
+minutes.
 
 ## What works now
 
@@ -55,9 +62,8 @@ any device sees the same state.
    a Wan 2.2 "max quality" preset (20 steps, 720p, upscaling).
 5. **Finishing:** 1080p upscaling of chosen shots, continuity check, an open-weight (free) voice
    and music option on the GPU next to ElevenLabs, character voices tied to the Cast.
-6. **Cloud ops:** one-command session start, cost tracking per project. (Idle auto-stop is done:
-   the app stops a RunPod pod after 30 minutes with nothing rendering and no action in the app;
-   `--idle-stop MIN` changes it, `0` turns it off.)
+6. **Cloud ops:** cost tracking per project. (Done: GPU pods created on demand and removed when idle,
+   with the month's GPU spend shown in the app; idle auto-stop when everything runs on a pod.)
 
 ## Model licenses
 
@@ -77,7 +83,9 @@ before commercial use. Details per download profile are in `setup/models.json` (
 
 ## Getting started
 
-Follow **[docs/cloud-test-plan.md](docs/cloud-test-plan.md)**: a budget-capped (~$20–40) plan that
+**Home PC + GPU on demand:** follow [docs/home-server.md](docs/home-server.md).
+
+**Everything on a pod:** follow **[docs/cloud-test-plan.md](docs/cloud-test-plan.md)**: a budget-capped (~$20–40) plan that
 sets this up on a RunPod RTX 5090 and benchmarks it. Short version, on the pod:
 
 ```bash
