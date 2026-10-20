@@ -751,7 +751,7 @@ function setVideoStyle(id) {
 const DEFAULT_RECENT = ["photoreal", "anime", "watercolor", "oil-painting"];
 function renderStyles() {
   // recently used first, topped up with a few basics until there are four
-  let recent = [...new Set([...store.get("recent_styles", []), ...DEFAULT_RECENT])].filter(styleById).slice(0, Math.max(4, store.get("recent_styles", []).length));
+  let recent = [...new Set([...store.get("recent_styles", []), ...DEFAULT_RECENT])].filter((id) => styleById(id) && !styleById(id).hidden).slice(0, Math.max(4, store.get("recent_styles", []).length));
   if (S.style !== "__custom" && !recent.includes(S.style)) recent = [S.style, ...recent];
   // the chosen style large enough to judge (tap it for all its examples), then recent styles as chips that wrap
   const st = styleById(S.style), custom = S.style === "__custom";
@@ -774,8 +774,10 @@ $("restyle").onchange = () => { S.restyleTouched = true; $("restyleModelBox").cl
 var STY = { mode: "browse", group: "Recent", q: "", sel: new Set(), image: null, scene: 0 };
 try { STY.scene = Math.max(0, Math.min(3, +store.get("style_scene", 0) || 0)); } catch { /* no storage */ }
 function styleGroups() {
-  const groups = [...new Set((S.info?.styles || []).map((s) => s.group))];
-  return [...(store.get("recent_styles", []).length ? ["Recent"] : []), "All", ...groups];
+  const styles = S.info?.styles || [];
+  const groups = [...new Set(styles.filter((s) => !s.hidden).map((s) => s.group))];
+  return [...(store.get("recent_styles", []).length ? ["Recent"] : []), "All", ...groups,
+    ...(styles.some((s) => s.hidden) ? ["Removed"] : [])];
 }
 function renderStylesPage() {
   if (!S.info) return;
@@ -784,10 +786,10 @@ function renderStylesPage() {
   if (!groups.includes(STY.group)) STY.group = groups.includes("Basics") ? "Basics" : "All";
   setHtml($("styleGroups"), groups.map((g) => `<button type="button" class="chip${STY.group === g && !STY.q ? " on" : ""}" data-group="${esc(g)}">${esc(g)}</button>`).join(""));
   const q = STY.q.trim().toLowerCase();
-  let list = S.info.styles;
+  let list = STY.group === "Removed" && !q ? S.info.styles.filter((s) => s.hidden) : S.info.styles.filter((s) => !s.hidden);
   if (q) list = list.filter((s) => `${s.label} ${s.group} ${s.id} ${s.look || ""}`.toLowerCase().includes(q));
   else if (STY.group === "Recent") list = store.get("recent_styles", []).map(styleById).filter(Boolean);
-  else if (STY.group !== "All") list = list.filter((s) => s.group === STY.group);
+  else if (STY.group !== "All" && STY.group !== "Removed") list = list.filter((s) => s.group === STY.group);
   const pick = STY.mode === "video";
   const cards = list.map((s) => `<div class="style-card${STY.sel.has(s.id) ? " sel" : ""}${S.style === s.id ? " current" : ""}" data-sid="${s.id}" tabindex="0">
       ${styleThumb(s, "sc-img")}${!pick && STY.sel.has(s.id) ? `<span class="num">✓</span>` : ""}
@@ -854,6 +856,9 @@ function renderStyleSheet() {
   $("ssRestyleHint").textContent = st.custom ? "turns pictures into this style; leave empty to make it from the look"
     : "turns keyframes and pictures into this style";
   $("ssCopy").classList.toggle("hidden", !!st.custom || !SS.id);
+  $("ssHide").classList.toggle("hidden", !!st.custom || !SS.id);  // own styles are deleted instead
+  $("ssHide").textContent = st.hidden ? "Restore style" : "Remove style";
+  $("ssHide").classList.toggle("danger", !st.hidden);
   $("ssReset").textContent = st.custom ? "Delete style" : "Reset to default";
   const running = SS.redrawing[st.id] || [];
   $("ssSub").textContent = `${st.group}${st.edited ? " · edited" : ""}`;
@@ -970,6 +975,21 @@ async function saveStyle() {
   renderStyleSheet();
 }
 $("styleNew").onclick = () => openStyleSheet(null);
+$("ssHide").onclick = async () => {
+  const st = styleById(SS.id); if (!st) return;
+  if (!st.hidden && !confirm(`Remove "${st.label}" from your styles? Renders made in it keep working; restore it any time from Removed on the Styles page.`)) return;
+  try {
+    await api(`/api/styles/${SS.id}/hidden`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hidden: !st.hidden }) });
+    await refreshInfo();
+    if (!st.hidden) {
+      closeOverlay("styleSheet");
+      store.set("recent_styles", store.get("recent_styles", []).filter((x) => x !== st.id));
+      if (S.style === st.id) setVideoStyle("photoreal");
+      toast(`${st.label} removed (restore it from Removed)`);
+    } else { openStyleSheet(SS.id); toast(`${st.label} is back`); }
+    renderStylesPage(); renderStyles();
+  } catch (e) { toast(e.message); }
+};
 $("ssCopy").onclick = () => {
   const st = styleById(SS.id); if (!st) return;
   openStyleSheet(null, { label: `${st.label} (mine)`, look: st.look, restyle_prompt: st.restyle_prompt || "" });
