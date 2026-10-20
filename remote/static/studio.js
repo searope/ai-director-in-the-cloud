@@ -1151,7 +1151,8 @@ function jobCard(j) {
     r?.status === "working" ? "checking clip…" : r?.status === "done" ? `clip: ${(VERDICTS[r.verdict] || ["checked"])[0].toLowerCase()}` : r?.status === "failed" ? "check failed" : ""]
     .filter(Boolean).map((b) => `<span class="badge-s${/issues|redo|failed/.test(b) ? " warn" : / OK|good/.test(b) ? " ok" : ""}">${esc(b)}</span>`).join("");
   const open = detailsOpen.has(j.id) ? detailsOpen.get(j.id) : active;
-  return `<div class="job" data-id="${j.id}">
+  const flash = S.flashJob?.id === j.id && Date.now() < S.flashJob.until;
+  return `<div class="job${flash ? " flash" : ""}" data-id="${j.id}">
     <div class="job-head"><span class="status ${j.status}">${j.status === "approve" ? "your OK" : j.status}</span><span class="job-meta">${esc(sum.text)}</span>
       <span class="job-time">${took && !active ? `${took} · ` : ""}${when}</span></div>
     ${progress ? `<div class="progress">${esc(progress)}</div><div class="bar"><span></span></div>` : ""}
@@ -1179,6 +1180,20 @@ function jobCard(j) {
       ${["failed", "cancelled"].includes(j.status) && j.kind !== "film" ? `<button type="button" class="btn small primary" data-job-act="retry">Try again</button>` : ""}
       ${j.status !== "running" ? `<button type="button" class="btn small ghost danger icon-only" data-job-act="delete" aria-label="Delete this render" title="Delete this render"><svg><use href="#i-trash"/></svg></button>` : ""}
     </div></div>`;
+}
+// A button that starts work shows it at once (spinner, no double clicks); returns a function that puts it back.
+function busyButton(btn, text) {
+  if (!btn) return () => {};
+  const html = btn.innerHTML;
+  btn.disabled = true; btn.classList.add("busy"); btn.innerHTML = `<span class="spinner"></span>${esc(text)}`;
+  return () => { if (btn.isConnected) { btn.disabled = false; btn.classList.remove("busy"); btn.innerHTML = html; } };
+}
+// After queueing a render: bring the list to it and flash it, so it's clear where it went.
+function showNewJob(id) {
+  S.flashJob = { id, until: Date.now() + 3000 };  // kept in the state: the card is redrawn when its status changes
+  renderJobs();
+  requestAnimationFrame(() => document.querySelector(`#jobList .job[data-id="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  setTimeout(() => renderJobs(), 3100);
 }
 function renderJobs() {
   const list = $("jobList");
@@ -1222,20 +1237,22 @@ $("jobList").onclick = async (e) => {
   const ap = e.target.closest("[data-approve]");
   if (ap) {
     const note = card.querySelector("[data-redraw-note]")?.value || "";
+    const restore = busyButton(ap, ap.dataset.approve === "render" ? "Starting the video…" : "Starting the redraw…");
     try {
       await api(`/api/jobs/${card.dataset.id}/approve`, { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: ap.dataset.approve, note }) });
       toast(ap.dataset.approve === "render" ? "Rendering the video from these keyframes" : "Redrawing the keyframes again");
       detailsOpen.delete(card.dataset.id); await refreshJobs(); renderJobs();
-    } catch (err) { toast(err.message); }
+    } catch (err) { toast(err.message); restore(); }
     return;
   }
   if (e.target.closest('[data-fix="rerender"]')) {
     const prompt = card.querySelector("[data-fix-prompt]").value.trim();
+    const restore = busyButton(e.target.closest('[data-fix="rerender"]'), "Queueing the new render…");
     try {
-      await api(`/api/jobs/${card.dataset.id}/rerender`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompts: [prompt], keep_styled: !!card.querySelector("[data-keep-styled]")?.checked }) });
-      toast("Queued with the new prompt"); await refreshJobs(); renderJobs();
-    } catch (err) { toast(err.message); }
+      const nj = await api(`/api/jobs/${card.dataset.id}/rerender`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompts: [prompt], keep_styled: !!card.querySelector("[data-keep-styled]")?.checked }) });
+      toast("Queued with the new prompt: it's at the top of the list"); await refreshJobs(); renderJobs(); showNewJob(nj.id);
+    } catch (err) { toast(err.message); restore(); }
     return;
   }
   const act = e.target.closest("[data-job-act]")?.dataset.jobAct; if (!act) return;
@@ -1252,11 +1269,12 @@ $("jobList").onclick = async (e) => {
   if (act === "sound") return openSound(id);
   if (act === "retry") {  // the same render again: same keyframes, settings and prompts (redrawn keyframes are reused)
     const j = jobById(id);
+    const restore = busyButton(e.target.closest("[data-job-act]"), "Queueing…");
     try {
-      await api(`/api/jobs/${id}/rerender`, { method: "POST", headers: { "Content-Type": "application/json" },
+      const nj = await api(`/api/jobs/${id}/rerender`, { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompts: j.settings.prompts.map((p) => p || "smooth natural motion"), keep_styled: j.styled.length > 0 }) });
-      toast("Queued again"); await refreshJobs(); renderJobs();
-    } catch (err) { toast(err.message); }
+      toast("Queued again: it's at the top of the list"); await refreshJobs(); renderJobs(); showNewJob(nj.id);
+    } catch (err) { toast(err.message); restore(); }
     return;
   }
   try { await api(`/api/jobs/${id}/cancel`, { method: "POST" }); await refreshJobs(); renderJobs(); }
@@ -1675,16 +1693,19 @@ $("dirShots").addEventListener("click", async (e) => {
   }
   if (e.target.closest('[data-fix="usefix"]')) {
     const motion = card.querySelector("[data-fix-prompt]").value.trim(); if (!motion) return;
+    busyButton(e.target.closest('[data-fix="usefix"]'), "Queueing…");  // the card redraws when the project updates
     await saveProject({ shots: shotsForSave(shots.map((s) => s.id === id ? { ...s, motion } : s)) });
     if (await shotAction(`shots/${id}/render`)) { await refreshJobs(); toast("New prompt saved; the shot is rendering again"); }
     return;
   }
   const a = e.target.closest("[data-sa]")?.dataset.sa; if (!a) return;
-  if (a === "check") { if (await checkClip(shots[i].job_id)) await refreshDirector(); return renderDirector(); }
-  if (a === "kf") return shotAction(`shots/${id}/keyframes`);
-  if (a === "kfend") return shotAction(`shots/${id}/keyframes?keep_start=1`);
+  const busyText = { check: "Starting the check…", kf: "Starting…", kfend: "Starting…", render: "Queueing…" }[a];
+  const restore = busyText ? busyButton(e.target.closest("[data-sa]"), busyText) : () => {};
+  if (a === "check") { if (await checkClip(shots[i].job_id)) await refreshDirector(); else restore(); return renderDirector(); }
+  if (a === "kf") return (await shotAction(`shots/${id}/keyframes`)) || restore();
+  if (a === "kfend") return (await shotAction(`shots/${id}/keyframes?keep_start=1`)) || restore();
   if (a === "pickstart") { picker.shot = id; return openPicker("shotstart"); }
-  if (a === "render") { if (await shotAction(`shots/${id}/render`)) { await refreshJobs(); toast("Shot queued on the GPU"); } return; }
+  if (a === "render") { if (await shotAction(`shots/${id}/render`)) { await refreshJobs(); toast("Shot queued on the GPU"); } else restore(); return; }
   if (a === "del") { if (!confirm(`Delete shot ${i + 1}?`)) return; shots.splice(i, 1); }
   else { const j = a === "up" ? i - 1 : i + 1; if (j < 0 || j >= shots.length) return; [shots[i], shots[j]] = [shots[j], shots[i]]; }
   saveProject({ shots: shotsForSave(shots) });

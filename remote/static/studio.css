@@ -560,3 +560,6 @@ body.no-scroll { overflow: hidden; }
 
 .btn.busy { display: inline-flex; align-items: center; gap: 7px; opacity: .85; }
 .btn.busy .spinner { width: 13px; height: 13px; border-width: 2px; margin: 0; }
+
+.job { transition: box-shadow .6s; }
+.job.flash { box-shadow: 0 0 0 3px var(--accent); }
