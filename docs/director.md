@@ -19,6 +19,16 @@
    video; its **Sound** button lists the script's narration with each line's start time, so a
    voice-over layer takes one tap per line (ElevenLabs, paid, opt-in).
 
+**Storyboard tab (optional):** a production sheet for the film, in the layout of a film storyboard board.
+**Write storyboard** has the AI model (one more request, paid if the model is) plan, from the shot list:
+the colour palette and the world's "fingerprint"; reference sheets for the recurring characters,
+vehicles, props and creatures (front, side and back views); the main sets and a top-down plan with each
+cut's camera setup; every shot's lens, camera move, framing and purpose; and lighting/mood references,
+mood keywords and cinematography notes. **Draw pictures** draws the references, sets, plan and lighting
+pictures on the GPU with the film's image model (a cast member's sheet uses their reference image);
+↻ redraws one. The storyboard panels are the shots' start keyframes. **Print / PDF** prints the sheet
+(landscape) or saves it as a PDF. Rewriting keeps every picture whose prompt didn't change.
+
 Projects are saved on the PC in `output/director/`.
 
 ## Choosing the AI model

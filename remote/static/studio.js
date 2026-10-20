@@ -1077,7 +1077,7 @@ $("charDelete").onclick = async () => {
 };
 
 // ---------------------------------------------------------------- director
-const D = { list: [], project: null, filled: "" };
+const D = { list: [], project: null, filled: "", tab: "shots" };
 const dirId = () => (location.hash.match(/^#\/director\/([0-9a-f]{12})/) || [])[1];
 const SHOT_FIELDS = ["scene", "action", "start_frame", "end_change", "motion", "narration", "seconds", "characters"];
 const writerById = (id) => (S.info?.writers || []).find((w) => w.id === id);
@@ -1116,8 +1116,101 @@ function renderDirector() {
   $("dirFilm").disabled = !p.shots.length || rendered < p.shots.length || p.film?.status === "working";
   $("dirFilm").title = rendered < p.shots.length ? `${rendered} of ${p.shots.length} shots rendered` : "";
   renderFilm(p);
-  renderShots(p);
+  document.querySelectorAll("#dirTabs [data-dtab]").forEach((b) => b.classList.toggle("on", b.dataset.dtab === D.tab));
+  const board = D.tab === "board";
+  $("dirShots").classList.toggle("hidden", board); $("dirAddShot").classList.toggle("hidden", board);
+  $("dirBoard").classList.toggle("hidden", !board);
+  if (board) renderBoard(p); else renderShots(p);
 }
+
+// ---------------------------------------------------------------- storyboard board
+// A production sheet for the film: references, sets and camera plan, the storyboard panels (each shot's start
+// keyframe with lens, camera and framing) and lighting/mood notes. The AI writer fills in the text, the GPU draws
+// the pictures; Print saves it as a PDF.
+const KIND = { character: "Character", vehicle: "Vehicle", prop: "Prop", creature: "Creature" };
+function boardPic(item, extra = "") {
+  const busy = item.img_status === "working";
+  return `<div class="bitem">${item.image ? `<img alt="" src="${imgUrl(item.image)}" data-open-img="${item.image}">`
+      : `<div class="bph">${busy ? `<div class="spinner"></div>` : item.img_status === "failed" ? "Not drawn (failed)" : "Not drawn yet"}</div>`}
+    ${item.prompt && !busy ? `<button type="button" class="bredo" data-bredraw="${item.key}" title="${item.image ? "Draw again" : "Draw"}" aria-label="Draw ${esc(item.name)}">↻</button>` : ""}
+    <div class="bcap">${esc(item.name)}${extra}</div>${item.note ? `<div class="bnote">${esc(item.note)}</div>` : ""}
+    ${item.img_status === "failed" ? `<div class="berr">${esc(item.img_error || "")}</div>` : ""}</div>`;
+}
+function renderBoard(p) {
+  const b = p.board, w = writerById(p.writer), ai = p.ai || {};
+  const writing = ai.status === "working" && ai.task === "board";
+  const items = b ? [...b.references, ...b.environments, ...(b.camera_plan ? [b.camera_plan] : []), ...b.lighting] : [];
+  const undrawn = items.filter((i) => i.prompt && !i.image && i.img_status !== "working").length;
+  const drawing = items.some((i) => i.img_status === "working");
+  const tools = `<div class="board-tools">
+    <button type="button" class="btn small${b ? "" : " primary"}" data-board="write"${!p.shots.length || ai.status === "working" || !w?.ready ? " disabled" : ""}>
+      ${writing ? "Writing the storyboard…" : b ? "Rewrite storyboard" : "Write storyboard"}</button>
+    ${b ? `<button type="button" class="btn small${undrawn ? " primary" : ""}" data-board="draw"${!undrawn || drawing ? " disabled" : ""}>
+      ${drawing ? "Drawing pictures…" : undrawn ? `Draw ${undrawn} picture${undrawn === 1 ? "" : "s"}` : "All pictures drawn"}</button>
+      <button type="button" class="btn small" data-board="print">Print / PDF</button>` : ""}
+    <span class="hint">${!p.shots.length ? "Write the script first." : w?.paid ? `${esc(w.label)}: paid per use.` : ""}
+      ${b ? " Pictures are drawn on the GPU; storyboard panels are the shots' start keyframes." : ""}</span></div>`;
+  if (!b) {
+    setHtml($("dirBoard"), tools + emptyState("The storyboard sheet: character and prop references, sets and a camera plan, every shot with its lens, camera move and framing, and the lighting and mood. The AI model writes it from the shot list."));
+    return;
+  }
+  const spec = Object.fromEntries(b.shots.map((x) => [x.shot_id, x]));
+  const setup = Object.fromEntries((b.camera_plan?.cuts || []).map((c) => [c.shot_id, c.setup]));
+  const num = Object.fromEntries(p.shots.map((s, i) => [s.id, i + 1]));
+  const html = `${tools}<div class="board">
+    <div class="board-head"><h2>${esc(p.title)}</h2>
+      <span class="meta"><b>Cut count:</b> ${p.shots.length}</span>
+      ${b.palette.length ? `<span class="meta"><b>Colour palette:</b> <span class="swatches">${b.palette.map((c) => `<span class="swatch"><i style="background:${c.hex}"></i>${esc(c.name)}</span>`).join("")}</span></span>` : ""}
+      ${b.fingerprint ? `<span class="meta"><b>Environment fingerprint:</b> ${esc(b.fingerprint)}</span>` : ""}</div>
+    ${b.references.length ? `<div class="bsec"><h3>1. Characters, vehicles and props</h3><div class="bgrid">${b.references.map((r) => boardPic(r, ` · ${KIND[r.kind] || r.kind}`)).join("")}</div></div>` : ""}
+    <div class="bsec"><h3>2. Environment / set design</h3><div class="bgrid wide">${b.environments.map((e) => boardPic(e)).join("")}
+      ${b.camera_plan?.prompt ? `<div>${boardPic(b.camera_plan)}${b.camera_plan.cuts.length ? `<ol class="cuts">${b.camera_plan.cuts.filter((c) => num[c.shot_id]).sort((x, y) => num[x.shot_id] - num[y.shot_id])
+        .map((c) => `<li value="${num[c.shot_id]}">${esc(c.setup)}</li>`).join("")}</ol>` : ""}</div>` : ""}</div></div>
+    <div class="bsec"><h3>3. Storyboard</h3><div class="panels">${p.shots.map((s, i) => {
+      const x = spec[s.id], img = s.start_image || s.end_image;
+      return `<div class="bitem panel-b">${img ? `<img alt="" src="${imgUrl(img)}" data-open-img="${img}">` : `<div class="bph">No keyframe yet: make it on the Shots tab</div>`}
+        <span class="pnum">${i + 1}</span>
+        <div class="spec">${x ? `<b>${x.lens_mm}mm</b> | ${s.seconds}s | <b>${esc(x.camera)}</b> | <b>${esc(x.framing)}</b> — ${esc(x.note)}` : `${s.seconds}s — ${esc(s.action)}`}
+        ${setup[s.id] ? `<div class="bnote">Camera: ${esc(setup[s.id])}</div>` : ""}</div></div>`;
+    }).join("")}</div></div>
+    <div class="bsec"><h3>4. Lighting / mood / style notes</h3><div class="bfoot">
+      <div class="bgrid">${b.lighting.map((l) => boardPic(l)).join("")}</div>
+      <div><h3>Mood keywords</h3><div class="mood">${b.mood.map((m) => `<span>${esc(m)}</span>`).join("")}</div></div>
+      <div><h3>Cinematography notes</h3><ul>${b.cinematography.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></div></div></div>
+  </div>`;
+  if ($("dirBoard").dataset.html !== html) { $("dirBoard").innerHTML = html; $("dirBoard").dataset.html = html; }
+}
+$("dirTabs").onclick = (e) => {
+  const b = e.target.closest("[data-dtab]"); if (!b) return;
+  D.tab = b.dataset.dtab; store.set("dir_tab", D.tab); renderDirector();
+};
+D.tab = store.get("dir_tab", "shots");
+async function drawBoard(keys) {
+  try {
+    D.project = await api(`/api/director/${D.project.id}/board/draw`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keys }) });
+  } catch (e) { toast(e.message); }
+  renderDirector();
+}
+$("dirBoard").addEventListener("click", async (e) => {
+  const img = e.target.closest("[data-open-img]");
+  if (img) { await refreshImages(); return openImage(img.dataset.openImg); }
+  const redo = e.target.closest("[data-bredraw]");
+  if (redo) return drawBoard([redo.dataset.bredraw]);
+  const a = e.target.closest("[data-board]")?.dataset.board, p = D.project;
+  if (!a || !p) return;
+  if (a === "print") return window.print();
+  if (a === "draw") return drawBoard(null);
+  if (a === "write") {
+    const w = writerById($("dirWriter").value);
+    if (w?.paid && !confirm(`${w.label} is billed per use. Write the storyboard with it?`)) return;
+    try {
+      D.project = await api(`/api/director/${p.id}/write`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task: "board", writer: $("dirWriter").value }) });
+    } catch (err) { toast(err.message); }
+    renderDirector();
+  }
+});
 
 function renderDirPanel(p) {
   const fill = `${p.id}|${p.ai?.finished || ""}`;
@@ -1144,11 +1237,11 @@ function renderDirPanel(p) {
   box.classList.toggle("hidden", !working && ai.status !== "failed");
   box.className = "ai-status" + (working ? "" : ai.status === "failed" ? " bad" : " hidden");
   const checking = ai.task === "check";
-  box.innerHTML = working ? `<div class="spinner"></div>${checking ? "Checking" : "Writing"} with ${esc(writerById(ai.writer)?.label || ai.writer)} · ${fmtTime(Date.now() / 1000 - ai.started)}`
-    : ai.status === "failed" ? `<b>${checking ? "The check didn't finish." : "The script wasn't written."}</b> ${esc(ai.error || "")}` : "";
+  box.innerHTML = working ? `<div class="spinner"></div>${checking ? "Checking" : ai.task === "board" ? "Writing the storyboard" : "Writing"} with ${esc(writerById(ai.writer)?.label || ai.writer)} · ${fmtTime(Date.now() / 1000 - ai.started)}`
+    : ai.status === "failed" ? `<b>${checking ? "The check didn't finish." : ai.task === "board" ? "The storyboard wasn't written." : "The script wasn't written."}</b> ${esc(ai.error || "")}` : "";
   const btn = $("dirWrite");
   btn.disabled = working || !w?.ready;
-  btn.innerHTML = `<svg><use href="#i-spark"/></svg>` + (working && !checking ? "Writing…" : p.shots.length ? "Revise script" : "Write script");
+  btn.innerHTML = `<svg><use href="#i-spark"/></svg>` + (working && ai.task === "write" ? "Writing…" : p.shots.length ? "Revise script" : "Write script");
   const check = $("dirCheck");
   check.classList.toggle("hidden", !p.shots.length);
   check.disabled = working || !w?.ready;
