@@ -146,6 +146,22 @@
           "url": "https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy/resolve/main/vae/flux2-vae.safetensors"
         }
       ]
+    },
+    "ltx23": {
+      "description": "OPTIONAL video engine: LTX-2.3 22B distilled fp8 (first+last frame with generated sound, 25 fps, 8 steps), as in ComfyUI's 'LTX-2.3: FLF2V' template. ~39 GB.",
+      "license": "LTX-2 Community License (Lightricks): free commercial use under $10M annual revenue (affiliates counted), a paid license above that; AI-generated content must be labelled as such when published; LoRAs and other derivatives carry the same terms. https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2_x",
+      "files": [
+        {
+          "dir": "checkpoints",
+          "name": "ltx-2.3-22b-distilled-fp8.safetensors",
+          "url": "https://huggingface.co/Lightricks/LTX-2.3-fp8/resolve/main/ltx-2.3-22b-distilled-fp8.safetensors"
+        },
+        {
+          "dir": "text_encoders",
+          "name": "gemma_3_12B_it_fp4_mixed.safetensors",
+          "url": "https://huggingface.co/Comfy-Org/ltx-2/resolve/main/split_files/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors"
+        }
+      ]
     }
   }
 }

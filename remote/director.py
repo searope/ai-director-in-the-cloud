@@ -36,7 +36,7 @@ import uuid
 SECONDS = (2, 3, 4, 5)
 LENGTH_FOR_SECONDS = {2: 33, 3: 49, 4: 65, 5: 81}  # Wan 2.2 frames at 16 fps
 MAX_SHOTS = 40
-VIDEO_ENGINES = ("minimax-h3", "wan22")  # the first is the default for new films
+VIDEO_ENGINES = ("minimax-h3", "wan22", "ltx23")  # the first is the default for new films
 TEXT_FIELDS = {"scene": 200, "action": 600, "start_frame": 1500, "end_change": 600, "motion": 600, "narration": 600}
 
 SCRIPT_SCHEMA = {
@@ -894,7 +894,7 @@ class Director:
                                      "custom_style": project["brief"].get("style", ""),
                                      "restyle": False, "fast": project.get("fast", True), "audio": True,
                                      "length": LENGTH_FOR_SECONDS[shot["seconds"]], "size": "standard",
-                                     "smooth": engine == "wan22"})  # H3 already renders 24 fps
+                                     "smooth": engine == "wan22"})  # H3 and LTX already render 24-25 fps
         self.update(project_id, lambda p: self._shot(p, shot_id).update(job_id=job["id"]))
         return job
 

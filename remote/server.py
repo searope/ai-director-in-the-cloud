@@ -706,6 +706,9 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
                       for key, sub in (("h3_unet", "diffusion_models"), ("h3_text_encoder", "text_encoders"),
                                        ("h3_vae", "vae"), ("h3_audio_vae", "vae"), ("h3_lora", "loras"))
                       if not have(sub, animate.DEFAULTS["models"][key])]
+        ltx_missing = [f"{sub}/{animate.DEFAULTS['models'][key]}"
+                       for key, sub in (("ltx_ckpt", "checkpoints"), ("ltx_text_encoder", "text_encoders"))
+                       if not have(sub, animate.DEFAULTS["models"][key])]
         comfy = {"online": False}
         gpu_state = gpu.status()
         try:
@@ -738,7 +741,9 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
             "engines": [{"id": "minimax-h3", "label": "MiniMax H3 + sound", "license": animate.LICENSES["minimax-h3"],
                          "ready": not h3_missing, "missing": h3_missing,
                          "turbo4": have("loras", turbo4), "turbo_license": animate.LICENSES["h3-turbo"]},
-                        {"id": "wan22", "label": "Wan 2.2 (silent)", "license": animate.LICENSES["wan22"], "ready": True}],
+                        {"id": "wan22", "label": "Wan 2.2 (silent)", "license": animate.LICENSES["wan22"], "ready": True},
+                        {"id": "ltx23", "label": "LTX-2.3 + sound", "license": animate.LICENSES["ltx23"],
+                         "ready": not ltx_missing, "missing": ltx_missing}],
             "queued": sum(1 for j in jobs.jobs.values() if j["status"] == "queued"),
             "running": any(j["status"] == "running" for j in jobs.jobs.values()),
             "elevenlabs": sound.info(),

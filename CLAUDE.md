@@ -74,8 +74,10 @@ run in US/EU datacenters, so a license must cover both.
 - **Unverified:** the lightx2v speed LoRAs: Wan 2.2 4-step, and MiniMax H3 turbo 8-step v1.0 and
   4-step v1.3 (lightx2v/Minimax-h3-Turbo has no license on its repo; other uploaders call it Apache
   2.0). They power the fast modes; check before commercial use. Quality modes work without them.
-- **Planned:** LTX-2.x is free for commercial use under $10M annual revenue (LoRAs trained on it
-  carry the same terms); acceptable, but label it.
+- **Opt-in engine: LTX-2.3** (Oct 2026, profile `ltx23`, engine `ltx23`): LTX-2 Community License, free
+  commercial use under $10M annual revenue (affiliates counted), a paid Lightricks license above that;
+  AI-generated content must be labelled when published; LoRAs trained on it carry the same terms. Never a
+  default; its license is a tooltip in Create video and spelled out in the README.
 - Every model added to `setup/models.json` needs a `license` note, and every engine or image model
   in `animate.py` needs an entry in `LICENSES`. The owner chose (Oct 2026) not to show video engine
   license text in Create video, nor image model license text in Create image (Oct 2026): both are hover

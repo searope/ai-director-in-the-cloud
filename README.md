@@ -76,6 +76,7 @@ before commercial use. Details per download profile are in `setup/models.json` (
 | Lightx2v MiniMax H3 turbo LoRAs (8-step v1.0, 4-step v1.3; Balanced and Fast modes) | none on the repo; Apache 2.0 per other uploaders | ❓ quality mode doesn't use them |
 | FLUX 3 Klein (default image model) | FLUX Kommunity License | ⚠️ free only under $5M annual revenue; above that a paid Black Forest Labs license (choose FLUX.2 Klein 4B in the Model menu to avoid it) |
 | FLUX.2 Klein 9B | FLUX non-commercial | ❌ needs a paid Black Forest Labs license |
+| LTX-2.3 (opt-in engine, with sound) | LTX-2 Community License (Lightricks) | ⚠️ free only under $10M annual revenue (affiliates counted); AI-generated videos must be labelled as such when published |
 | MiniMax H3 | The owner's written license from MiniMax (Oct 2026); public: MiniMax H3 Community License | ✅ for the owner (all use, no attribution). ❌ for anyone else in the US, EU, UK or South Korea without their own license: use Wan 2.2 |
 | ElevenLabs (sound, opt-in API, not a model) | ElevenLabs terms; paid per use | ⚠️ needs a paid ElevenLabs plan (free-plan dubs are watermarked); check the terms for music |
 

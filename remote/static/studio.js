@@ -362,7 +362,9 @@ function openImage(id) {
   $("lightbox").classList.remove("hidden");
 }
 
-const modeLabel = (s) => !s.fast ? "Quality" : s.engine === "minimax-h3" ? (s.turbo_steps === 4 ? "Fast, 4 steps" : "Balanced, 8 steps") : "Fast";
+const SOUND_ENGINES = ["minimax-h3", "ltx23"];  // engines that render their own soundtrack
+const modeLabel = (s) => s.engine === "ltx23" ? "Distilled, 8 steps" : !s.fast ? "Quality"
+  : s.engine === "minimax-h3" ? (s.turbo_steps === 4 ? "Fast, 4 steps" : "Balanced, 8 steps") : "Fast";
 function jobSummary(j) {
   const s = j.settings;
   if (j.kind === "film") return { style: "", engine: "", text: `Film · ${j.title} · ${s.prompts.length} shots` };
@@ -532,7 +534,7 @@ function renderSound() {
   $("sndVersions").innerHTML = versions.map(([k, label]) =>
     `<button type="button" class="chip${k === SND.version ? " on" : ""}" data-version="${k}">${esc(label)}</button>`).join("");
   $("sndDownload").innerHTML = `<a class="btn small" href="${jobVideo(j, SND.version, true)}">Download this version</a>`;
-  const hasOwnSound = j.settings.engine === "minimax-h3";
+  const hasOwnSound = SOUND_ENGINES.includes(j.settings.engine);
   $("sndTracks").innerHTML = (hasOwnSound ? `<div class="snd-track" data-track="video">
       <div class="head"><b>Render</b><span class="txt">the video's own generated sound</span></div>
       <div class="ctl"><span></span><label>Volume ${Math.round(a.video_volume * 100)}%<input type="range" data-f="volume" min="0" max="2" step="0.05" value="${a.video_volume}"></label><span></span></div>
@@ -998,12 +1000,12 @@ function renderEngines() {
 }
 $("engine").onchange = () => {
   const e = S.info.engines.find((x) => x.id === $("engine").value);
-  const h3 = e.id === "minimax-h3";
-  $("soundBox").classList.toggle("hidden", !h3);
-  $("smooth").checked = !h3;  // H3 already renders 24 fps
-  // H3 has two turbo LoRAs (4 and 8 steps); Wan's fast mode is its 4-step LoRA.
+  const h3 = e.id === "minimax-h3", ltx = e.id === "ltx23";
+  $("soundBox").classList.toggle("hidden", !SOUND_ENGINES.includes(e.id));
+  $("smooth").checked = !SOUND_ENGINES.includes(e.id);  // H3 and LTX already render 24-25 fps
+  // H3 has two turbo LoRAs (4 and 8 steps); Wan's fast mode is its 4-step LoRA; LTX-2.3 runs its distilled model.
   const keep = $("vmode").value;
-  $("vmode").innerHTML = (h3
+  $("vmode").innerHTML = (ltx ? [["fast", "Distilled (8 steps)"]] : h3
     ? [["fast4", "Fast (4 steps)" + (e.turbo4 ? "" : " (not installed)"), !e.turbo4], ["fast", "Balanced (8 steps)"], ["quality", "Quality (20 steps)"]]
     : [["fast", "Fast (4 steps)"], ["quality", "Quality (20 steps)"]])
     .map(([v, label, off]) => `<option value="${v}"${off ? " disabled" : ""}>${label}</option>`).join("");
@@ -1017,7 +1019,7 @@ $("vmode").onchange = () => {
   // What the engine gives; its license notes only on hover (owner's choice, Oct 2026; details in the README).
   const el = $("engineLicense"), turbo = h3 && $("vmode").value !== "quality";
   el.className = "hint";
-  el.textContent = h3 ? "24 fps with generated sound" : "16 fps, silent";
+  el.textContent = h3 ? "24 fps with generated sound" : e.id === "ltx23" ? "25 fps with generated sound" : "16 fps, silent";
   el.title = "License: " + e.license + (turbo ? `. ${e.turbo_license}; Quality mode doesn't use it.` : "");
 };
 
@@ -1693,6 +1695,9 @@ function renderStatus() {
   const c = info.comfy, st = $("status"), card = $("gpuCard"), g = info.gpu || {}, btn = $("gpuBtn");
   const active = S.jobs.filter((j) => ["queued", "running"].includes(j.status)).length;
   const pod = g.mode === "runpod", month = pod ? ` · $${(g.month_cost || 0).toFixed(2)} this month` : "";
+  // the network volume's storage; while the GPU is off, its last reading
+  const storage = (old) => !g.disk ? "" : ` · storage ${((g.disk.total - g.disk.free) / 1e9).toFixed(0)} / ${(g.disk.total / 1e9).toFixed(0)} GB`
+    + (old && g.disk.seen ? ` (${ago(g.disk.seen)})` : "");
   btn.classList.toggle("hidden", !pod || g.state === "stopping");
   if (pod) {
     btn.textContent = g.state === "ready" ? "Stop GPU now" : g.state === "starting" ? "Starting…" : g.state === "failed" ? "Try again" : "Start GPU now";
@@ -1702,7 +1707,7 @@ function renderStatus() {
   if (pod && g.state !== "ready") {
     const wait = fmtTime(Math.max(0, Date.now() / 1000 - g.since));
     const [pill, cls, name, sub] = {
-      off: ["GPU off", "", "GPU off", "Starts by itself when you render" + month],
+      off: ["GPU off", "", "GPU off", "Starts by itself when you render" + month + storage(true)],
       starting: ["GPU starting", "busy", "GPU starting…", `${wait} · usually 2–5 min`],
       stopping: ["GPU stopping", "", "GPU stopping…", "Removing the pod" + month],
       failed: ["GPU failed", "bad", "GPU didn't start", g.error || "unknown error"],
@@ -1719,7 +1724,7 @@ function renderStatus() {
     card.querySelector(".meter span").style.width = total ? `${Math.round(100 * used / total)}%` : "0";
     card.querySelector(".gpu-sub").textContent = (total ? `${used.toFixed(1)} / ${total.toFixed(0)} GB VRAM` : "") +
       (pod && g.cost_per_hour ? ` · $${g.cost_per_hour}/h` : "") + month +
-      (g.disk ? ` · storage ${((g.disk.total - g.disk.free) / 1e9).toFixed(0)} / ${(g.disk.total / 1e9).toFixed(0)} GB` : "");
+      storage(false);
   } else {
     st.textContent = "GPU offline"; st.className = "pill bad";
     card.querySelector(".gpu-name").textContent = "ComfyUI offline";
