@@ -483,7 +483,9 @@ def restyle_keyframes(comfy, cfg, instruction, paths, out_dir, seed, prefix, rep
     from PIL import Image
     pair_instruction = (instruction + " The image is two separate pictures side by side with a white gap between "
                         "them: redraw both in exactly the same style, keep each picture's own pose, composition and "
-                        "framing, and keep the white gap.")
+                        "framing, and keep the white gap. Both pictures show the same people: draw each person with "
+                        "exactly the same hairstyle, hair length, hair colour, face and clothes in both pictures, as "
+                        "they look in the photos; only the pose and the camera angle differ.")
     photos = [Image.open(p).convert("RGB") for p in paths]
     fit = [im.resize((max(16, round(im.width * PAIR_HEIGHT / im.height)), PAIR_HEIGHT)) for im in photos]
     outputs = []
