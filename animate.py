@@ -40,6 +40,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 STYLES_FILE = os.path.join(ROOT, "styles.json")
+USER_STYLES_FILE = os.path.join(ROOT, "output", "styles_user.json")  # prompts edited in the app, over styles.json
+EDITABLE_STYLE_FIELDS = ("restyle_prompt", "video_prompt", "negative")
 IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
 
 # Wan's default negative prompt (from the official ComfyUI template).
@@ -563,9 +565,41 @@ def make_keyframe(server, prompt, out_path, seed=None, aspect="16:9", source=Non
 
 # ---------------------------------------------------------------- styles & config
 
-def load_styles():
+def load_default_styles():
     with open(STYLES_FILE, encoding="utf-8") as f:
         return {k: v for k, v in json.load(f).items() if not k.startswith("_")}
+
+
+def load_user_styles():
+    try:
+        with open(USER_STYLES_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def load_styles():
+    """styles.json with the prompts edited in the app (output/styles_user.json) applied; edited styles
+    get "edited": True."""
+    styles, user = load_default_styles(), load_user_styles()
+    for k, fields in user.items():
+        if k in styles:
+            styles[k] = {**styles[k], **{f: v for f, v in fields.items() if f in EDITABLE_STYLE_FIELDS}, "edited": True}
+    return styles
+
+
+def save_user_style(style_id, fields):
+    """Store edited prompts for a style; fields equal to the default are dropped, and fields=None resets it."""
+    default = load_default_styles()[style_id]
+    user = load_user_styles()
+    changed = {f: v for f, v in (fields or {}).items() if f in EDITABLE_STYLE_FIELDS and v != default.get(f)}
+    if changed:
+        user[style_id] = changed
+    else:
+        user.pop(style_id, None)
+    os.makedirs(os.path.dirname(USER_STYLES_FILE), exist_ok=True)
+    with open(USER_STYLES_FILE, "w", encoding="utf-8") as f:
+        json.dump(user, f, indent=1, ensure_ascii=False)
 
 
 def custom_style(description):

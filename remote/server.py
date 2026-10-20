@@ -48,6 +48,9 @@ CONFIG = os.path.join(HERE, "config.json")
 JOBS_DIR = os.path.join(ROOT, "output", "remote_jobs")
 KEYFRAMES_DIR = os.path.join(ROOT, "output", "keyframe_maker")
 CHARACTERS_DIR = os.path.join(ROOT, "output", "characters")
+STYLE_EXAMPLES_DIR = os.path.join(ROOT, "output", "style_examples")  # examples redrawn with prompts edited in the app
+STYLE_EXAMPLE_SEED = 20261020  # the seed setup/style_examples.py uses, so an edit compares like with like
+STYLE_SCENES = 4  # example pictures per style: remote/static/styles/_base-<n>.jpg redrawn as <style>-<n>.jpg
 MODELS_DIR = os.path.join(ROOT, "ComfyUI", "models")  # when ComfyUI runs on this machine
 MAX_KEYFRAMES = 12
 MAX_CHARACTER_REFS = 4  # reference images per character; the first one goes to the image model
@@ -198,6 +201,28 @@ class Jobs:
             keep_awake(False)
 
 
+def save_example_jpg(png_path, jpg_path, width=384):
+    """A style example as a small JPG (the size setup/style_examples.py makes)."""
+    from PIL import Image
+    with Image.open(png_path) as im:
+        im = im.convert("RGB")
+        im.resize((width, round(width * im.height / im.width)), Image.LANCZOS).save(jpg_path, "JPEG", quality=82, optimize=True)
+
+
+def style_example_urls(style_id):
+    """The example pictures of a style, one per scene: the app's redraw (edited prompt) if there is one,
+    else the shipped one."""
+    urls = []
+    for n in range(1, STYLE_SCENES + 1):
+        own = os.path.join(STYLE_EXAMPLES_DIR, f"{style_id}-{n}.jpg")
+        shipped = os.path.join(STATIC, "styles", f"{style_id}-{n}.jpg")
+        if os.path.exists(own):
+            urls.append(f"/api/styles/{style_id}/example/{n}?v={int(os.path.getmtime(own))}")
+        elif os.path.exists(shipped):
+            urls.append(f"/static/styles/{style_id}-{n}.jpg")
+    return urls
+
+
 class KeyframeMaker:
     """Single images for the Keyframes tab: text -> keyframe 1, then edits of the previous keyframe.
 
@@ -258,21 +283,24 @@ class KeyframeMaker:
             if os.path.exists(p):
                 os.remove(p)
 
-    def start(self, prompt, aspect, source_id=None, seed=None, model="klein4b", cast=(), style=None):
+    def start(self, prompt, aspect, source_id=None, seed=None, model="klein4b", cast=(), style=None,
+              source_file=None, example=None):
         """cast: characters (from Characters.get) whose first reference image goes to the model.
-        style: a style id, to redraw source_id in that style (prompt is then the style's restyle prompt)."""
+        style: a style id, to redraw source_id in that style (prompt is then the style's restyle prompt).
+        source_file and example: redraw a style's example scene (not a library image) into the JPG `example`."""
         if aspect not in animate.KEYFRAME_SIZES:
             raise ValueError("bad aspect")
         if model not in animate.IMAGE_MODELS:
             raise ValueError("unknown image model")
-        source = self.path(source_id) if source_id else None
+        source = source_file or (self.path(source_id) if source_id else None)
         if source and not os.path.exists(source):
             raise ValueError("previous keyframe not found on the laptop; start over")
         task_id = uuid.uuid4().hex[:12]
         task = {"id": task_id, "status": "running", "progress": "waiting for the GPU", "started": time.time()}
         with self.lock:
             self.tasks[task_id] = task
-        threading.Thread(target=self._run, args=(task, prompt, aspect, source, seed, model, list(cast), style), daemon=True).start()
+        threading.Thread(target=self._run, args=(task, prompt, aspect, source, seed, model, list(cast), style, example),
+                         daemon=True).start()
         return task
 
     @staticmethod
@@ -285,7 +313,7 @@ class KeyframeMaker:
         return (f"{prompt.strip().rstrip('.')}. {who}. Keep each character's face, hair, body and outfit "
                 "exactly as in their reference image.")
 
-    def _run(self, task, prompt, aspect, source, seed, model, cast, style=None):
+    def _run(self, task, prompt, aspect, source, seed, model, cast, style=None, example=None):
         image_id = uuid.uuid4().hex[:16]
 
         def report(text, final=False):
@@ -294,6 +322,13 @@ class KeyframeMaker:
         try:
             server = self.gpu.ensure(report)
             refs = [self.path(c["refs"][0]) for c in cast]
+            if example:
+                tmp = example + ".png"
+                animate.make_keyframe(server, prompt, tmp, seed, aspect, source, report, model, keep_look=False)
+                save_example_jpg(tmp, example)
+                os.remove(tmp)
+                task.update(status="done", example=os.path.basename(example))
+                return
             used = animate.make_keyframe(server, self.cast_prompt(prompt, cast, 2 if source else 1), self.path(image_id),
                                          seed, aspect, source, report, model, refs, keep_look=not style)
             self.save_meta(image_id, kind="style" if style else "edit" if source else "text", prompt=prompt, model=model,
@@ -672,9 +707,11 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         left = idle.seconds_left()
         return web.json_response({
             "styles": [{"id": k, "label": v.get("label", k), "restyle": bool(v.get("restyle_prompt")), "group": v.get("group", "Other"),
-                        "look": v.get("video_prompt", ""),  # searched on the Styles page
-                        # a pre-rendered example (static/styles/<id>.jpg), made with setup/style_examples.py
-                        "example": f"/static/styles/{k}.jpg" if os.path.exists(os.path.join(STATIC, "styles", f"{k}.jpg")) else None}
+                        "look": v.get("video_prompt", ""),  # searched on the Styles page, editable
+                        "restyle_prompt": v.get("restyle_prompt", ""), "negative": v.get("negative", ""),
+                        "edited": bool(v.get("edited")),
+                        # example pictures (setup/style_examples.py, or redrawn here after an edit)
+                        **(lambda ex: {"examples": ex, "example": ex[0] if ex else None})(style_example_urls(k))}
                        for k, v in styles.items()],
             "comfy": comfy,
             "image_models": [{"id": k, "label": v["label"], "license": v["license"],
@@ -866,6 +903,63 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
             return web.json_response({"error": str(e)}, status=400)
         return web.json_response(task)
 
+    def style_or_404(request):
+        style_id = request.match_info["id"]
+        if style_id not in animate.load_default_styles():
+            raise web.HTTPNotFound()
+        return style_id
+
+    async def edit_style(request):
+        """Save edited prompts for a style (empty or default fields go back to styles.json)."""
+        style_id = style_or_404(request)
+        data = await request.json()
+        default = animate.load_default_styles()[style_id]
+        fields = {f: (str(data[f]).strip()[:2000] or default.get(f, "")) for f in animate.EDITABLE_STYLE_FIELDS if f in data}
+        if "look" in data:
+            fields["video_prompt"] = str(data["look"]).strip()[:2000] or default.get("video_prompt", "")
+        if default.get("restyle_prompt") is None:
+            fields.pop("restyle_prompt", None)  # styles that keep images as they are have nothing to redraw
+        current = {f: v for f, v in animate.load_user_styles().get(style_id, {}).items()}
+        animate.save_user_style(style_id, {**current, **fields})
+        return web.json_response({"ok": True, "edited": style_id in animate.load_user_styles()})
+
+    async def reset_style(request):
+        """Back to the prompts in styles.json, and the shipped example pictures."""
+        style_id = style_or_404(request)
+        animate.save_user_style(style_id, None)
+        for n in range(1, STYLE_SCENES + 1):
+            path = os.path.join(STYLE_EXAMPLES_DIR, f"{style_id}-{n}.jpg")
+            if os.path.exists(path):
+                os.remove(path)
+        return web.json_response({"ok": True})
+
+    async def redraw_style_examples(request):
+        """Redraw the style's example scenes with its current (edited) restyle prompt: one image task per scene."""
+        style_id = style_or_404(request)
+        style = animate.load_styles()[style_id]
+        if not style.get("restyle_prompt"):
+            return web.json_response({"error": "this style keeps images as they are: nothing to redraw"}, status=400)
+        model = "klein4b"  # the examples are made with the default image model
+        if animate.missing_image_model_files(MODELS_DIR, model, model_checker(gpu)):
+            return web.json_response({"error": f"{animate.IMAGE_MODELS[model]['label']} isn't installed on the GPU"}, status=400)
+        os.makedirs(STYLE_EXAMPLES_DIR, exist_ok=True)
+        tasks = []
+        for n in range(1, STYLE_SCENES + 1):
+            base = os.path.join(STATIC, "styles", f"_base-{n}.jpg")
+            if os.path.exists(base):
+                tasks.append({"scene": n, "task": maker.start(style["restyle_prompt"], "16:9", seed=STYLE_EXAMPLE_SEED, model=model,
+                                                             source_file=base,
+                                                             example=os.path.join(STYLE_EXAMPLES_DIR, f"{style_id}-{n}.jpg"))})
+        return web.json_response(tasks)
+
+    async def style_example(request):
+        style_id = style_or_404(request)
+        n = request.match_info["n"]
+        path = os.path.join(STYLE_EXAMPLES_DIR, f"{style_id}-{n}.jpg")
+        if not n.isdigit() or not os.path.exists(path):
+            raise web.HTTPNotFound()
+        return web.FileResponse(path)
+
     async def try_styles(request):
         """Redraw one library image in several styles, to compare them: one image task per style."""
         data = await request.json()
@@ -1039,6 +1133,10 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         web.get("/api/jobs/{id}/image/{kind}/{name}", image),
         web.post("/api/keyframes/generate", keyframe_generate),
         web.post("/api/styles/try", try_styles),
+        web.put("/api/styles/{id}", edit_style),
+        web.delete("/api/styles/{id}", reset_style),
+        web.post("/api/styles/{id}/examples", redraw_style_examples),
+        web.get("/api/styles/{id}/example/{n}", style_example),
         web.get("/api/keyframes/tasks/{id}", keyframe_task),
         web.post("/api/keyframes/upload", keyframe_upload),
         web.get("/api/keyframes/image/{id}", keyframe_image),

@@ -377,6 +377,34 @@
   </div>
 </div>
 
+<div id="styleSheet" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="ssTitle">
+  <div class="sheet style-sheet">
+    <div class="sheet-head">
+      <h3 id="ssTitle">Style</h3>
+      <span id="ssSub" class="hint"></span>
+      <button type="button" class="lb-close" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="char-body">
+      <div id="ssExamples" class="ss-examples"></div>
+      <p id="ssRedrawing" class="hint hidden"></p>
+      <div class="field-block" id="ssRestyleBlock">
+        <label class="lbl" for="ssRestyle">Redraw prompt <span class="hint">turns keyframes and pictures into this style</span></label>
+        <textarea id="ssRestyle" maxlength="2000" rows="4"></textarea>
+      </div>
+      <div class="field-block">
+        <label class="lbl" for="ssLook">Look <span class="hint">tells the video model what style to keep</span></label>
+        <textarea id="ssLook" maxlength="2000" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" id="ssReset" class="btn ghost">Reset to default</button>
+      <span class="grow"></span>
+      <button type="button" id="ssRedraw" class="btn">Redraw examples</button>
+      <button type="button" id="ssSave" class="btn primary">Save</button>
+    </div>
+  </div>
+</div>
+
 <div id="soundSheet" class="overlay hidden" role="dialog" aria-modal="true">
   <div class="sheet sound-sheet">
     <div class="sheet-head">
