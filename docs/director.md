@@ -6,10 +6,16 @@
 2. **Script:** an AI model writes the shot list. You can edit any shot by hand, or type a change
    request ("make it night", "add a close-up of the captain") and revise. Shots that don't change
    keep their keyframes and renders.
-3. **Keyframes:** for each shot, a start frame (text to image, with the shot's characters' reference
-   images) and an end frame (an edit of the start frame).
-4. **Shots:** each shot is a 2-5 s Wan 2.2 clip between its two keyframes, rendered on the GPU.
-5. **Film:** the clips joined in order with hard cuts. Add sound to it with the Sound editor.
+3. **Continuity check (optional):** the same AI model reviews the shot list for outfits, props, time
+   of day, screen direction and prompts that won't work, and leaves notes on the shots.
+   **Fix these with the AI** sends the notes back as a change request.
+4. **Keyframes:** for each shot, a start frame (text to image, with the shot's characters' reference
+   images) and an end frame (an edit of the start frame). To use your own photo, choose
+   **Use a library image as the start frame**, then **Make end keyframe**.
+5. **Shots:** each shot is a 2-5 s Wan 2.2 clip between its two keyframes, rendered on the GPU.
+6. **Film:** the clips joined in order with hard cuts. The film appears in the Library like any
+   video; its **Sound** button lists the script's narration with each line's start time, so a
+   voice-over layer takes one tap per line (ElevenLabs, paid, opt-in).
 
 Projects are saved on the PC in `output/director/`.
 
