@@ -798,7 +798,8 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
 
     async def shot_keyframes(request):
         pid, sid = project_id(request), request.match_info["shot"]
-        return await director_call(lambda: director.make_keyframes(pid, sid) or director.get(pid))
+        keep_start = request.query.get("keep_start") == "1"
+        return await director_call(lambda: director.make_keyframes(pid, sid, keep_start) or director.get(pid))
 
     async def shot_render(request):
         pid, sid = project_id(request), request.match_info["shot"]

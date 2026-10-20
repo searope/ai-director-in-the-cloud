@@ -533,10 +533,12 @@ $("sndDub").onclick = async () => {
 
 // ---------------------------------------------------------------- picker (library images)
 const picker = { mode: "tray", sel: [] };
+const pickOne = () => picker.mode === "source" || picker.mode === "shotstart";  // single choice, not a list
 function openPicker(mode) {
   picker.mode = mode; picker.sel = [];
-  $("pickerTitle").textContent = { source: "Choose the image to edit", refs: "Add reference images" }[mode] || "Add keyframes, in order";
-  $("pickerDone").textContent = mode === "source" ? "Use image" : "Add";
+  $("pickerTitle").textContent = { source: "Choose the image to edit", refs: "Add reference images",
+                                   shotstart: "Choose the shot's start frame" }[mode] || "Add keyframes, in order";
+  $("pickerDone").textContent = pickOne() ? "Use image" : "Add";
   renderPicker();
   $("picker").classList.remove("hidden");
 }
@@ -544,20 +546,21 @@ function renderPicker() {
   $("pickerGrid").innerHTML = S.images.length ? S.images.map((m) => {
     const n = picker.sel.indexOf(m.id);
     return `<div class="tile${n >= 0 ? " sel" : ""}" data-pick="${m.id}"><img loading="lazy" alt="" src="${imgUrl(m.id)}">
-      ${n >= 0 && picker.mode !== "source" ? `<span class="num">${n + 1}</span>` : ""}</div>`;
+      ${n >= 0 && !pickOne() ? `<span class="num">${n + 1}</span>` : ""}</div>`;
   }).join("") : `<div class="empty" style="grid-column:1/-1">No images yet. Upload some, or make them in Create image.</div>`;
   $("pickerDone").disabled = !picker.sel.length;
 }
 $("pickerGrid").onclick = (e) => {
   const t = e.target.closest("[data-pick]"); if (!t) return;
   const id = t.dataset.pick, i = picker.sel.indexOf(id);
-  if (picker.mode === "source") picker.sel = [id];
+  if (pickOne()) picker.sel = [id];
   else if (i >= 0) picker.sel.splice(i, 1); else picker.sel.push(id);
   renderPicker();
 };
 $("pickerDone").onclick = () => {
   if (picker.mode === "source") { S.source = picker.sel[0]; renderSource(); }
   else if (picker.mode === "refs") addRefs(picker.sel);
+  else if (picker.mode === "shotstart") setShotStart(picker.shot, picker.sel[0]);
   else addToTray(picker.sel);
   closeOverlay("picker");
 };
@@ -575,7 +578,7 @@ $("pickerUpload").onchange = async (e) => {
   const files = [...e.target.files]; e.target.value = "";
   toast(`Uploading ${files.length} image${files.length > 1 ? "s" : ""}…`);
   const ids = await uploadImages(files);
-  picker.sel = picker.mode === "source" ? ids.slice(-1) : [...picker.sel, ...ids];
+  picker.sel = pickOne() ? ids.slice(-1) : [...picker.sel, ...ids];
   renderPicker(); renderAll();
 };
 $("libUpload").onchange = async (e) => {
@@ -923,6 +926,7 @@ function shotCard(p, s, i) {
       <div class="frames">
         ${r?.status === "done" ? `<video controls playsinline loop preload="metadata" src="${jobVideo({ id: s.job_id, audio: null })}"></video>`
           : `<div class="pair">${frame(s.start_image, "Start", kfBusy && !s.start_image)}<span>→</span>${frame(s.end_image, "End", kfBusy && !!s.start_image)}</div>`}
+        <button type="button" class="linkish" data-sa="pickstart"${kfBusy ? " disabled" : ""}>Use a library image as the start frame</button>
       </div>
       <div class="shot-fields">
         ${ta("action", "Action", 2, "What happens in this shot")}
@@ -935,7 +939,8 @@ function shotCard(p, s, i) {
       </div>
     </div>
     <div class="shot-foot"><span class="shot-status${bad ? " bad" : ""}">${esc(status)}</span>
-      <button type="button" class="btn small" data-sa="kf"${kfBusy ? " disabled" : ""}>${s.start_image ? "Remake keyframes" : "Make keyframes"}</button>
+      ${s.start_image && !s.end_image && !kfBusy ? `<button type="button" class="btn small" data-sa="kfend">Make end keyframe</button>` : ""}
+      <button type="button" class="btn small" data-sa="kf"${kfBusy ? " disabled" : ""}>${s.start_image ? "Remake both keyframes" : "Make keyframes"}</button>
       <button type="button" class="btn small" data-sa="render"${s.start_image && s.end_image && !["queued", "running"].includes(r?.status) && !kfBusy ? "" : " disabled"}>${r?.status === "done" ? "Render again" : "Render shot"}</button>
     </div></div>`;
 }
@@ -1027,11 +1032,18 @@ $("dirShots").addEventListener("click", async (e) => {
   }
   const a = e.target.closest("[data-sa]")?.dataset.sa; if (!a) return;
   if (a === "kf") return shotAction(`shots/${id}/keyframes`);
+  if (a === "kfend") return shotAction(`shots/${id}/keyframes?keep_start=1`);
+  if (a === "pickstart") { picker.shot = id; return openPicker("shotstart"); }
   if (a === "render") { if (await shotAction(`shots/${id}/render`)) { await refreshJobs(); toast("Shot queued on the GPU"); } return; }
   if (a === "del") { if (!confirm(`Delete shot ${i + 1}?`)) return; shots.splice(i, 1); }
   else { const j = a === "up" ? i - 1 : i + 1; if (j < 0 || j >= shots.length) return; [shots[i], shots[j]] = [shots[j], shots[i]]; }
   saveProject({ shots: shotsForSave(shots) });
 });
+function setShotStart(shotId, imageId) {
+  const shots = shotsForSave(D.project.shots).map((s) => s.id === shotId ? { ...s, start_image: imageId } : s);
+  saveProject({ shots });
+  toast("Start frame set. Now make the end keyframe from it.");
+}
 $("dirAddShot").onclick = () => saveProject({ shots: [...shotsForSave(D.project.shots), { scene: "", action: "", start_frame: "", end_change: "", motion: "", narration: "", seconds: 4, characters: [] }] });
 $("dirAllKf").onclick = async () => {
   const todo = D.project.shots.filter((s) => !(s.start_image && s.end_image) && s.kf_status !== "working" && s.start_frame && s.end_change);

@@ -383,6 +383,12 @@ class Director:
                 "seconds": max(4, min(300, int(seconds))) if str(seconds or "").isdigit() else 30, "aspect": aspect,
                 "notes": _clean_text(raw.get("notes"), 2000)}
 
+    def _have_image(self, image_id):
+        try:
+            return os.path.exists(self.maker.path(image_id))
+        except ValueError:
+            return False
+
     def _clean_cast(self, ids):
         return [i for i in dict.fromkeys(str(i) for i in (ids or [])) if self.characters.get(i)][:12]
 
@@ -399,6 +405,14 @@ class Director:
         if "characters" in raw:
             shot["characters"] = [i for i in dict.fromkeys(str(c) for c in raw["characters"] or []) if self.characters.get(i)][:3]
         shot.setdefault("characters", [])
+        for key in ("start_image", "end_image"):  # a library image chosen as a keyframe (e.g. the user's own photo)
+            if key in raw and raw[key] != shot.get(key):
+                if raw[key] and not self._have_image(raw[key]):
+                    raise ValueError("that image is no longer in the library")
+                shot[key] = raw[key] or None
+                shot.update(job_id=None, kf_status="done" if shot.get("start_image") and shot.get("end_image") else "idle", kf_error=None)
+                if key == "start_image":
+                    shot["end_image"] = raw.get("end_image") or None  # the old end frame was made from the old start
         if old:
             changed = {f for f in ("start_frame", "end_change", "characters", "motion", "seconds") if shot.get(f) != old.get(f)}
             if changed & {"start_frame", "end_change", "characters"}:  # the keyframes no longer match
@@ -546,28 +560,37 @@ class Director:
             raise RuntimeError(task.get("error") or "the image failed")
         return task["image_id"]
 
-    def make_keyframes(self, project_id, shot_id):
+    def make_keyframes(self, project_id, shot_id, keep_start=False):
+        """Make the shot's start and end keyframes; keep_start makes only the end one from the current start
+        (e.g. a photo the user chose)."""
         project = self._load(project_id)
         if not project:
             raise KeyError("no such project")
         shot = self._shot(project, shot_id)
-        if not shot["start_frame"] or not shot["end_change"]:
+        keep_start = keep_start and self._have_image(shot.get("start_image") or "")
+        if not shot["end_change"] or not (keep_start or shot["start_frame"]):
             raise ValueError("write the start frame and the end change first")
         if shot.get("kf_status") == "working":
             raise ValueError("these keyframes are already being made")
         cast = self.characters.cast(shot["characters"])
 
         def mark(p):
-            self._shot(p, shot_id).update(kf_status="working", kf_error=None, start_image=None, end_image=None, job_id=None)
+            s = self._shot(p, shot_id)
+            s.update(kf_status="working", kf_error=None, end_image=None, job_id=None)
+            if not keep_start:
+                s["start_image"] = None
         self.update(project_id, mark)
         self.busy_ids.add(project_id)
-        threading.Thread(target=self._keyframes, args=(project_id, shot_id, project, shot, cast), daemon=True).start()
+        threading.Thread(target=self._keyframes, args=(project_id, shot_id, project, shot, cast, keep_start), daemon=True).start()
 
-    def _keyframes(self, project_id, shot_id, project, shot, cast):
+    def _keyframes(self, project_id, shot_id, project, shot, cast, keep_start=False):
         try:
             model, aspect = project.get("image_model", "klein4b"), project["brief"]["aspect"]
-            start = self._wait_task(self.maker.start(shot["start_frame"], aspect, None, None, model, cast))
-            self.update(project_id, lambda p: self._shot(p, shot_id).update(start_image=start))
+            if keep_start:
+                start = shot["start_image"]
+            else:
+                start = self._wait_task(self.maker.start(shot["start_frame"], aspect, None, None, model, cast))
+                self.update(project_id, lambda p: self._shot(p, shot_id).update(start_image=start))
             end = self._wait_task(self.maker.start(shot["end_change"], aspect, start, None, model, cast))
             self.update(project_id, lambda p: self._shot(p, shot_id).update(end_image=end, kf_status="done"))
         except Exception as e:
