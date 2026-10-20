@@ -209,17 +209,24 @@ def save_example_jpg(png_path, jpg_path, width=384):
         im.resize((width, round(width * im.height / im.width)), Image.LANCZOS).save(jpg_path, "JPEG", quality=82, optimize=True)
 
 
+def style_reviews():
+    """setup/style_review.py's findings per style (styles_review.json)."""
+    try:
+        with open(os.path.join(ROOT, "styles_review.json"), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
 def style_example_urls(style_id):
     """The example pictures of a style, one per scene: the app's redraw (edited prompt) if there is one,
     else the shipped one."""
-    urls = []
+    urls = []  # None for a scene not drawn yet
     for n in range(1, STYLE_SCENES + 1):
         own = os.path.join(STYLE_EXAMPLES_DIR, f"{style_id}-{n}.jpg")
         shipped = os.path.join(STATIC, "styles", f"{style_id}-{n}.jpg")
-        if os.path.exists(own):
-            urls.append(f"/api/styles/{style_id}/example/{n}?v={int(os.path.getmtime(own))}")
-        elif os.path.exists(shipped):
-            urls.append(f"/static/styles/{style_id}-{n}.jpg")
+        urls.append(f"/api/styles/{style_id}/example/{n}?v={int(os.path.getmtime(own))}" if os.path.exists(own)
+                    else f"/static/styles/{style_id}-{n}.jpg?v={int(os.path.getmtime(shipped))}" if os.path.exists(shipped) else None)
     return urls
 
 
@@ -686,6 +693,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
 
     async def info(request):
         styles = animate.load_styles()
+        reviews = style_reviews()
         have = model_checker(gpu)
         turbo4 = animate.DEFAULTS["models"]["h3_lora_4step"]
         h3_missing = [f"{sub}/{animate.DEFAULTS['models'][key]}"
@@ -710,8 +718,11 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
                         "look": v.get("video_prompt", ""),  # searched on the Styles page, editable
                         "restyle_prompt": v.get("restyle_prompt", ""), "negative": v.get("negative", ""),
                         "edited": bool(v.get("edited")),
+                        # the AI review of the shipped examples, while it is about the current prompt
+                        "review": (lambda r: {f: r.get(f) for f in ("coverage", "strength", "unstyled", "replaced", "summary")}
+                                   if r and r.get("prompt") == v.get("restyle_prompt") else None)(reviews.get(k)),
                         # example pictures (setup/style_examples.py, or redrawn here after an edit)
-                        **(lambda ex: {"examples": ex, "example": ex[0] if ex else None})(style_example_urls(k))}
+                        **(lambda ex: {"examples": ex, "example": next((u for u in ex if u), None)})(style_example_urls(k))}
                        for k, v in styles.items()],
             "comfy": comfy,
             "image_models": [{"id": k, "label": v["label"], "license": v["license"],

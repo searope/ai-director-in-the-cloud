@@ -688,7 +688,9 @@ $("loop").onchange = renderMotion;
 const styleById = (id) => (S.info?.styles || []).find((s) => s.id === id);
 const styleLabel = (id) => id === "__custom" ? "Custom" : styleById(id)?.label || id;
 const exampleUrl = (url) => url.startsWith("/api/") ? withToken(url) : url;
-const styleThumb = (st, cls = "") => st?.example ? `<img class="${cls}" loading="lazy" alt="" src="${exampleUrl(st.example)}">`
+// the card picture: the style's example in the scene chosen on the Styles page (city street, face, landscape, indoor)
+const sceneExample = (st) => st?.examples?.[STY.scene] || null;
+const styleThumb = (st, cls = "") => sceneExample(st) ? `<img class="${cls}" loading="lazy" alt="" src="${exampleUrl(sceneExample(st))}">`
   : `<span class="${cls} style-ph">${esc((st?.label || "?").slice(0, 2))}</span>`;
 function setVideoStyle(id) {
   S.style = id;
@@ -718,13 +720,15 @@ $("restyle").onchange = () => { S.restyleTouched = true; $("restyleModelBox").cl
 
 // The Styles page. mode "browse": select styles to try on an image (or use one for videos); mode "video": tap one to
 // use it in Create video. STY.image: an image chosen to try styles on (from the image viewer).
-const STY = { mode: "browse", group: "Recent", q: "", sel: new Set(), image: null };
+var STY = { mode: "browse", group: "Recent", q: "", sel: new Set(), image: null, scene: 0 };
+try { STY.scene = Math.max(0, Math.min(3, +store.get("style_scene", 0) || 0)); } catch { /* no storage */ }
 function styleGroups() {
   const groups = [...new Set((S.info?.styles || []).map((s) => s.group))];
   return [...(store.get("recent_styles", []).length ? ["Recent"] : []), "All", ...groups];
 }
 function renderStylesPage() {
   if (!S.info) return;
+  setHtml($("styleScenes"), SCENES.map((name, i) => `<button type="button" data-scene="${i}"${STY.scene === i ? ' class="on"' : ""}>${name}</button>`).join(""));
   const groups = styleGroups();
   if (!groups.includes(STY.group)) STY.group = groups.includes("Basics") ? "Basics" : "All";
   setHtml($("styleGroups"), groups.map((g) => `<button type="button" class="chip${STY.group === g && !STY.q ? " on" : ""}" data-group="${esc(g)}">${esc(g)}</button>`).join(""));
@@ -750,6 +754,10 @@ function renderStylesPage() {
        ${STY.sel.size === 1 ? `<button type="button" class="btn small" data-st="use">Use for videos</button>` : ""}
        <button type="button" class="btn small ghost" data-st="clear">Clear</button>` : ""}`;
 }
+$("styleScenes").onclick = (e) => {
+  const b = e.target.closest("[data-scene]"); if (!b) return;
+  STY.scene = +b.dataset.scene; store.set("style_scene", STY.scene); renderStylesPage(); renderStyles();
+};
 $("styleSearch").oninput = () => { STY.q = $("styleSearch").value; renderStylesPage(); };
 $("styleGroups").onclick = (e) => {
   const b = e.target.closest("[data-group]"); if (!b) return;
@@ -797,6 +805,12 @@ function renderStyleSheet() {
   $("ssRedrawing").classList.toggle("hidden", !running.length);
   $("ssRedrawing").textContent = running.length ? `Redrawing the examples on the GPU: ${running.length} left…` : "";
   $("ssReset").classList.toggle("hidden", !st.edited);
+  const r = st.review;
+  $("ssReview").classList.toggle("hidden", !r);
+  $("ssReview").innerHTML = !r ? "" : `<div class="ss-cov"><b>${r.coverage}% styled</b> · ${esc(r.strength)} · <span class="hint">AI check of the examples</span></div>
+    <p>${esc(r.summary)}</p>
+    ${r.unstyled.length ? `<p><b>May stay unstyled:</b> ${r.unstyled.map(esc).join(", ")}. Similar things in your pictures may not take the style well.</p>` : ""}
+    ${r.replaced.length ? `<p class="warn-text"><b>Changed content:</b> ${r.replaced.map(esc).join("; ")}.</p>` : ""}`;
 }
 async function saveStyle() {
   const body = { look: $("ssLook").value };
