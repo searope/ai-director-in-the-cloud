@@ -19,8 +19,9 @@ if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
 }
 if (-not (Test-Path ".venv\Scripts\python.exe")) { py -3 -m venv .venv }
 & .venv\Scripts\python.exe -m pip install --upgrade pip
-# aiohttp: web server; pillow/numpy/av: video assembly; imageio-ffmpeg: sound mixing; qrcode: link QR code
-& .venv\Scripts\python.exe -m pip install aiohttp pillow numpy av qrcode imageio-ffmpeg
+# aiohttp: web server; pillow/numpy/av: video assembly; imageio-ffmpeg: sound mixing and joining films;
+# qrcode: link QR code; anthropic: the Director's optional Claude API writer
+& .venv\Scripts\python.exe -m pip install aiohttp pillow numpy av qrcode imageio-ffmpeg anthropic
 
 Step "Caddy (HTTPS)"
 New-Item -ItemType Directory -Force tools | Out-Null

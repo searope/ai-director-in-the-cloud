@@ -16,10 +16,10 @@ subscription** (Claude or similar) for the story and scripting work. No pay-per-
 APIs or credits. **Commercial use must be allowed**, so the defaults use only Apache 2.0 models
 (see [Model licenses](#model-licenses) and [CLAUDE.md](CLAUDE.md)).
 
-> **Status: early.** What works today is the engine inherited from
-> [searope/32gb-rtx-5050-8gb](https://github.com/searope/32gb-rtx-5050-8gb): keyframe maker,
-> keyframe → video with Wan 2.2 (MiniMax H3 optional), styles, and the browser app. The director features
-> below are the roadmap.
+> **Status: early.** The engine inherited from
+> [searope/32gb-rtx-5050-8gb](https://github.com/searope/32gb-rtx-5050-8gb) (keyframe maker,
+> keyframe → video with Wan 2.2, styles, the browser app) now has a first version of the director
+> workflow: Characters and the Director (brief → AI-written shot list → shots → film).
 
 ## Architecture
 
@@ -47,22 +47,19 @@ minutes.
 | Styles: presets, custom text styles, keyframe redraw, Wan style LoRAs | `styles.json` |
 | Studio web app (dark, OpenArt-style layout): Home, Create image (text → image, edit image), Create video (keyframes from the library, motion per gap), Library of all images and videos; job queue; works on phone and desktop; prints the public link on RunPod. The previous single-page app is at `/classic` | `remote/server.py`, `remote/static/` |
 | Sound for finished videos (**opt-in, paid ElevenLabs credits**): voice-over, multi-voice dialogue, sound effects and music as layers with their own start time and volume, mixed into a copy of the video; dubbing of the speech layers into other languages. Off unless `ELEVENLABS_API_KEY` is set | Sound button on a video; `remote/soundtrack.py` |
+| Characters: named characters with up to 4 reference images; tag up to 3 when making an image, and the main reference image of each goes to the image model so faces and outfits stay the same | Characters page; Create image |
+| Director: brief → script and shot list written by a pluggable AI model (Claude Code on the subscription by default; the Claude API, any OpenAI-compatible endpoint or any CLI as options) → start and end keyframes per shot with the shot's characters → Wan 2.2 clip per shot → film joined with hard cuts. Edit, reorder or revise shots; unchanged shots keep their renders | Director page; `remote/director.py`, [docs/director.md](docs/director.md) |
 | Model downloader with profiles | `setup/download_models.py`, `setup/models.json` |
 
 ## Roadmap (director workflow)
 
-1. **Projects + shot list + cuts:** a storyboard of shots (keyframe, prompt, duration, engine per
-   shot), each rendered separately, assembled with hard cuts; regenerate, reorder or retime single
-   shots without re-rendering the rest.
-2. **Cast:** named characters with reference images, tagged in shots, used as multi-reference input
-   when making keyframes. Later: one combined multi-character LoRA.
-3. **Story planner:** brief → script → shot list, written by the AI subscription (e.g. Claude Code
-   editing the project's storyboard file) or a local model on the GPU; editable before rendering.
-4. **More engines (open weights, on the GPU, commercial use allowed):** LTX-2.5 first/last frame,
+1. **Projects, shot list, cuts, Cast, story planner:** first version done (Characters and Director,
+   above). Next: one combined multi-character LoRA; a local writer model on the GPU pod.
+2. **More engines (open weights, on the GPU, commercial use allowed):** LTX-2.5 first/last frame,
    a Wan 2.2 "max quality" preset (20 steps, 720p, upscaling).
-5. **Finishing:** 1080p upscaling of chosen shots, continuity check, an open-weight (free) voice
+3. **Finishing:** 1080p upscaling of chosen shots, continuity check, an open-weight (free) voice
    and music option on the GPU next to ElevenLabs, character voices tied to the Cast.
-6. **Cloud ops:** cost tracking per project. (Done: GPU pods created on demand and removed when idle,
+4. **Cloud ops:** cost tracking per project. (Done: GPU pods created on demand and removed when idle,
    with the month's GPU spend shown in the app; idle auto-stop when everything runs on a pod.)
 
 ## Model licenses
