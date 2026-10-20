@@ -739,7 +739,8 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
         os.makedirs(styled_dir, exist_ok=True)
         # Optional check (cfg["keyframe_check"](originals, redrawn) -> {"ok", "score", "problems", "advice"}):
         # redraw again with the advice and a new seed while it finds problems, and keep the best attempt.
-        check, instruction, best = cfg.get("keyframe_check"), style["restyle_prompt"], None
+        base = f"{style['restyle_prompt']} {cfg.get('restyle_note') or ''}".strip()  # restyle_note: the user's request
+        check, instruction, best = cfg.get("keyframe_check"), base, None
         tries = 1 + (int(cfg.get("keyframe_retries", 2)) if check else 0)
         for attempt in range(tries):
             styled = restyle_keyframes(comfy, cfg, instruction, keys, styled_dir, seed + 1000 * attempt,
@@ -760,7 +761,7 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
                 break
             if should_cancel():
                 raise Cancelled()
-            instruction = f"{style['restyle_prompt']} {result.get('advice', '')}".strip()
+            instruction = f"{base} {result.get('advice', '')}".strip()
         if best is not None:  # put the best attempt's keyframes back (a later try may have been worse)
             for p, data in zip(styled, best[1]):
                 with open(p, "wb") as f:
@@ -768,6 +769,8 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
         for i, (p, local) in enumerate(zip(keys, styled)):
             uploaded[p] = comfy.upload_image(local, f"{run_id}_styled_{i:02d}.png")
         report(f"restyled keyframes saved in {styled_dir}", final=True)
+        if cfg.get("stop_after_restyle"):  # the caller shows them for approval before the video is rendered
+            return "restyled"
 
     pairs = list(zip(keys, keys[1:] + ([keys[0]] if cfg["loop"] else [])))
     all_frames, audio_parts, audio_rate = [], [], None

@@ -747,6 +747,7 @@ async function renderVideoJob() {
     style: S.style === "__custom" ? "photoreal" : S.style, custom_style: custom,
     restyle: $("restyle").checked, fast: $("vmode").value !== "quality", turbo_steps: $("vmode").value === "fast4" ? 4 : 8,
     check_keyframes: $("restyle").checked && $("checkKeyframes").checked && !!reviewWriter(), writer: reviewWriter()?.id || "",
+    approve_keyframes: $("restyle").checked && $("approveKeyframes").checked,
     length: +$("length").value, size: $("size").value,
     loop: $("loop").checked, smooth: $("smooth").checked, seed: $("vseed").value,
   };
@@ -817,11 +818,18 @@ function jobCard(j) {
     .filter(Boolean).map((b) => `<span class="badge-s${/issues|redo|failed/.test(b) ? " warn" : / OK|good/.test(b) ? " ok" : ""}">${esc(b)}</span>`).join("");
   const open = detailsOpen.has(j.id) ? detailsOpen.get(j.id) : active;
   return `<div class="job" data-id="${j.id}">
-    <div class="job-head"><span class="status ${j.status}">${j.status}</span><span class="job-meta">${esc(sum.text)}</span>
+    <div class="job-head"><span class="status ${j.status}">${j.status === "approve" ? "your OK" : j.status}</span><span class="job-meta">${esc(sum.text)}</span>
       <span class="job-time">${took && !active ? `${took} · ` : ""}${when}</span></div>
     ${progress ? `<div class="progress">${esc(progress)}</div><div class="bar"><span></span></div>` : ""}
     ${j.error ? `<div class="error">${esc(j.error)}</div>` : ""}
     ${j.status === "done" ? `<video controls playsinline loop preload="metadata" src="${jobVideo(j)}"></video>` : ""}
+    ${j.status === "approve" ? `<div class="approve">
+      <b>The keyframes are redrawn. Check them before the video renders.</b>
+      ${keyframeStrip(j)}
+      <input type="text" data-redraw-note maxlength="600" placeholder="What to change if you redraw (optional), e.g. keep his eyes looking up">
+      <div class="row"><button type="button" class="btn small primary" data-approve="render">Render with these</button>
+        <button type="button" class="btn small" data-approve="redraw">Redraw again</button></div>
+    </div>` : ""}
     <details class="job-details"${open ? " open" : ""}><summary>Details ${badges}</summary>
       ${keyframeStrip(j)}
       ${reviewBlock(r, ["rerender", "Render again with this prompt"], j.styled.length > 0)}
@@ -830,7 +838,7 @@ function jobCard(j) {
       ${j.status === "done" && j.kind !== "film" && r?.status !== "working" ? `<button type="button" class="btn small" data-job-act="check">${r ? "Check again" : "Check clip"}</button>` : ""}
       ${j.status === "done" ? `<button type="button" class="btn small" data-job-act="sound">Sound</button>
         <a class="btn small" href="${jobVideo(j, null, true)}">Download</a>` : ""}
-      ${active ? `<button type="button" class="btn small" data-job-act="cancel">Cancel</button>` : ""}
+      ${active || j.status === "approve" ? `<button type="button" class="btn small" data-job-act="cancel">Cancel</button>` : ""}
       ${j.status !== "running" ? `<button type="button" class="btn small ghost danger icon-only" data-job-act="delete" aria-label="Delete" title="Delete">✕</button>` : ""}
     </div></div>`;
 }
@@ -873,6 +881,17 @@ $("jobList").onclick = async (e) => {
   const card = e.target.closest(".job"); if (!card) return;
   const kf = e.target.closest("[data-kf]");
   if (kf) return openKeyframe(card.dataset.id, kf.dataset.kf, false);
+  const ap = e.target.closest("[data-approve]");
+  if (ap) {
+    const note = card.querySelector("[data-redraw-note]")?.value || "";
+    try {
+      await api(`/api/jobs/${card.dataset.id}/approve`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: ap.dataset.approve, note }) });
+      toast(ap.dataset.approve === "render" ? "Rendering the video from these keyframes" : "Redrawing the keyframes again");
+      detailsOpen.delete(card.dataset.id); await refreshJobs(); renderJobs();
+    } catch (err) { toast(err.message); }
+    return;
+  }
   if (e.target.closest('[data-fix="rerender"]')) {
     const prompt = card.querySelector("[data-fix-prompt]").value.trim();
     try {
@@ -1306,9 +1325,11 @@ function renderStatus() {
   const idle = info.idle_stop || (g.seconds_left != null ? { seconds_left: g.seconds_left } : null), ip = $("idlePill");
   ip.classList.toggle("hidden", !idle || idle.seconds_left > 600);
   if (idle) ip.innerHTML = `Stops in ${Math.max(1, Math.ceil(idle.seconds_left / 60))} min<span class="wide-only"> · keep running</span>`;
+  const waiting = S.jobs.filter((j) => j.status === "approve").length;  // redrawn keyframes waiting for an OK
   const q = $("queuePill");
-  q.classList.toggle("hidden", !active); q.textContent = `${active} in queue`;
-  const badge = $("tabBadge"); badge.classList.toggle("hidden", !active); badge.textContent = active;
+  q.classList.toggle("hidden", !active && !waiting);
+  q.textContent = [active ? `${active} in queue` : "", waiting ? `${waiting} waiting for you` : ""].filter(Boolean).join(" · ");
+  const badge = $("tabBadge"); badge.classList.toggle("hidden", !active && !waiting); badge.textContent = active + waiting;
 }
 
 $("gpuBtn").onclick = async () => {

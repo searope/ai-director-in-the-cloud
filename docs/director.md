@@ -76,6 +76,21 @@ app with their own accounts.
 port 8080) is free apart from GPU time. It isn't set up by the installer yet: the pod only
 exposes the gateway's port 8700.
 
+## Redrawn keyframes: checked, then approved
+
+When a render redraws its keyframes in a style (Create video, "Redraw keyframes in this style
+first"), two optional steps run before the video, both on by default:
+
+- **Check the redrawn keyframes:** the AI model compares them with the originals (the same people,
+  hair, face and clothes in every keyframe; each keeping its own pose and layout; the style applied
+  evenly; no borders or extra objects). If it finds problems, the redraw runs again with its advice,
+  up to twice, and the best attempt is kept. The result shows on the render card.
+- **Stop so I can approve them:** the render then waits with status "your OK", showing the original
+  and redrawn keyframes (tap one to see it full size). **Render with these** renders the video from
+  exactly these keyframes; **Redraw again** redraws them, with an optional note (e.g. "keep his eyes
+  looking up"). While a render waits, the GPU counts as idle, so the pod may stop; approving starts
+  one again.
+
 ## Checking a rendered clip
 
 **Check clip** (on any finished render in Create video, and on Director shots) shows the clip to the
