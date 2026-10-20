@@ -38,6 +38,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 import animate  # noqa: E402
+import director as directors  # noqa: E402
 import gpu as gpus  # noqa: E402
 import soundtrack  # noqa: E402
 
@@ -469,9 +470,32 @@ def clean_settings(raw, n_keyframes, styles):
     }
 
 
+def queue_job(jobs, files, raw):
+    """Queue a video render: files are 2-12 keyframes (image bytes or paths), raw the settings from the app."""
+    if not 2 <= len(files) <= MAX_KEYFRAMES:
+        raise ValueError(f"send 2 to {MAX_KEYFRAMES} keyframes")
+    settings = clean_settings(raw, len(files), animate.load_styles())
+    job_id = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
+    in_dir = os.path.join(jobs.dir(job_id), "inputs")
+    os.makedirs(in_dir)
+    names = []
+    try:
+        for i, data in enumerate(files):
+            name = f"{i + 1:02d}.png"
+            save_keyframe(data if isinstance(data, bytes) else _read_bytes(data), os.path.join(in_dir, name))
+            names.append(name)
+    except Exception as e:
+        shutil.rmtree(jobs.dir(job_id), ignore_errors=True)
+        raise ValueError(f"could not read image {len(names) + 1}: {e}") from None
+    job = {"id": job_id, "created": time.time(), "status": "queued", "progress": "queued",
+           "settings": settings, "inputs": names, "styled": [], "log": []}
+    jobs.add(job)
+    return job
+
+
 # ---------------------------------------------------------------- web app
 
-def make_app(jobs, token, maker, idle, sound, gpu, characters):
+def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
     @web.middleware
     async def auth(request, handler):
         if request.path.startswith("/api/"):
@@ -536,6 +560,8 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters):
             "queued": sum(1 for j in jobs.jobs.values() if j["status"] == "queued"),
             "running": any(j["status"] == "running" for j in jobs.jobs.values()),
             "elevenlabs": sound.info(),
+            "writers": [{"id": w.id, "label": w.label, "model": w.model, "paid": w.paid, "ready": w.ready}
+                        for w in director.writers.values()],
             "idle_stop": None if left is None else {"minutes": idle.seconds // 60, "seconds_left": round(left)},
             "gpu": gpu_state,
         })
@@ -573,29 +599,10 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters):
                 files.append(await asyncio.to_thread(_read_bytes, path))
             elif part.name == "settings":
                 raw = json.loads(await part.text())
-        if not 2 <= len(files) <= MAX_KEYFRAMES:
-            return web.json_response({"error": f"send 2 to {MAX_KEYFRAMES} keyframes"}, status=400)
         try:
-            settings = clean_settings(raw, len(files), animate.load_styles())
+            job = await asyncio.to_thread(queue_job, jobs, files, raw)
         except (ValueError, TypeError) as e:
             return web.json_response({"error": str(e)}, status=400)
-
-        job_id = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
-        in_dir = os.path.join(jobs.dir(job_id), "inputs")
-        os.makedirs(in_dir)
-        names = []
-        try:
-            for i, data in enumerate(files):
-                name = f"{i + 1:02d}.png"
-                await asyncio.to_thread(save_keyframe, data, os.path.join(in_dir, name))
-                names.append(name)
-        except Exception as e:
-            shutil.rmtree(jobs.dir(job_id), ignore_errors=True)
-            return web.json_response({"error": f"could not read image {len(names) + 1}: {e}"}, status=400)
-
-        job = {"id": job_id, "created": time.time(), "status": "queued", "progress": "queued",
-               "settings": settings, "inputs": names, "styled": [], "log": []}
-        jobs.add(job)
         return web.json_response(jobs.public(job))
 
     async def job_detail(request):
@@ -745,6 +752,70 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters):
             raise web.HTTPNotFound()
         return web.json_response({"ok": True})
 
+    # ---- director
+
+    async def director_call(fn, *args):
+        try:
+            result = await asyncio.to_thread(fn, *args)
+        except (ValueError, TypeError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+        except KeyError:
+            raise web.HTTPNotFound()
+        return web.json_response(result if result is not None else {"ok": True})
+
+    def project_id(request):
+        try:
+            director.path(request.match_info["id"])
+        except ValueError:
+            raise web.HTTPNotFound()
+        return request.match_info["id"]
+
+    async def list_projects(request):
+        return await director_call(director.list)
+
+    async def create_project(request):
+        return await director_call(director.create, await request.json())
+
+    def found(project):
+        if project is None:
+            raise KeyError("no such project")
+        return project
+
+    async def get_project(request):
+        pid = project_id(request)
+        return await director_call(lambda: found(director.get(pid)))
+
+    async def edit_project(request):
+        pid = project_id(request)
+        raw = await request.json()
+        return await director_call(lambda: director.edit(pid, raw) and director.get(pid))
+
+    async def delete_project(request):
+        return await director_call(director.delete, project_id(request))
+
+    async def write_script(request):
+        pid, raw = project_id(request), await request.json()
+        return await director_call(lambda: director.write(pid, raw.get("instruction") or "", raw.get("writer")) or director.get(pid))
+
+    async def shot_keyframes(request):
+        pid, sid = project_id(request), request.match_info["shot"]
+        return await director_call(lambda: director.make_keyframes(pid, sid) or director.get(pid))
+
+    async def shot_render(request):
+        pid, sid = project_id(request), request.match_info["shot"]
+        return await director_call(lambda: director.render(pid, sid) and director.get(pid))
+
+    async def make_film(request):
+        pid = project_id(request)
+        return await director_call(lambda: director.make_film(pid) or director.get(pid))
+
+    async def film(request):
+        path = director.film_path(project_id(request))
+        if not os.path.exists(path):
+            raise web.HTTPNotFound()
+        headers = {"Content-Disposition": 'attachment; filename="film.mp4"'} if request.query.get("download") else {}
+        return web.FileResponse(path, headers=headers)
+
     async def keyframe_image(request):
         try:
             path = maker.path(request.match_info["id"])
@@ -786,6 +857,16 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters):
         web.post("/api/characters", save_character),
         web.put("/api/characters/{id}", save_character),
         web.delete("/api/characters/{id}", delete_character),
+        web.get("/api/director", list_projects),
+        web.post("/api/director", create_project),
+        web.get("/api/director/{id}", get_project),
+        web.put("/api/director/{id}", edit_project),
+        web.delete("/api/director/{id}", delete_project),
+        web.post("/api/director/{id}/write", write_script),
+        web.post("/api/director/{id}/shots/{shot}/keyframes", shot_keyframes),
+        web.post("/api/director/{id}/shots/{shot}/render", shot_render),
+        web.post("/api/director/{id}/film", make_film),
+        web.get("/api/director/{id}/film", film),
         web.static("/static", STATIC),
     ])
     return app
@@ -913,7 +994,12 @@ def main():
               "Remember to stop the pod when you're done.\n")
     print("ElevenLabs sound (paid per use): " + ("on.\n" if sound.enabled else
           "off. Set ELEVENLABS_API_KEY to turn it on.\n"))
-    web.run_app(make_app(jobs, token, maker, idle, sound, gpu, Characters(maker)),
+    characters = Characters(maker)
+    writers = directors.load_writers(config)
+    director = directors.Director(ROOT, writers, maker, characters, lambda files, raw: queue_job(jobs, files, raw), jobs)
+    print("Director AI: " + (", ".join(f"{w.label}{' (paid)' if w.paid else ''}{'' if w.ready else ' [not set up]'}"
+                                         for w in writers.values()) or "none set up (see docs/director.md)") + "\n")
+    web.run_app(make_app(jobs, token, maker, idle, sound, gpu, characters, director),
                 host=args.host, port=args.port, print=None)
 
 

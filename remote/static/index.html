@@ -30,7 +30,7 @@
       <div class="nav-label">Create</div>
       <a href="#/image" data-route="image"><svg><use href="#i-image"/></svg>Image</a>
       <a href="#/video" data-route="video"><svg><use href="#i-video"/></svg>Video</a>
-      <a href="#/director" data-route="director"><svg><use href="#i-director"/></svg>Director<span class="soon">Soon</span></a>
+      <a href="#/director" data-route="director"><svg><use href="#i-director"/></svg>Director</a>
       <div class="nav-label">Assets</div>
       <a href="#/library" data-route="library"><svg><use href="#i-library"/></svg>Library</a>
       <a href="#/characters" data-route="characters"><svg><use href="#i-cast"/></svg>Characters</a>
@@ -78,7 +78,7 @@
         <a class="tool t-video" href="#/video"><div class="tool-art"><svg><use href="#i-video"/></svg></div>
           <div><b>Create video</b><span>Animate between keyframes with Wan 2.2</span></div></a>
         <a class="tool t-director" href="#/director"><div class="tool-art"><svg><use href="#i-director"/></svg></div>
-          <div><b>Director <em class="soon">Soon</em></b><span>Brief → script → shot list → film</span></div></a>
+          <div><b>Director</b><span>Brief → script → shot list → film</span></div></a>
         <a class="tool t-cast" href="#/characters"><div class="tool-art"><svg><use href="#i-cast"/></svg></div>
           <div><b>Characters</b><span>Keep your cast consistent across shots</span></div></a>
       </div>
@@ -219,19 +219,75 @@
       <div id="libGrid" class="masonry"></div>
     </section>
 
-    <!-- ===================================================== soon -->
+    <!-- ===================================================== director -->
     <section class="page" data-page="director">
-      <div class="soon-page">
-        <h2>Director</h2>
-        <p>Turn a short brief into a finished film. Planned flow, built step by step:</p>
-        <ol class="steps">
-          <li><b>Brief</b><span>Your idea, genre, length and style.</span></li>
-          <li><b>Script &amp; shot list</b><span>Written with your AI subscription (Claude Code editing the project's storyboard file) or a local model on the GPU, and editable before rendering.</span></li>
-          <li><b>Keyframes</b><span>One or two keyframes per shot, kept consistent with your Characters.</span></li>
-          <li><b>Shots</b><span>Each shot renders on its own. Regenerate, reorder or retime a shot without re-rendering the rest.</span></li>
-          <li><b>Film</b><span>Shots joined with hard cuts, then upscaling, voice-over and music.</span></li>
-        </ol>
-        <p class="hint">Until then, use <a href="#/image">Create image</a> for keyframes and <a href="#/video">Create video</a> for each shot.</p>
+      <div id="dirHome">
+        <div class="lib-bar">
+          <p class="hint" style="margin:0">Brief → script and shot list (written by the AI model you choose) → keyframes with your Characters → shots → one film.</p>
+          <button type="button" id="dirNew" class="btn primary"><svg><use href="#i-plus"/></svg>New film</button>
+        </div>
+        <div id="dirProjects" class="char-grid"></div>
+      </div>
+
+      <div id="dirWork" class="workspace hidden">
+        <div class="panel">
+          <a href="#/director" id="dirBack" class="back">← All films</a>
+          <div class="field-block">
+            <label class="lbl" for="dirTitle">Title</label>
+            <input id="dirTitle" type="text" maxlength="120">
+          </div>
+          <div class="field-block">
+            <label class="lbl" for="dirIdea">Idea</label>
+            <textarea id="dirIdea" rows="4" placeholder="What happens? e.g. a young sailor relights a dead lighthouse during a storm and saves a ship"></textarea>
+          </div>
+          <div class="field-block">
+            <label class="lbl" for="dirStyle">Visual style</label>
+            <input id="dirStyle" type="text" maxlength="300" placeholder="e.g. painterly animated film, warm lamplight against a cold blue storm">
+          </div>
+          <div class="field-row">
+            <div class="field-block"><label class="lbl" for="dirSeconds">Length (s)</label>
+              <input id="dirSeconds" type="number" min="4" max="300" step="1"></div>
+            <div class="field-block"><label class="lbl" for="dirAspect">Aspect</label>
+              <select id="dirAspect"><option>16:9</option><option>9:16</option><option>1:1</option><option>4:3</option><option>3:4</option></select></div>
+          </div>
+          <div class="field-block">
+            <label class="lbl">Cast <span class="hint">the script uses these characters</span></label>
+            <div id="dirCast" class="cast-pick"></div>
+          </div>
+          <div class="field-block">
+            <label class="lbl" for="dirNotes">Notes for the writer <span class="hint">optional</span></label>
+            <textarea id="dirNotes" rows="2" placeholder="e.g. no dialogue, end on a wide shot"></textarea>
+          </div>
+          <div class="field-block">
+            <label class="lbl" for="dirWriter">AI model</label>
+            <select id="dirWriter"></select>
+            <div id="dirWriterNote" class="license"></div>
+          </div>
+          <div class="field-block">
+            <label class="lbl" for="dirInstruction">Change request <span class="hint">optional</span></label>
+            <textarea id="dirInstruction" rows="2" placeholder="e.g. make it night, add a shot of the ship's captain"></textarea>
+          </div>
+          <div id="dirAi" class="ai-status hidden"></div>
+          <div class="panel-foot">
+            <button id="dirWrite" type="button" class="btn primary wide"><svg><use href="#i-spark"/></svg>Write script</button>
+          </div>
+        </div>
+
+        <div class="feed">
+          <div class="dir-head">
+            <div><h2 id="dirHeadTitle"></h2><p id="dirLogline" class="hint"></p></div>
+            <div class="row">
+              <label class="toggle"><input id="dirFast" type="checkbox" checked><span>Fast renders</span></label>
+              <button type="button" class="btn small" id="dirAllKf">Make all keyframes</button>
+              <button type="button" class="btn small" id="dirAllRender">Render all shots</button>
+              <button type="button" class="btn small primary" id="dirFilm">Make film</button>
+              <button type="button" class="btn small ghost danger" id="dirDelete">Delete</button>
+            </div>
+          </div>
+          <div id="dirFilmBox"></div>
+          <div id="dirShots" class="shots"></div>
+          <button type="button" id="dirAddShot" class="btn ghost wide">+ Add a shot</button>
+        </div>
       </div>
     </section>
     <section class="page" data-page="characters">

@@ -79,6 +79,7 @@ function route() {
   S.page = page;
   renderAll();
   window.scrollTo(0, 0);
+  if (page === "director" && token) refreshDirector().then(renderAll).catch((e) => toast(e.message));
 }
 window.addEventListener("hashchange", route);
 const go = (page) => { if (location.hash === "#/" + page) route(); else location.hash = "#/" + page; };
@@ -826,6 +827,230 @@ $("charDelete").onclick = async () => {
   } catch (e) { toast(e.message); }
 };
 
+// ---------------------------------------------------------------- director
+const D = { list: [], project: null, filled: "" };
+const dirId = () => (location.hash.match(/^#\/director\/([0-9a-f]{12})/) || [])[1];
+const SHOT_FIELDS = ["scene", "action", "start_frame", "end_change", "motion", "narration", "seconds", "characters"];
+const writerById = (id) => (S.info?.writers || []).find((w) => w.id === id);
+
+async function refreshDirector() {
+  const id = dirId();
+  if (id) D.project = await api(`/api/director/${id}`);
+  else D.list = await api("/api/director");
+}
+async function saveProject(fields) {
+  try { D.project = await api(`/api/director/${D.project.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fields) }); }
+  catch (e) { toast(e.message); }
+  renderDirector();
+}
+const shotsForSave = (shots) => shots.map((s) => Object.fromEntries([["id", s.id], ...SHOT_FIELDS.map((f) => [f, s[f]])]));
+
+function renderDirector() {
+  const id = dirId();
+  $("dirHome").classList.toggle("hidden", !!id);
+  $("dirWork").classList.toggle("hidden", !id);
+  if (!id) {
+    setHtml($("dirProjects"), D.list.length ? D.list.map((p) => `<a class="char-card" href="#/director/${p.id}">
+      <div class="char-art">${p.cover ? `<img loading="lazy" alt="" src="${imgUrl(p.cover)}">` : `<span>${p.shots ? `${p.shots} shots` : "No shots yet"}</span>`}</div>
+      <div class="char-text"><b>${esc(p.title)}</b><span>${esc(p.logline || "")}</span></div>
+      <div class="row hint" style="margin:0">${p.shots} shot${p.shots === 1 ? "" : "s"} · ${ago(p.updated)}</div></a>`).join("")
+      : emptyState("No films yet. Start one with a short idea; the AI model writes the shot list."));
+    return;
+  }
+  const p = D.project;
+  if (!p || p.id !== id) return;
+  renderDirPanel(p);
+  $("dirHeadTitle").textContent = p.title;
+  $("dirLogline").textContent = p.logline || (p.shots.length ? "" : "Fill in the brief on the left, choose an AI model and write the script.");
+  $("dirFast").checked = p.fast !== false;
+  const rendered = p.shots.filter((s) => s.render?.status === "done").length;
+  $("dirFilm").disabled = !p.shots.length || rendered < p.shots.length || p.film?.status === "working";
+  $("dirFilm").title = rendered < p.shots.length ? `${rendered} of ${p.shots.length} shots rendered` : "";
+  renderFilm(p);
+  renderShots(p);
+}
+
+function renderDirPanel(p) {
+  const fill = `${p.id}|${p.ai?.finished || ""}`;
+  if (D.filled !== fill && !document.activeElement?.closest?.("#dirWork .panel")) {  // don't overwrite what is being typed
+    D.filled = fill;
+    $("dirTitle").value = p.title; $("dirIdea").value = p.brief.idea; $("dirStyle").value = p.brief.style;
+    $("dirSeconds").value = p.brief.seconds; $("dirAspect").value = p.brief.aspect; $("dirNotes").value = p.brief.notes;
+  }
+  setHtml($("dirCast"), S.characters.length ? S.characters.map((c) => `<button type="button" class="cast-chip${p.cast.includes(c.id) ? " on" : ""}" data-dcast="${c.id}">
+      ${c.refs[0] ? `<img alt="" src="${imgUrl(c.refs[0])}">` : ""}${esc(c.name)}</button>`).join("")
+    : `<p class="hint" style="margin:0">No characters yet. <a href="#/characters">Create them</a> to keep faces consistent; without a cast the AI describes everyone in each prompt.</p>`);
+  const writers = S.info.writers || [];
+  setHtml($("dirWriter"), writers.length ? writers.map((w) => `<option value="${w.id}"${w.ready ? "" : " disabled"}>${esc(w.label)}${w.model ? ` · ${esc(w.model)}` : ""}${w.ready ? "" : " (not set up)"}</option>`).join("")
+    : `<option value="">No AI model set up</option>`);
+  $("dirWriter").value = p.writer || "";
+  const w = writerById(p.writer);
+  const note = $("dirWriterNote");
+  note.className = "license " + (!w ? "bad" : w.paid ? "warn" : "ok");
+  note.textContent = !w ? "Set up an AI model in remote/config.json (see docs/director.md)." :
+    w.paid ? "Paid per use: each script or revision is billed by the provider." : "No per-use charge (your subscription or your own model).";
+  const ai = p.ai || {}, box = $("dirAi"), working = ai.status === "working";
+  box.classList.toggle("hidden", !working && ai.status !== "failed");
+  box.className = "ai-status" + (working ? "" : ai.status === "failed" ? " bad" : " hidden");
+  box.innerHTML = working ? `<div class="spinner"></div>Writing with ${esc(writerById(ai.writer)?.label || ai.writer)} · ${fmtTime(Date.now() / 1000 - ai.started)}`
+    : ai.status === "failed" ? `<b>The script wasn't written.</b> ${esc(ai.error || "")}` : "";
+  const btn = $("dirWrite");
+  btn.disabled = working || !w?.ready;
+  btn.innerHTML = `<svg><use href="#i-spark"/></svg>` + (working ? "Writing…" : p.shots.length ? "Revise script" : "Write script");
+}
+
+function frame(id, label, busy) {
+  return id ? `<img alt="${label}" src="${imgUrl(id)}" data-open-img="${id}">`
+    : `<div class="ph">${busy ? `<div class="spinner"></div>` : ""}${label}</div>`;
+}
+function shotCard(p, s, i) {
+  const kfBusy = s.kf_status === "working", r = s.render;
+  const status = kfBusy ? (s.start_image ? "Making the end keyframe…" : "Making the start keyframe…")
+    : s.kf_status === "failed" ? `Keyframes failed: ${s.kf_error || ""}`
+    : r?.status === "queued" ? "Render queued" : r?.status === "running" ? `Rendering: ${r.progress || ""}`
+    : r?.status === "failed" ? `Render failed: ${r.error || ""}` : r?.status === "done" ? "Rendered"
+    : s.start_image && s.end_image ? "Keyframes ready" : "";
+  const bad = s.kf_status === "failed" || r?.status === "failed";
+  const cast = p.cast.map(charById).filter(Boolean);
+  const ta = (f, label, rows, ph) => `<label class="sf">${label}<textarea data-f="${f}" rows="${rows}" placeholder="${ph}">${esc(s[f] || "")}</textarea></label>`;
+  return `<div class="shot" data-shot="${s.id}">
+    <div class="shot-head"><span class="num">${i + 1}</span>
+      <input data-f="scene" value="${esc(s.scene)}" placeholder="Scene, e.g. Lighthouse lamp room, night" aria-label="Scene">
+      <select data-f="seconds" aria-label="Length">${[2, 3, 4, 5].map((n) => `<option value="${n}"${s.seconds === n ? " selected" : ""}>${n} s</option>`).join("")}</select>
+      <span class="shot-tools"><button type="button" data-sa="up" aria-label="Move up">↑</button><button type="button" data-sa="down" aria-label="Move down">↓</button><button type="button" data-sa="del" aria-label="Delete shot">✕</button></span>
+    </div>
+    <div class="shot-body">
+      <div class="frames">
+        ${r?.status === "done" ? `<video controls playsinline loop preload="metadata" src="${jobVideo({ id: s.job_id, audio: null })}"></video>`
+          : `<div class="pair">${frame(s.start_image, "Start", kfBusy && !s.start_image)}<span>→</span>${frame(s.end_image, "End", kfBusy && !!s.start_image)}</div>`}
+      </div>
+      <div class="shot-fields">
+        ${ta("action", "Action", 2, "What happens in this shot")}
+        ${ta("start_frame", "Start frame", 3, "Image prompt for the first frame: who, where, framing, light, style")}
+        ${ta("end_change", "End change", 2, "One change that makes the last frame, e.g. she turns and smiles")}
+        ${ta("motion", "Motion", 2, "Movement and camera, e.g. slow push-in")}
+        ${ta("narration", "Narration", 1, "Voice-over or dialogue (optional)")}
+        ${cast.length ? `<div class="cast-pick small">${cast.map((c) => `<button type="button" class="cast-chip${s.characters.includes(c.id) ? " on" : ""}" data-sc="${c.id}">
+          ${c.refs[0] ? `<img alt="" src="${imgUrl(c.refs[0])}">` : ""}${esc(c.name)}</button>`).join("")}</div>` : ""}
+      </div>
+    </div>
+    <div class="shot-foot"><span class="shot-status${bad ? " bad" : ""}">${esc(status)}</span>
+      <button type="button" class="btn small" data-sa="kf"${kfBusy ? " disabled" : ""}>${s.start_image ? "Remake keyframes" : "Make keyframes"}</button>
+      <button type="button" class="btn small" data-sa="render"${s.start_image && s.end_image && !["queued", "running"].includes(r?.status) && !kfBusy ? "" : " disabled"}>${r?.status === "done" ? "Render again" : "Render shot"}</button>
+    </div></div>`;
+}
+function renderShots(p) {
+  const list = $("dirShots");
+  if (!p.shots.length) { setHtml(list, ""); return; }
+  if (list.querySelector(".empty")) list.innerHTML = "";
+  const existing = new Map([...list.children].map((c) => [c.dataset.shot, c]));
+  const ids = new Set(p.shots.map((s) => s.id));
+  for (const [id, el] of existing) if (!ids.has(id)) el.remove();
+  let prev = null;
+  p.shots.forEach((s, i) => {
+    const html = shotCard(p, s, i);
+    let el = existing.get(s.id);
+    if ((!el || el.dataset.html !== html) && !(el && el.contains(document.activeElement))) {  // keep a card being edited
+      const tmp = document.createElement("div"); tmp.innerHTML = html;
+      const fresh = tmp.firstElementChild; fresh.dataset.html = html;
+      if (el) el.replaceWith(fresh);
+      el = fresh;
+    }
+    const want = prev ? prev.nextElementSibling : list.firstElementChild;
+    if (want !== el) list.insertBefore(el, want);
+    prev = el;
+  });
+  list.dataset.sig = "";
+}
+function renderFilm(p) {
+  const f = p.film || {};
+  setHtml($("dirFilmBox"), f.status === "done" ? `<div class="film"><video controls playsinline preload="metadata" src="${withToken(`/api/director/${p.id}/film`)}&v=${Math.round(f.finished)}"></video>
+      <div class="row"><b>Film</b><span class="hint" style="margin:0">${f.shots} shots · made ${ago(f.finished)}</span>
+      <a class="btn small" href="${withToken(`/api/director/${p.id}/film`)}&download=1">Download</a></div></div>`
+    : f.status === "working" ? `<div class="ai-status"><div class="spinner"></div>Joining the shots into one film…</div>`
+    : f.status === "failed" ? `<div class="ai-status bad"><b>The film wasn't made.</b> ${esc(f.error || "")}</div>` : "");
+}
+
+async function newFilm() {
+  try {
+    const p = await api("/api/director", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Untitled film", writer: store.get("writer"), cast: [] }) });
+    location.hash = `#/director/${p.id}`;
+  } catch (e) { toast(e.message); }
+}
+$("dirNew").onclick = newFilm;
+function briefFields() {
+  return { title: $("dirTitle").value, writer: $("dirWriter").value, brief: { idea: $("dirIdea").value, style: $("dirStyle").value,
+    seconds: $("dirSeconds").value, aspect: $("dirAspect").value, notes: $("dirNotes").value } };
+}
+["dirTitle", "dirIdea", "dirStyle", "dirSeconds", "dirAspect", "dirNotes"].forEach((id) => { $(id).onchange = () => saveProject(briefFields()); });
+$("dirWriter").onchange = () => { store.set("writer", $("dirWriter").value); saveProject({ writer: $("dirWriter").value }); };
+$("dirCast").onclick = (e) => {
+  const b = e.target.closest("[data-dcast]"); if (!b || !D.project) return;
+  const cast = D.project.cast.includes(b.dataset.dcast) ? D.project.cast.filter((x) => x !== b.dataset.dcast) : [...D.project.cast, b.dataset.dcast];
+  saveProject({ cast });
+};
+$("dirFast").onchange = () => saveProject({ fast: $("dirFast").checked });
+$("dirWrite").onclick = async () => {
+  const p = D.project; if (!p) return;
+  const w = writerById($("dirWriter").value);
+  if (w?.paid && !confirm(`${w.label} is billed per use. Write the script with it?`)) return;
+  await saveProject(briefFields());
+  try {
+    D.project = await api(`/api/director/${p.id}/write`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ instruction: $("dirInstruction").value, writer: $("dirWriter").value }) });
+    $("dirInstruction").value = "";
+  } catch (e) { toast(e.message); }
+  renderDirector();
+};
+
+async function shotAction(path) {
+  try { D.project = await api(`/api/director/${D.project.id}/${path}`, { method: "POST" }); } catch (e) { toast(e.message); return false; }
+  renderDirector(); return true;
+}
+$("dirShots").addEventListener("change", (e) => {
+  const f = e.target.dataset.f, card = e.target.closest("[data-shot]"); if (!f || !card) return;
+  const shots = D.project.shots.map((s) => s.id === card.dataset.shot ? { ...s, [f]: f === "seconds" ? +e.target.value : e.target.value } : s);
+  saveProject({ shots: shotsForSave(shots) });
+});
+$("dirShots").addEventListener("click", async (e) => {
+  const img = e.target.closest("[data-open-img]");
+  if (img) { await refreshImages(); return openImage(img.dataset.openImg); }
+  const card = e.target.closest("[data-shot]"); if (!card) return;
+  const id = card.dataset.shot, shots = [...D.project.shots], i = shots.findIndex((s) => s.id === id);
+  const sc = e.target.closest("[data-sc]");
+  if (sc) {
+    const s = shots[i], has = s.characters.includes(sc.dataset.sc);
+    if (!has && s.characters.length >= 3) return toast("Up to 3 characters per shot");
+    shots[i] = { ...s, characters: has ? s.characters.filter((x) => x !== sc.dataset.sc) : [...s.characters, sc.dataset.sc] };
+    return saveProject({ shots: shotsForSave(shots) });
+  }
+  const a = e.target.closest("[data-sa]")?.dataset.sa; if (!a) return;
+  if (a === "kf") return shotAction(`shots/${id}/keyframes`);
+  if (a === "render") { if (await shotAction(`shots/${id}/render`)) { await refreshJobs(); toast("Shot queued on the GPU"); } return; }
+  if (a === "del") { if (!confirm(`Delete shot ${i + 1}?`)) return; shots.splice(i, 1); }
+  else { const j = a === "up" ? i - 1 : i + 1; if (j < 0 || j >= shots.length) return; [shots[i], shots[j]] = [shots[j], shots[i]]; }
+  saveProject({ shots: shotsForSave(shots) });
+});
+$("dirAddShot").onclick = () => saveProject({ shots: [...shotsForSave(D.project.shots), { scene: "", action: "", start_frame: "", end_change: "", motion: "", narration: "", seconds: 4, characters: [] }] });
+$("dirAllKf").onclick = async () => {
+  const todo = D.project.shots.filter((s) => !(s.start_image && s.end_image) && s.kf_status !== "working" && s.start_frame && s.end_change);
+  if (!todo.length) return toast("Every shot has its keyframes");
+  for (const s of todo) if (!await shotAction(`shots/${s.id}/keyframes`)) break;
+  toast(`Making keyframes for ${todo.length} shot${todo.length === 1 ? "" : "s"}`);
+};
+$("dirAllRender").onclick = async () => {
+  const todo = D.project.shots.filter((s) => s.start_image && s.end_image && (!s.render || s.render.status === "failed" || s.render.status === "cancelled"));
+  if (!todo.length) return toast("No shots are waiting for a render (make the keyframes first)");
+  for (const s of todo) if (!await shotAction(`shots/${s.id}/render`)) break;
+  await refreshJobs(); toast(`${todo.length} shot${todo.length === 1 ? "" : "s"} queued on the GPU`);
+};
+$("dirFilm").onclick = () => shotAction("film");
+$("dirDelete").onclick = async () => {
+  if (!D.project || !confirm(`Delete "${D.project.title}"? Its images and renders stay in the library.`)) return;
+  try { await api(`/api/director/${D.project.id}`, { method: "DELETE" }); D.project = null; location.hash = "#/director"; } catch (e) { toast(e.message); }
+};
+
 // ---------------------------------------------------------------- library
 function renderLibrary() {
   const f = S.libFilter;
@@ -921,6 +1146,7 @@ function renderAll() {
   if (S.page === "video") renderVideoPage();
   if (S.page === "library") renderLibrary();
   if (S.page === "characters") renderCharacters();
+  if (S.page === "director") renderDirector();
   if (!$("soundSheet").classList.contains("hidden")) renderSound();
 }
 
@@ -933,7 +1159,8 @@ else {
   const tick = async () => {
     try {
       const slow = n++ % 5 === 0;
-      await Promise.all([refreshInfo(), refreshJobs(), slow ? refreshImages() : null, slow ? refreshCharacters() : null]);
+      await Promise.all([refreshInfo(), refreshJobs(), slow ? refreshImages() : null, slow ? refreshCharacters() : null,
+                         S.page === "director" ? refreshDirector() : null]);
       renderAll();
     } catch (e) {}
   };
