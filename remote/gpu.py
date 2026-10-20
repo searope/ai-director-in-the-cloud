@@ -277,7 +277,7 @@ class RunpodGPU:
             self.pod = saved["pod"]
             if saved.get("gateway_token"):  # the pod was created with this token
                 self.cfg["gateway_token"] = saved["gateway_token"]
-                self.headers = {"X-Gateway-Token": saved["gateway_token"]}
+                self.headers["X-Gateway-Token"] = saved["gateway_token"]  # keeps the User-Agent the proxy needs
             self.state = "starting"
             self.ready.clear()
             threading.Thread(target=self._start, args=(True,), daemon=True).start()  # reattach or clean up
