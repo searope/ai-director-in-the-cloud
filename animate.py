@@ -653,18 +653,16 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
     if cfg["restyle"]:
         styled_dir = os.path.splitext(cfg["output"])[0] + "_keyframes"
         os.makedirs(styled_dir, exist_ok=True)
-        reference = None
+        # Each keyframe is redrawn on its own (same style prompt and seed). Passing the first redrawn keyframe
+        # as a style reference made the model copy its whole picture, so every keyframe came out with the
+        # first one's pose and layout, leaving the video nothing to animate.
         for i, p in enumerate(keys):
-            instruction = style["restyle_prompt"]
-            if reference:
-                instruction += " Match the art style, colors and rendering of image 2 exactly."
-            graph = build_restyle_graph(cfg, uploaded[p], instruction, seed, f"keyframe_anim/{run_id}/styled", reference)
+            graph = build_restyle_graph(cfg, uploaded[p], style["restyle_prompt"], seed, f"keyframe_anim/{run_id}/styled")
             outputs = comfy.wait(comfy.queue(graph), f"restyle keyframe {i + 1}/{len(keys)}", report, should_cancel)
             local = os.path.join(styled_dir, f"{i + 1:02d}.png")
             with open(local, "wb") as f:
                 f.write(comfy.fetch(outputs["save"]["images"][0]))
             uploaded[p] = comfy.upload_image(local, f"{run_id}_styled_{i:02d}.png")
-            reference = reference or uploaded[p]
         report(f"restyled keyframes saved in {styled_dir}", final=True)
 
     pairs = list(zip(keys, keys[1:] + ([keys[0]] if cfg["loop"] else [])))
