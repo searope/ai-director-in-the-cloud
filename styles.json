@@ -12,7 +12,7 @@
     "label": "Photorealistic (convert drawings)",
     "video_prompt": "a real photograph of the drawn scene: real people with natural skin, real cloth, metal, wood and stone, realistic lighting and shadows, correct perspective, same layout and proportions as the drawing",
     "negative": "cartoon, anime, illustration, painting, drawing, 3d render, cgi",
-    "restyle_prompt": "Convert this image into a real photograph of the drawn scene: real people with natural skin, real cloth, metal, wood and stone, realistic lighting and shadows, correct perspective, same layout and proportions as the drawing. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a real photograph of the drawn scene: real people with natural skin, real cloth, metal, wood and stone, realistic lighting and shadows, correct perspective, same layout and proportions as the drawing. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Basics"
   },
@@ -20,7 +20,7 @@
     "label": "Anime",
     "video_prompt": "a Japanese 2D cel animation frame, thin clean ink outlines, flat cel colours with one hard-edged shadow tone, large expressive eyes, tiny simplified nose, crisp digital line art",
     "negative": "photorealistic, photo, 3d render, realistic skin texture",
-    "restyle_prompt": "Convert this image into a Japanese 2D cel animation frame, thin clean ink outlines, flat cel colours with one hard-edged shadow tone, large expressive eyes, tiny simplified nose, crisp digital line art. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Japanese 2D cel animation frame, thin clean ink outlines, flat cel colours with one hard-edged shadow tone, large expressive eyes, tiny simplified nose, crisp digital line art. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Basics"
   },
@@ -28,7 +28,7 @@
     "label": "3D cartoon",
     "video_prompt": "a stylized 3D animated-feature render, rounded squash-and-stretch proportions, smooth subsurface skin, big glossy eyes, soft global illumination, bright saturated colours, gentle rim light",
     "negative": "photorealistic, photo, 2d, flat, sketch",
-    "restyle_prompt": "Convert this image into a stylized 3D animated-feature render, rounded squash-and-stretch proportions, smooth subsurface skin, big glossy eyes, soft global illumination, bright saturated colours, gentle rim light. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a stylized 3D animated-feature render, rounded squash-and-stretch proportions, smooth subsurface skin, big glossy eyes, soft global illumination, bright saturated colours, gentle rim light. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Basics"
   },
@@ -36,7 +36,7 @@
     "label": "Claymation",
     "video_prompt": "stop-motion clay animation, hand-sculpted plasticine figures with visible fingerprints and tool marks, lumpy matte clay surfaces, a miniature handmade set, small practical lights, tactile toy-like look",
     "negative": "photorealistic, smooth cgi, 2d, anime",
-    "restyle_prompt": "A version of this scene as stop-motion clay animation, hand-sculpted plasticine figures with visible fingerprints and tool marks, lumpy matte clay surfaces, a miniature handmade set, small practical lights, tactile toy-like look: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as stop-motion clay animation, hand-sculpted plasticine figures with visible fingerprints and tool marks, lumpy matte clay surfaces, a miniature handmade set, small practical lights, tactile toy-like look: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Basics"
   },
@@ -44,7 +44,7 @@
     "label": "Watercolor",
     "video_prompt": "a bold wet-on-wet watercolour painting on rough cold-press paper, saturated pigment blooms, cauliflower edges, granulating washes, dark pooled rims, white paper left bare, faint pencil underdrawing showing",
     "negative": "photorealistic, photo, 3d render, sharp digital lines",
-    "restyle_prompt": "Convert this image into a bold wet-on-wet watercolour painting on rough cold-press paper, saturated pigment blooms, cauliflower edges, granulating washes, dark pooled rims, white paper left bare, faint pencil underdrawing showing. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a bold wet-on-wet watercolour painting on rough cold-press paper, saturated pigment blooms, cauliflower edges, granulating washes, dark pooled rims, white paper left bare, faint pencil underdrawing showing. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Basics"
   },
@@ -52,7 +52,7 @@
     "label": "Comic / ink",
     "video_prompt": "an American comic book panel, heavy black brush inking with feathered strokes, solid black shadows, flat bright printed colours, Ben-Day dot tones, bold graphic contrast",
     "negative": "photorealistic, photo, 3d render, soft gradients",
-    "restyle_prompt": "Convert this image into an American comic book panel, heavy black brush inking with feathered strokes, solid black shadows, flat bright printed colours, Ben-Day dot tones, bold graphic contrast. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an American comic book panel, heavy black brush inking with feathered strokes, solid black shadows, flat bright printed colours, Ben-Day dot tones, bold graphic contrast. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Basics"
   },
@@ -60,7 +60,7 @@
     "label": "Oil painting",
     "video_prompt": "a traditional oil painting on canvas, visible bristle brushstrokes, thick buttery paint, rich blended glazes, warm earthy palette, canvas weave texture, varnished sheen",
     "negative": "photorealistic, photo, 3d render, flat cartoon",
-    "restyle_prompt": "Convert this image into a traditional oil painting on canvas, visible bristle brushstrokes, thick buttery paint, rich blended glazes, warm earthy palette, canvas weave texture, varnished sheen. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a traditional oil painting on canvas, visible bristle brushstrokes, thick buttery paint, rich blended glazes, warm earthy palette, canvas weave texture, varnished sheen. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Basics"
   },
@@ -68,7 +68,7 @@
     "label": "Pixel art",
     "video_prompt": "low-resolution 16-bit video game pixel art, chunky square pixels clearly visible, the image about 160 pixels wide, hard stair-stepped edges, a 16-colour palette, checkerboard dithering, dark one-pixel outlines, flat colour bands",
     "negative": "photorealistic, photo, blurry, smooth gradients, 3d render",
-    "restyle_prompt": "A version of this scene as low-resolution 16-bit video game pixel art, chunky square pixels clearly visible, the image about 160 pixels wide, hard stair-stepped edges, a 16-colour palette, checkerboard dithering, dark one-pixel outlines, flat colour bands: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as low-resolution 16-bit video game pixel art, chunky square pixels clearly visible, the image about 160 pixels wide, hard stair-stepped edges, a 16-colour palette, checkerboard dithering, dark one-pixel outlines, flat colour bands: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Basics"
   },
@@ -76,7 +76,7 @@
     "label": "Film noir",
     "video_prompt": "a 1940s black-and-white crime film still, hard low-key side light, deep inky shadows, venetian-blind shadow stripes, wet reflective streets, cigarette smoke, high contrast, heavy silver grain",
     "negative": "color, bright flat lighting, cartoon",
-    "restyle_prompt": "Convert this image into a 1940s black-and-white crime film frame: hard low-key side light, deep inky shadows, high contrast, heavy silver grain. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a 1940s black-and-white crime film frame: hard low-key side light, deep inky shadows, high contrast, heavy silver grain. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -84,7 +84,7 @@
     "label": "Western",
     "video_prompt": "a frontier western film still, sun-bleached ochre, rust and burnt orange, harsh overhead desert sun, heat haze, dust in the air, weathered wood and leather, warm faded 1960s film stock",
     "negative": "neon, futuristic, cartoon",
-    "restyle_prompt": "Convert this image into a western film grade: sun-bleached ochre, rust and burnt orange, harsh sun, dusty haze, warm faded 1960s film stock. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a western film grade: sun-bleached ochre, rust and burnt orange, harsh sun, dusty haze, warm faded 1960s film stock. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -92,7 +92,7 @@
     "label": "Sci-fi",
     "video_prompt": "a sleek science-fiction film still, clean white and gunmetal futuristic surfaces, cool blue practical lights, holographic interface glow, volumetric haze, anamorphic lens flares, widescreen grade",
     "negative": "medieval, rustic, cartoon",
-    "restyle_prompt": "Convert this image into a science-fiction film grade: cool blue and gunmetal tones, clean specular highlights, volumetric haze, anamorphic lens flares. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a science-fiction film grade: cool blue and gunmetal tones, clean specular highlights, volumetric haze, anamorphic lens flares. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -100,7 +100,7 @@
     "label": "1950s Technicolor",
     "video_prompt": "a 1950s three-strip Technicolor film frame, ultra-saturated lipstick red, emerald and sky blue, glossy studio key light, soft glamour diffusion, painted backdrop sky, creamy skin, rich deep blacks",
     "negative": "desaturated, gritty, modern digital look",
-    "restyle_prompt": "Convert this image into a 1950s three-strip Technicolor film frame: ultra-saturated lipstick red, emerald and sky blue, glossy studio key light, soft glamour diffusion, creamy skin, rich deep blacks. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a 1950s three-strip Technicolor film frame: ultra-saturated lipstick red, emerald and sky blue, glossy studio key light, soft glamour diffusion, creamy skin, rich deep blacks. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -108,7 +108,7 @@
     "label": "1980s film",
     "video_prompt": "1980s VHS camcorder footage, soft low-resolution video, colour bleed and chroma smear, horizontal tracking lines, blown highlights, oversaturated reds, slight interlace jitter",
     "negative": "modern digital sharpness, black and white",
-    "restyle_prompt": "Convert this image into 1980s VHS camcorder footage: soft low-resolution video, colour bleed and chroma smear, horizontal tracking lines, oversaturated reds. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into 1980s VHS camcorder footage: soft low-resolution video, colour bleed and chroma smear, horizontal tracking lines, oversaturated reds. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -116,7 +116,7 @@
     "label": "Retro film",
     "video_prompt": "a 1970s 35mm film still, warm amber cast, faded milky blacks, heavy organic grain, red halation around highlights, dust and scratches, soft focus, gentle vignette",
     "negative": "clean digital look, oversaturated",
-    "restyle_prompt": "Convert this image into a 1970s 35mm film still, warm amber cast, faded milky blacks, heavy organic grain, red halation around highlights, dust and scratches, soft focus, gentle vignette. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a 1970s 35mm film still, warm amber cast, faded milky blacks, heavy organic grain, red halation around highlights, dust and scratches, soft focus, gentle vignette. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -124,7 +124,7 @@
     "label": "Golden hour",
     "video_prompt": "low warm sun just before sunset, long soft shadows, honey-amber backlight, glowing rim light on hair, lens flare, warm atmospheric haze, gentle contrast",
     "negative": "cold blue light, harsh midday sun, overcast",
-    "restyle_prompt": "Convert this image into warm golden-hour light: low sun just before sunset, long soft shadows, honey-amber backlight, glowing rim light, warm haze. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into warm golden-hour light: low sun just before sunset, long soft shadows, honey-amber backlight, glowing rim light, warm haze. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -132,7 +132,7 @@
     "label": "Blue hour",
     "video_prompt": "deep blue twilight after sunset, cobalt sky, soft shadowless ambient light, warm orange lit windows and street lamps as accents, faint mist, calm melancholy",
     "negative": "warm sunlight, midday",
-    "restyle_prompt": "Convert this image into blue-hour light: deep blue twilight, soft shadowless ambient light, warm orange lit windows and lamps as accents, faint mist. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into blue-hour light: deep blue twilight, soft shadowless ambient light, warm orange lit windows and lamps as accents, faint mist. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -140,7 +140,7 @@
     "label": "Cyberpunk",
     "video_prompt": "a rain-soaked neon city at night, magenta and cyan signs reflecting in puddles, holographic ads, dense cables and grime, cybernetic implants, dark teal shadows, drifting steam",
     "negative": "daylight, pastoral, muted colors",
-    "restyle_prompt": "Convert this image into a cyberpunk night grade: magenta and cyan neon light and reflections, wet glossy surfaces, dark teal shadows, drifting haze. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a cyberpunk night grade: magenta and cyan neon light and reflections, wet glossy surfaces, dark teal shadows, drifting haze. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -148,7 +148,7 @@
     "label": "Steampunk",
     "video_prompt": "Victorian retro-futurism, polished brass and copper machinery, exposed gears, pipes and rivets, leather straps and goggles, steam clouds, sepia-amber gaslight",
     "negative": "modern plastic, neon, minimalist",
-    "restyle_prompt": "Convert this image into a steampunk look: sepia-amber gaslight, brass and copper tones and highlights, leather and riveted-metal textures on clothes and surfaces. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a steampunk look: sepia-amber gaslight, brass and copper tones and highlights, leather and riveted-metal textures on clothes and surfaces. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -156,7 +156,7 @@
     "label": "Documentary",
     "video_prompt": "handheld documentary footage, natural available light, slightly off-centre framing, muted realistic colour, light video noise, a candid unposed moment, everyday environment",
     "negative": "stylized, cartoon, heavy color grading",
-    "restyle_prompt": "Convert this image into handheld documentary footage: natural available light, muted realistic colour, light video noise. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into handheld documentary footage: natural available light, muted realistic colour, light video noise. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -164,7 +164,7 @@
     "label": "Surreal / dreamlike",
     "video_prompt": "a surrealist dream painting, smooth precise realistic rendering, impossible scale, melting or floating objects, long hard shadows across an empty plain, clear still sky, uncanny calm",
     "negative": "plain realistic, documentary",
-    "restyle_prompt": "Convert this image into a surrealist dream painting: smooth precise realistic rendering, long hard shadows, clear still light, uncanny calm. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a surrealist dream painting: smooth precise realistic rendering, long hard shadows, clear still light, uncanny calm. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -172,7 +172,7 @@
     "label": "Symmetrical pastel",
     "video_prompt": "perfectly centred symmetrical head-on framing, a tidy dollhouse set, flat colour blocks of pastel pink, mint and mustard, even frontal light, crisp modern film, a deadpan storybook look",
     "negative": "gritty, handheld, dark",
-    "restyle_prompt": "Convert this image into a whimsical pastel film grade: flat colour blocks of pastel pink, mint and mustard, even frontal light, crisp modern film, a deadpan storybook look. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a whimsical pastel film grade: flat colour blocks of pastel pink, mint and mustard, even frontal light, crisp modern film, a deadpan storybook look. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -180,7 +180,7 @@
     "label": "Cold symmetry",
     "video_prompt": "one-point-perspective symmetry, cold sterile whites and steel greys, hard overhead light, wide-angle lens, deep focus, clinical unsettling stillness",
     "negative": "warm cozy light, handheld, cartoon",
-    "restyle_prompt": "Convert this image into a cold clinical film grade: sterile whites and steel greys, hard overhead light, deep focus, crisp and unsettlingly still. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a cold clinical film grade: sterile whites and steel greys, hard overhead light, deep focus, crisp and unsettlingly still. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -188,7 +188,7 @@
     "label": "Pop art",
     "video_prompt": "a 1960s pop-art screen print, flat saturated pink, yellow and cyan blocks, oversized Ben-Day dots on skin, thick black outlines, colour fills slightly offset from the outlines",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a 1960s pop-art screen print, flat saturated pink, yellow and cyan blocks, oversized Ben-Day dots on skin, thick black outlines, colour fills slightly offset from the outlines. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a 1960s pop-art screen print, flat saturated pink, yellow and cyan blocks, oversized Ben-Day dots on skin, thick black outlines, colour fills slightly offset from the outlines. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -196,7 +196,7 @@
     "label": "Art deco",
     "video_prompt": "a 1920s Art Deco poster, streamlined geometric figures, sunburst and chevron motifs, black, gold, jade and cream, stepped symmetry, metallic lacquer finish, elegant elongated forms",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a 1920s Art Deco poster, streamlined geometric figures, sunburst and chevron motifs, black, gold, jade and cream, stepped symmetry, metallic lacquer finish, elegant elongated forms. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a 1920s Art Deco poster, streamlined geometric figures, sunburst and chevron motifs, black, gold, jade and cream, stepped symmetry, metallic lacquer finish, elegant elongated forms. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -204,7 +204,7 @@
     "label": "Art nouveau",
     "video_prompt": "an Art Nouveau decorative illustration, flowing whiplash curves, an ornate floral frame and halo motifs, even-weight contour lines, flat sage, ochre and gold colours, hair in swirling tendrils",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into an Art Nouveau decorative illustration, flowing whiplash curves, an ornate floral frame and halo motifs, even-weight contour lines, flat sage, ochre and gold colours, hair in swirling tendrils. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an Art Nouveau decorative illustration, flowing whiplash curves, an ornate floral frame and halo motifs, even-weight contour lines, flat sage, ochre and gold colours, hair in swirling tendrils. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -212,7 +212,7 @@
     "label": "Baroque",
     "video_prompt": "a Baroque oil painting, dramatic diagonal movement, billowing crimson and gold drapery, theatrical gestures, glowing flesh, dark warm brown background, grand opulent drama",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Baroque oil painting, dramatic diagonal movement, billowing crimson and gold drapery, theatrical gestures, glowing flesh, dark warm brown background, grand opulent drama. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Baroque oil painting, dramatic diagonal movement, billowing crimson and gold drapery, theatrical gestures, glowing flesh, dark warm brown background, grand opulent drama. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -220,7 +220,7 @@
     "label": "Rococo",
     "video_prompt": "a Rococo oil painting, airy feathery brushwork, powdery pastel pinks, sky blues and cream, frothy lace, ribbons and flowers, gilded scrollwork, hazy garden light, playful elegance",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Rococo oil painting, airy feathery brushwork, powdery pastel pinks, sky blues and cream, frothy lace, ribbons and flowers, gilded scrollwork, hazy garden light, playful elegance. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Rococo oil painting, airy feathery brushwork, powdery pastel pinks, sky blues and cream, frothy lace, ribbons and flowers, gilded scrollwork, hazy garden light, playful elegance. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -228,7 +228,7 @@
     "label": "Renaissance",
     "video_prompt": "a High Renaissance painting, balanced classical composition, soft sfumato modelling, serene idealised faces, linear-perspective architecture, muted earth pigments with ultramarine, calm even light",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a High Renaissance painting, balanced classical composition, soft sfumato modelling, serene idealised faces, linear-perspective architecture, muted earth pigments with ultramarine, calm even light. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a High Renaissance painting, balanced classical composition, soft sfumato modelling, serene idealised faces, linear-perspective architecture, muted earth pigments with ultramarine, calm even light. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -236,7 +236,7 @@
     "label": "Romanticism",
     "video_prompt": "a Romantic-era oil painting, sublime stormy sky, vast landscape dwarfing tiny figures, golden light breaking through clouds, mist and ruins, turbulent brushwork, emotional grandeur",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Romantic-era oil painting: dramatic golden light breaking through clouds, turbulent brushwork, emotional grandeur. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Romantic-era oil painting: dramatic golden light breaking through clouds, turbulent brushwork, emotional grandeur. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -244,7 +244,7 @@
     "label": "Pre-Raphaelite",
     "video_prompt": "a Pre-Raphaelite painting, jewel-bright saturated colour, meticulous detail on every leaf and flower, flowing auburn hair, medieval robes, crisp clear daylight, everything in sharp focus",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Pre-Raphaelite painting, jewel-bright saturated colour, meticulous detail on every leaf and flower, flowing auburn hair, medieval robes, crisp clear daylight, everything in sharp focus. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Pre-Raphaelite painting, jewel-bright saturated colour, meticulous detail on every leaf and flower, flowing auburn hair, medieval robes, crisp clear daylight, everything in sharp focus. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -252,7 +252,7 @@
     "label": "Neoclassicism",
     "video_prompt": "a Neoclassical painting, cool restrained palette, figures smooth as marble statues, invisible brushwork, frieze-like arrangement, Greco-Roman columns and white drapery, clear even light",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Neoclassical painting: cool restrained palette, figures smooth as marble statues, invisible brushwork, clear even light. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Neoclassical painting: cool restrained palette, figures smooth as marble statues, invisible brushwork, clear even light. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -260,7 +260,7 @@
     "label": "Impressionism",
     "video_prompt": "an Impressionist plein-air painting, short broken dabs of unblended colour, flickering sunlight, violet coloured shadows, soft dissolving edges, pale luminous palette, sketchy unfinished look",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into an Impressionist plein-air painting, short broken dabs of unblended colour, flickering sunlight, violet coloured shadows, soft dissolving edges, pale luminous palette, sketchy unfinished look. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an Impressionist plein-air painting, short broken dabs of unblended colour, flickering sunlight, violet coloured shadows, soft dissolving edges, pale luminous palette, sketchy unfinished look. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -268,7 +268,7 @@
     "label": "Post-impressionism",
     "video_prompt": "a Post-Impressionist painting, thick impasto strokes in rhythmic swirling directional patterns, every form built of visible ridged strokes, dark contour outlines, cobalt blue and chrome yellow, natural colours intensified",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Post-Impressionist painting, thick impasto strokes in rhythmic swirling directional patterns, every form built of visible ridged strokes, dark contour outlines, cobalt blue and chrome yellow, natural colours intensified. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Post-Impressionist painting, thick impasto strokes in rhythmic swirling directional patterns, every form built of visible ridged strokes, dark contour outlines, cobalt blue and chrome yellow, natural colours intensified. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -276,7 +276,7 @@
     "label": "Pointillism",
     "video_prompt": "a Pointillist painting made entirely of tiny round dots of pure colour, dots visible everywhere, optical colour mixing, no lines or strokes, calm hazy luminous light",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Pointillist painting made entirely of tiny round dots of pure colour, dots visible everywhere, optical colour mixing, no lines or strokes, calm hazy luminous light. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Pointillist painting made entirely of tiny round dots of pure colour, dots visible everywhere, optical colour mixing, no lines or strokes, calm hazy luminous light. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -284,7 +284,7 @@
     "label": "Expressionism",
     "video_prompt": "a German Expressionist painting, distorted jagged angular forms, elongated tilted figures, harsh black outlines, acid green, blood red and sickly yellow, mask-like anxious faces, crude raw strokes, unsettling",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a German Expressionist painting, distorted jagged angular forms, elongated tilted figures, harsh black outlines, acid green, blood red and sickly yellow, mask-like anxious faces, crude raw strokes, unsettling. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a German Expressionist painting, distorted jagged angular forms, elongated tilted figures, harsh black outlines, acid green, blood red and sickly yellow, mask-like anxious faces, crude raw strokes, unsettling. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -292,7 +292,7 @@
     "label": "Fauvism",
     "video_prompt": "a Fauvist painting, large flat patches of pure tube colour, arbitrary colours (green and orange skin, red trees, violet shadows), no shading or depth, bare canvas gaps, joyful",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Fauvist painting, large flat patches of pure tube colour, arbitrary colours (green and orange skin, red trees, violet shadows), no shading or depth, bare canvas gaps, joyful. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Fauvist painting, large flat patches of pure tube colour, arbitrary colours (green and orange skin, red trees, violet shadows), no shading or depth, bare canvas gaps, joyful. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -300,7 +300,7 @@
     "label": "Cubism",
     "video_prompt": "an Analytic Cubist painting, the subject shattered into overlapping angular facets, several viewpoints at once, muted ochre, grey and brown, flattened shallow space",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into an Analytic Cubist painting, the subject shattered into overlapping angular facets, several viewpoints at once, muted ochre, grey and brown, flattened shallow space. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an Analytic Cubist painting, the subject shattered into overlapping angular facets, several viewpoints at once, muted ochre, grey and brown, flattened shallow space. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -308,7 +308,7 @@
     "label": "Futurism",
     "video_prompt": "an Italian Futurist painting, repeated overlapping limbs and outlines showing motion, radiating force lines, fractured angular planes, vibrating speed, fiery reds and metallic tones",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into an Italian Futurist painting, repeated overlapping limbs and outlines showing motion, radiating force lines, fractured angular planes, vibrating speed, fiery reds and metallic tones. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an Italian Futurist painting, repeated overlapping limbs and outlines showing motion, radiating force lines, fractured angular planes, vibrating speed, fiery reds and metallic tones. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -316,7 +316,7 @@
     "label": "Dadaism",
     "video_prompt": "a Dada photomontage collage, cut-out newspaper and photo fragments, torn paper edges, mismatched scales, stray typography and stamps, black-and-white with red accents, absurd assembled look",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Dada photomontage collage, cut-out newspaper and photo fragments, torn paper edges, mismatched scales, stray typography and stamps, black-and-white with red accents, absurd assembled look. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Dada photomontage collage, cut-out newspaper and photo fragments, torn paper edges, mismatched scales, stray typography and stamps, black-and-white with red accents, absurd assembled look. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -324,7 +324,7 @@
     "label": "Bauhaus",
     "video_prompt": "a Bauhaus design composition, forms reduced to circles, squares and triangles, flat primary red, yellow and blue with black on off-white, a clean grid, calm asymmetric balance, no texture",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Bauhaus design composition, forms reduced to circles, squares and triangles, flat primary red, yellow and blue with black on off-white, a clean grid, calm asymmetric balance, no texture. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Bauhaus design composition, forms reduced to circles, squares and triangles, flat primary red, yellow and blue with black on off-white, a clean grid, calm asymmetric balance, no texture. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -332,7 +332,7 @@
     "label": "Constructivism",
     "video_prompt": "a Russian Constructivist propaganda poster, red, black and cream only, sharp diagonal wedges and bars, high-contrast halftone photo cut-outs, bold angular energy, aged poster paper",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Russian Constructivist propaganda poster, red, black and cream only, sharp diagonal wedges and bars, high-contrast halftone photo cut-outs, bold angular energy, aged poster paper. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Russian Constructivist propaganda poster, red, black and cream only, sharp diagonal wedges and bars, high-contrast halftone photo cut-outs, bold angular energy, aged poster paper. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -340,7 +340,7 @@
     "label": "Minimalism",
     "video_prompt": "a minimalist artwork, the subject reduced to a few flat shapes, large empty negative space, two or three muted colours, crisp edges, no texture or detail, calm and sparse",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a minimalist artwork, the subject reduced to a few flat shapes, large empty negative space, two or three muted colours, crisp edges, no texture or detail, calm and sparse. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a minimalist artwork, the subject reduced to a few flat shapes, large empty negative space, two or three muted colours, crisp edges, no texture or detail, calm and sparse. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -348,7 +348,7 @@
     "label": "Symbolism",
     "video_prompt": "a Symbolist painting, dreamlike mystical atmosphere, pale twilight glow, misty violet and gold tones, solitary mysterious figures, decorative stylised patterns, soft haze, enigmatic mood",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Symbolist painting, dreamlike mystical atmosphere, pale twilight glow, misty violet and gold tones, solitary mysterious figures, decorative stylised patterns, soft haze, enigmatic mood. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Symbolist painting, dreamlike mystical atmosphere, pale twilight glow, misty violet and gold tones, solitary mysterious figures, decorative stylised patterns, soft haze, enigmatic mood. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -356,7 +356,7 @@
     "label": "Precisionism",
     "video_prompt": "a Precisionist painting, hard-edged simplified geometric forms, smooth machine-like surfaces, crisp planes of light, sharp clean shadows, clear cool sky, no visible brushwork",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Precisionist painting, hard-edged simplified geometric forms, smooth machine-like surfaces, crisp planes of light, sharp clean shadows, clear cool sky, no visible brushwork. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Precisionist painting, hard-edged simplified geometric forms, smooth machine-like surfaces, crisp planes of light, sharp clean shadows, clear cool sky, no visible brushwork. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -364,7 +364,7 @@
     "label": "Mexican muralism",
     "video_prompt": "a Mexican fresco mural, monumental rounded sculptural figures, terracotta, ochre and deep green, bold outlines, plaster wall texture, dense flattened crowded composition",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Mexican fresco mural, monumental rounded sculptural figures, terracotta, ochre and deep green, bold outlines, plaster wall texture, dense flattened crowded composition. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Mexican fresco mural, monumental rounded sculptural figures, terracotta, ochre and deep green, bold outlines, plaster wall texture, dense flattened crowded composition. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -372,7 +372,7 @@
     "label": "Acrylic painting",
     "video_prompt": "an acrylic painting, bold opaque vivid colours, crisp layered strokes, palette-knife ridges, slight plastic sheen, fast flat colour areas, modern bright finish",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into an acrylic painting, bold opaque vivid colours, crisp layered strokes, palette-knife ridges, slight plastic sheen, fast flat colour areas, modern bright finish. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an acrylic painting, bold opaque vivid colours, crisp layered strokes, palette-knife ridges, slight plastic sheen, fast flat colour areas, modern bright finish. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -380,7 +380,7 @@
     "label": "Gouache",
     "video_prompt": "a gouache painting, matte chalky opaque flat colours, velvety finish, crisp hard-edged shapes, visible paper tooth, mid-century illustration feel",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a gouache painting, matte chalky opaque flat colours, velvety finish, crisp hard-edged shapes, visible paper tooth, mid-century illustration feel. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a gouache painting, matte chalky opaque flat colours, velvety finish, crisp hard-edged shapes, visible paper tooth, mid-century illustration feel. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -388,7 +388,7 @@
     "label": "Pastels",
     "video_prompt": "a soft pastel drawing on toned paper, powdery chalky strokes, smudged blended colour, paper grain showing through, broad textured marks, velvety highlights",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a soft pastel drawing on toned paper, powdery chalky strokes, smudged blended colour, paper grain showing through, broad textured marks, velvety highlights. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a soft pastel drawing on toned paper, powdery chalky strokes, smudged blended colour, paper grain showing through, broad textured marks, velvety highlights. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -396,7 +396,7 @@
     "label": "Pencil sketch",
     "video_prompt": "a graphite pencil sketch on white paper, loose construction lines, varied line weight, soft smudged shading, light hatching, unfinished edges, monochrome grey",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a graphite pencil sketch on white paper, loose construction lines, varied line weight, soft smudged shading, light hatching, unfinished edges, monochrome grey. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a graphite pencil sketch on white paper, loose construction lines, varied line weight, soft smudged shading, light hatching, unfinished edges, monochrome grey. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -404,7 +404,7 @@
     "label": "Coloured pencil",
     "video_prompt": "a coloured pencil drawing, many fine visible directional strokes, layered waxy colour, white paper speckles through the grain, burnished highlights",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a coloured pencil drawing, many fine visible directional strokes, layered waxy colour, white paper speckles through the grain, burnished highlights. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a coloured pencil drawing, many fine visible directional strokes, layered waxy colour, white paper speckles through the grain, burnished highlights. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -412,7 +412,7 @@
     "label": "Charcoal",
     "video_prompt": "a charcoal drawing, velvety deep blacks, bold gestural strokes, smudged soft tones, eraser-lifted highlights, rough paper texture, monochrome",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a charcoal drawing, velvety deep blacks, bold gestural strokes, smudged soft tones, eraser-lifted highlights, rough paper texture, monochrome. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a charcoal drawing, velvety deep blacks, bold gestural strokes, smudged soft tones, eraser-lifted highlights, rough paper texture, monochrome. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -420,7 +420,7 @@
     "label": "Chalk drawing",
     "video_prompt": "a chalk drawing on a dark green blackboard, white and coloured chalk, dusty powdery strokes, smudges and erased ghost marks, the dark board showing through",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a chalk drawing on a dark green blackboard, white and coloured chalk, dusty powdery strokes, smudges and erased ghost marks, the dark board showing through. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a chalk drawing on a dark green blackboard, white and coloured chalk, dusty powdery strokes, smudges and erased ghost marks, the dark board showing through. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -428,7 +428,7 @@
     "label": "Crayons",
     "video_prompt": "a child's wax crayon drawing, waxy uneven scribbled fill with paper gaps, bright primary colours, thick wobbly outlines, rough paper",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a child's wax crayon drawing, waxy uneven scribbled fill with paper gaps, bright primary colours, thick wobbly outlines, rough paper. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a child's wax crayon drawing, waxy uneven scribbled fill with paper gaps, bright primary colours, thick wobbly outlines, rough paper. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -436,7 +436,7 @@
     "label": "Ink wash",
     "video_prompt": "an East Asian ink wash painting, black ink on rice paper, expressive single brushstrokes, graded grey washes, wet bleeding edges, large empty space, a small red seal",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into an East Asian ink wash painting, black ink on rice paper, expressive single brushstrokes, graded grey washes, wet bleeding edges, large empty space, a small red seal. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an East Asian ink wash painting, black ink on rice paper, expressive single brushstrokes, graded grey washes, wet bleeding edges, large empty space, a small red seal. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -444,7 +444,7 @@
     "label": "Ukiyo-e",
     "video_prompt": "a Japanese woodblock print, crisp black key lines, flat colour areas of indigo, vermilion and pale ochre, wood grain texture, stylised waves and clouds, washi paper, no cast shadows",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Japanese woodblock print, crisp black key lines, flat colour areas of indigo, vermilion and pale ochre, wood grain texture, stylised waves and clouds, washi paper, no cast shadows. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Japanese woodblock print, crisp black key lines, flat colour areas of indigo, vermilion and pale ochre, wood grain texture, stylised waves and clouds, washi paper, no cast shadows. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -452,7 +452,7 @@
     "label": "Etching",
     "video_prompt": "an antique intaglio etching, fine engraved lines, sepia-black ink on cream paper, plate tone and wiped edges, aged book-illustration look",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into an antique intaglio etching, fine engraved lines, sepia-black ink on cream paper, plate tone and wiped edges, aged book-illustration look. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an antique intaglio etching, fine engraved lines, sepia-black ink on cream paper, plate tone and wiped edges, aged book-illustration look. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -460,7 +460,7 @@
     "label": "Cross hatching",
     "video_prompt": "a bold pen-and-ink drawing, tone built only from black lines crossed at angles, crisp white paper, graphic illustration contrast, varied hatching density",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a bold pen-and-ink drawing, tone built only from black lines crossed at angles, crisp white paper, graphic illustration contrast, varied hatching density. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a bold pen-and-ink drawing, tone built only from black lines crossed at angles, crisp white paper, graphic illustration contrast, varied hatching density. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -468,7 +468,7 @@
     "label": "Grisaille",
     "video_prompt": "a grisaille painting entirely in shades of grey, figures modelled like carved stone relief, smooth painted gradations, no colour",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a grisaille painting entirely in shades of grey, figures modelled like carved stone relief, smooth painted gradations, no colour. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a grisaille painting entirely in shades of grey, figures modelled like carved stone relief, smooth painted gradations, no colour. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -476,7 +476,7 @@
     "label": "Chiaroscuro",
     "video_prompt": "a tenebrist chiaroscuro painting, one candle-like light source, figures emerging from near-black darkness, extreme light-dark contrast, warm glowing highlights",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a tenebrist chiaroscuro painting, one candle-like light source, figures emerging from near-black darkness, extreme light-dark contrast, warm glowing highlights. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a tenebrist chiaroscuro painting, one candle-like light source, figures emerging from near-black darkness, extreme light-dark contrast, warm glowing highlights. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -484,7 +484,7 @@
     "label": "Airbrush",
     "video_prompt": "a 1980s airbrush illustration, ultra-smooth gradients, glossy chrome reflections, soft glowing highlights, sharp stencil-masked edges, saturated sunset colours",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a 1980s airbrush illustration, ultra-smooth gradients, glossy chrome reflections, soft glowing highlights, sharp stencil-masked edges, saturated sunset colours. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a 1980s airbrush illustration, ultra-smooth gradients, glossy chrome reflections, soft glowing highlights, sharp stencil-masked edges, saturated sunset colours. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -492,7 +492,7 @@
     "label": "Action painting",
     "video_prompt": "an abstract action painting, dripped, flung and splattered paint in tangled skeins, energetic chaos, the subject faintly emerging, raw canvas showing",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into an abstract action painting, dripped, flung and splattered paint in tangled skeins, energetic chaos, the subject faintly emerging, raw canvas showing. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an abstract action painting, dripped, flung and splattered paint in tangled skeins, energetic chaos, the subject faintly emerging, raw canvas showing. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -500,7 +500,7 @@
     "label": "Zentangle",
     "video_prompt": "a zentangle ink doodle, black ink on white, every shape filled with intricate repeating patterns (scales, waves, grids, spirals), outlined forms, no colour",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a zentangle ink doodle, black ink on white, every shape filled with intricate repeating patterns (scales, waves, grids, spirals), outlined forms, no colour. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a zentangle ink doodle, black ink on white, every shape filled with intricate repeating patterns (scales, waves, grids, spirals), outlined forms, no colour. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -508,7 +508,7 @@
     "label": "Hand-painted anime film",
     "video_prompt": "a hand-painted anime film frame, lush painterly watercolour backgrounds, soft billowing clouds, warm natural light, gentle thin-lined characters, nostalgic pastoral detail",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a hand-painted anime film frame, lush painterly watercolour backgrounds, soft billowing clouds, warm natural light, gentle thin-lined characters, nostalgic pastoral detail. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a hand-painted anime film frame, lush painterly watercolour backgrounds, soft billowing clouds, warm natural light, gentle thin-lined characters, nostalgic pastoral detail. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -516,7 +516,7 @@
     "label": "Kawaii chibi",
     "video_prompt": "a kawaii chibi illustration, characters two heads tall with oversized heads and tiny bodies, huge sparkling eyes, blush circles, pastel candy colours, thick soft outlines",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a kawaii chibi illustration, characters two heads tall with oversized heads and tiny bodies, huge sparkling eyes, blush circles, pastel candy colours, thick soft outlines. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a kawaii chibi illustration, characters two heads tall with oversized heads and tiny bodies, huge sparkling eyes, blush circles, pastel candy colours, thick soft outlines. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -524,7 +524,7 @@
     "label": "Linocut",
     "video_prompt": "a linocut relief print, bold black carved shapes, rough gouge marks, high contrast, one or two ink colours, uneven ink coverage, white paper showing",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a linocut relief print, bold black carved shapes, rough gouge marks, high contrast, one or two ink colours, uneven ink coverage, white paper showing. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a linocut relief print, bold black carved shapes, rough gouge marks, high contrast, one or two ink colours, uneven ink coverage, white paper showing. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -532,7 +532,7 @@
     "label": "Letterpress print",
     "video_prompt": "a letterpress print, debossed impressions in thick cotton paper, slightly patchy ink coverage, two flat ink colours, crisp edges, tactile vintage press texture",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a letterpress print, debossed impressions in thick cotton paper, slightly patchy ink coverage, two flat ink colours, crisp edges, tactile vintage press texture. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a letterpress print, debossed impressions in thick cotton paper, slightly patchy ink coverage, two flat ink colours, crisp edges, tactile vintage press texture. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -540,7 +540,7 @@
     "label": "Halftone print",
     "video_prompt": "a coarse enlarged halftone print, the whole image made of visible round dots of varying size, CMYK rosette pattern, slight misregistration, newsprint paper",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a coarse enlarged halftone print, the whole image made of visible round dots of varying size, CMYK rosette pattern, slight misregistration, newsprint paper. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a coarse enlarged halftone print, the whole image made of visible round dots of varying size, CMYK rosette pattern, slight misregistration, newsprint paper. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -548,7 +548,7 @@
     "label": "Cyanotype",
     "video_prompt": "a cyanotype sun print, only Prussian blue and white, deep blue shadows, pale highlights, brushy coated edges, watercolour paper texture",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a cyanotype sun print, only Prussian blue and white, deep blue shadows, pale highlights, brushy coated edges, watercolour paper texture. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a cyanotype sun print, only Prussian blue and white, deep blue shadows, pale highlights, brushy coated edges, watercolour paper texture. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -556,7 +556,7 @@
     "label": "Papercut",
     "video_prompt": "layered paper-cut art, stacked cut-paper silhouettes in depth, crisp cut edges, soft drop shadows between layers, flat matte paper colours, a shadow-box look",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as layered paper-cut art, stacked cut-paper silhouettes in depth, crisp cut edges, soft drop shadows between layers, flat matte paper colours, a shadow-box look: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as layered paper-cut art, stacked cut-paper silhouettes in depth, crisp cut edges, soft drop shadows between layers, flat matte paper colours, a shadow-box look: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -564,7 +564,7 @@
     "label": "Origami",
     "video_prompt": "an origami scene, every person, object and surface folded from paper, sharp creases and faceted folded planes, crisp paper edges, solid matte coloured paper, soft studio light",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as an origami scene, every person, object and surface folded from paper, sharp creases and faceted folded planes, crisp paper edges, solid matte coloured paper, soft studio light: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as an origami scene, every person, object and surface folded from paper, sharp creases and faceted folded planes, crisp paper edges, solid matte coloured paper, soft studio light: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -572,7 +572,7 @@
     "label": "Paper quilling",
     "video_prompt": "paper quilling, every shape formed from tightly coiled paper strips seen edge-on, spirals and teardrops, bright colours, raised relief",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as paper quilling, every shape formed from tightly coiled paper strips seen edge-on, spirals and teardrops, bright colours, raised relief: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as paper quilling, every shape formed from tightly coiled paper strips seen edge-on, spirals and teardrops, bright colours, raised relief: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -580,7 +580,7 @@
     "label": "Embroidery",
     "video_prompt": "hand embroidery on linen, satin-stitch and French-knot texture, glossy cotton thread, stitches following each form, visible fabric weave",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as hand embroidery on linen, satin-stitch and French-knot texture, glossy cotton thread, stitches following each form, visible fabric weave: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as hand embroidery on linen, satin-stitch and French-knot texture, glossy cotton thread, stitches following each form, visible fabric weave: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -588,7 +588,7 @@
     "label": "Cross stitch",
     "video_prompt": "counted cross-stitch, the image made of tiny X-shaped thread stitches on a square grid of white Aida cloth, visible fabric holes, limited floss colours, fuzzy thread",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as counted cross-stitch, the image made of tiny X-shaped thread stitches on a square grid of white Aida cloth, visible fabric holes, limited floss colours, fuzzy thread: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as counted cross-stitch, the image made of tiny X-shaped thread stitches on a square grid of white Aida cloth, visible fabric holes, limited floss colours, fuzzy thread: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -596,7 +596,7 @@
     "label": "Knitted",
     "video_prompt": "a scene knitted entirely from chunky wool, visible V-shaped knit stitches, soft fuzzy yarn, stitch rows following the shapes, cosy handmade colours",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as a scene knitted entirely from chunky wool, visible V-shaped knit stitches, soft fuzzy yarn, stitch rows following the shapes, cosy handmade colours: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as a scene knitted entirely from chunky wool, visible V-shaped knit stitches, soft fuzzy yarn, stitch rows following the shapes, cosy handmade colours: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -604,7 +604,7 @@
     "label": "Amigurumi",
     "video_prompt": "amigurumi crocheted toys, figures made of tight crochet loops, round plush shapes, bead eyes, visible stitch rows, a soft studio photo",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as amigurumi crocheted toys, figures made of tight crochet loops, round plush shapes, bead eyes, visible stitch rows, a soft studio photo: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as amigurumi crocheted toys, figures made of tight crochet loops, round plush shapes, bead eyes, visible stitch rows, a soft studio photo: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -612,7 +612,7 @@
     "label": "Patchwork",
     "video_prompt": "a patchwork quilt, the image pieced from printed cotton patches (florals, gingham, polka dots), stitched seams, quilting lines, soft padded texture",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as a patchwork quilt, the image pieced from printed cotton patches (florals, gingham, polka dots), stitched seams, quilting lines, soft padded texture: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as a patchwork quilt, the image pieced from printed cotton patches (florals, gingham, polka dots), stitched seams, quilting lines, soft padded texture: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -620,7 +620,7 @@
     "label": "Batik",
     "video_prompt": "wax-resist batik cloth, crackled fine dye veins, indigo, brown and cream, ornate repeating motifs, soft bleeding dye edges on cotton",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into wax-resist batik cloth, crackled fine dye veins, indigo, brown and cream, ornate repeating motifs, soft bleeding dye edges on cotton. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into wax-resist batik cloth, crackled fine dye veins, indigo, brown and cream, ornate repeating motifs, soft bleeding dye edges on cotton. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -628,7 +628,7 @@
     "label": "Mosaic",
     "video_prompt": "a Roman floor mosaic, the image built from small square stone tesserae, visible grout lines, irregular tiles, earthy terracotta, ochre and grey, worn stone surface",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as a Roman floor mosaic, the image built from small square stone tesserae, visible grout lines, irregular tiles, earthy terracotta, ochre and grey, worn stone surface: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as a Roman floor mosaic, the image built from small square stone tesserae, visible grout lines, irregular tiles, earthy terracotta, ochre and grey, worn stone surface: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -636,7 +636,7 @@
     "label": "Stained glass",
     "video_prompt": "a stained glass window, vivid translucent coloured glass pieces, thick black lead lines, light glowing through, rippled glass and bubbles",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as a stained glass window, vivid translucent coloured glass pieces, thick black lead lines, light glowing through, rippled glass and bubbles: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as a stained glass window, vivid translucent coloured glass pieces, thick black lead lines, light glowing through, rippled glass and bubbles: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -644,7 +644,7 @@
     "label": "Enamel",
     "video_prompt": "cloisonné enamel, glossy glassy colour fields separated by thin raised gold wires, jewel-like shine, smooth vitreous surface",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as cloisonné enamel, glossy glassy colour fields separated by thin raised gold wires, jewel-like shine, smooth vitreous surface: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as cloisonné enamel, glossy glassy colour fields separated by thin raised gold wires, jewel-like shine, smooth vitreous surface: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -652,7 +652,7 @@
     "label": "Azulejo tiles",
     "video_prompt": "Portuguese azulejo tiles, cobalt blue painted on glossy white ceramic, a visible square tile grid and grout, brushy blue gradients, ornate tile borders",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as Portuguese azulejo tiles, cobalt blue painted on glossy white ceramic, a visible square tile grid and grout, brushy blue gradients, ornate tile borders: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as Portuguese azulejo tiles, cobalt blue painted on glossy white ceramic, a visible square tile grid and grout, brushy blue gradients, ornate tile borders: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -660,7 +660,7 @@
     "label": "Sticker",
     "video_prompt": "a die-cut vinyl sticker, thick white border around the subject, bold clean outlines, flat glossy colours, slight sheen",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a die-cut vinyl sticker, thick white border around the subject, bold clean outlines, flat glossy colours, slight sheen. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a die-cut vinyl sticker, thick white border around the subject, bold clean outlines, flat glossy colours, slight sheen. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -668,7 +668,7 @@
     "label": "Tie-dye",
     "video_prompt": "tie-dye fabric, radial spirals and bursts of saturated rainbow dye, soft bleeding dye edges, white crinkle lines, cotton texture",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a tie-dye look: radial spirals of saturated rainbow dye across every surface, soft bleeding dye edges, cotton texture. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a tie-dye look: radial spirals of saturated rainbow dye across every surface, soft bleeding dye edges, cotton texture. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -676,7 +676,7 @@
     "label": "Marble sculpture",
     "video_prompt": "a carved white marble statue, everything polished stone, chiselled smooth surfaces, blank sculpted eyes, faint grey veins, soft museum light",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as a carved white marble statue, everything polished stone, chiselled smooth surfaces, blank sculpted eyes, faint grey veins, soft museum light: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as a carved white marble statue, everything polished stone, chiselled smooth surfaces, blank sculpted eyes, faint grey veins, soft museum light: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -684,7 +684,7 @@
     "label": "Vaporwave",
     "video_prompt": "vaporwave, pastel pink and aqua, marble textures, checkerboard floors, low-res early-internet graphics, soft VHS scanlines, hazy daytime dreaminess",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a vaporwave look: pastel pink and aqua colours, soft VHS scanlines, hazy dreamy glow. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a vaporwave look: pastel pink and aqua colours, soft VHS scanlines, hazy dreamy glow. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -692,7 +692,7 @@
     "label": "Synthwave",
     "video_prompt": "synthwave retro-futurism, dark purple night, glowing magenta and cyan outlines, a laser grid floor, a huge striped sunset sun, chrome reflections",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a synthwave look: dark purple night tones, glowing magenta and cyan outlines on every edge, chrome reflections. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a synthwave look: dark purple night tones, glowing magenta and cyan outlines on every edge, chrome reflections. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -700,7 +700,7 @@
     "label": "Glitchcore",
     "video_prompt": "digital glitch art, RGB channel split, horizontal displacement bars, pixel-sorting streaks, datamosh blocks, scanlines, corrupted colour noise",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into digital glitch art, RGB channel split, horizontal displacement bars, pixel-sorting streaks, datamosh blocks, scanlines, corrupted colour noise. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into digital glitch art, RGB channel split, horizontal displacement bars, pixel-sorting streaks, datamosh blocks, scanlines, corrupted colour noise. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -708,7 +708,7 @@
     "label": "Holographic",
     "video_prompt": "iridescent holographic foil, rainbow oil-slick sheen shifting across every surface, prismatic highlights, chrome pastel reflections",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into iridescent holographic foil, rainbow oil-slick sheen shifting across every surface, prismatic highlights, chrome pastel reflections. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into iridescent holographic foil, rainbow oil-slick sheen shifting across every surface, prismatic highlights, chrome pastel reflections. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -716,7 +716,7 @@
     "label": "Glassmorphism",
     "video_prompt": "everything rendered as frosted translucent glass, soft blur behind surfaces, glossy edge highlights, pastel gradient glow, rounded 3D render",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as everything rendered as frosted translucent glass, soft blur behind surfaces, glossy edge highlights, pastel gradient glow, rounded 3D render: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as everything rendered as frosted translucent glass, soft blur behind surfaces, glossy edge highlights, pastel gradient glow, rounded 3D render: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -724,7 +724,7 @@
     "label": "Neon",
     "video_prompt": "neon-sign art, all forms outlined in glowing bent glass tubes, hot pink, blue and green glow with bloom, a dark brick wall background",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as neon-sign art, all forms outlined in glowing bent glass tubes, hot pink, blue and green glow with bloom, a dark brick wall background: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as neon-sign art, all forms outlined in glowing bent glass tubes, hot pink, blue and green glow with bloom, a dark brick wall background: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -732,7 +732,7 @@
     "label": "Low poly",
     "video_prompt": "a low-poly 3D render, everything built from faceted triangular polygons, flat-shaded facets, visible geometric edges, simple gradient light",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as a low-poly 3D render, everything built from faceted triangular polygons, flat-shaded facets, visible geometric edges, simple gradient light: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as a low-poly 3D render, everything built from faceted triangular polygons, flat-shaded facets, visible geometric edges, simple gradient light: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -740,7 +740,7 @@
     "label": "Vector art",
     "video_prompt": "a flat vector illustration, clean geometric shapes, smooth bezier edges, flat solid colours, simple long shadows, no texture",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a flat vector illustration, clean geometric shapes, smooth bezier edges, flat solid colours, simple long shadows, no texture. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a flat vector illustration, clean geometric shapes, smooth bezier edges, flat solid colours, simple long shadows, no texture. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -748,7 +748,7 @@
     "label": "Voxel blocks",
     "video_prompt": "a voxel 3D render, everything built from small stacked cubes, blocky cube edges, soft ambient occlusion, a toy-like diorama",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as a voxel 3D render, everything built from small stacked cubes, blocky cube edges, soft ambient occlusion, a toy-like diorama: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as a voxel 3D render, everything built from small stacked cubes, blocky cube edges, soft ambient occlusion, a toy-like diorama: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -756,7 +756,7 @@
     "label": "Isometric",
     "video_prompt": "an isometric 3D diorama, 30-degree isometric view, a miniature cutaway scene, clean bright colours, soft shadows",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into an isometric 3D diorama, 30-degree isometric view, a miniature cutaway scene, clean bright colours, soft shadows. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an isometric 3D diorama, 30-degree isometric view, a miniature cutaway scene, clean bright colours, soft shadows. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -764,7 +764,7 @@
     "label": "Graffiti",
     "video_prompt": "a spray-paint graffiti mural on brick, bold outlines with highlights, paint drips, overspray haze, bright aerosol colours",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a spray-paint graffiti mural on brick, bold outlines with highlights, paint drips, overspray haze, bright aerosol colours. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a spray-paint graffiti mural on brick, bold outlines with highlights, paint drips, overspray haze, bright aerosol colours. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -772,7 +772,7 @@
     "label": "Game box art",
     "video_prompt": "a 1990s video game box-cover painting, heroic dramatic pose, saturated airbrushed sky, dramatic rim light, glossy epic poster finish",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a 1990s video game box-cover painting: saturated airbrushed colours, dramatic rim light, glossy epic poster finish. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a 1990s video game box-cover painting: saturated airbrushed colours, dramatic rim light, glossy epic poster finish. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -780,7 +780,7 @@
     "label": "Psychedelic",
     "video_prompt": "a 1960s psychedelic poster, swirling melting liquid forms, vibrating complementary colours (orange and blue, magenta and green), wavy contour lines",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a 1960s psychedelic poster: swirling wavy contour lines through every form, vibrating complementary colours (orange and blue, magenta and green). Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a 1960s psychedelic poster: swirling wavy contour lines through every form, vibrating complementary colours (orange and blue, magenta and green). Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -788,7 +788,7 @@
     "label": "Kaleidoscope",
     "video_prompt": "a kaleidoscope image, the scene mirrored into radial symmetric segments, jewel colours, faceted glass reflections",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a kaleidoscope look: jewel colours and faceted glass reflections over every surface. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a kaleidoscope look: jewel colours and faceted glass reflections over every surface. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -796,7 +796,7 @@
     "label": "Fractal",
     "video_prompt": "fractal art, infinite self-similar spirals and branching, glowing filaments, deep black background",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into fractal art: every surface filled with self-similar glowing spirals and branching patterns. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into fractal art: every surface filled with self-similar glowing spirals and branching patterns. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -804,7 +804,7 @@
     "label": "Optical illusion",
     "video_prompt": "black-and-white op art, wavy stripes and checkerboards bending around forms, vibrating moiré, high contrast",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into black-and-white op art, wavy stripes and checkerboards bending around forms, vibrating moiré, high contrast. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into black-and-white op art, wavy stripes and checkerboards bending around forms, vibrating moiré, high contrast. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -812,7 +812,7 @@
     "label": "Polaroid",
     "video_prompt": "an instant-film photo, soft faded colours, cyan shadows and warm creamy highlights, gentle vignette, chemical smudges, thick white frame",
     "negative": "cartoon, illustration, painting, drawing",
-    "restyle_prompt": "Convert this image into an instant-film photo, soft faded colours, cyan shadows and warm creamy highlights, gentle vignette, chemical smudges, thick white frame. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an instant-film photo, soft faded colours, cyan shadows and warm creamy highlights, gentle vignette, chemical smudges, thick white frame. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Photo looks"
   },
@@ -820,7 +820,7 @@
     "label": "Infrared photography",
     "video_prompt": "an infrared photograph, foliage glowing white or pink, near-black skies, dreamy halation glow, false colour",
     "negative": "cartoon, illustration, painting, drawing",
-    "restyle_prompt": "Convert this image into an infrared photograph, foliage glowing white or pink, near-black skies, dreamy halation glow, false colour. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an infrared photograph, foliage glowing white or pink, near-black skies, dreamy halation glow, false colour. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Photo looks"
   },
@@ -828,7 +828,7 @@
     "label": "Thermal camera",
     "video_prompt": "a thermal camera image, heat-map palette from black and purple to orange, yellow and white, warm bodies glowing, cold background dark blue, low detail, sensor noise",
     "negative": "cartoon, illustration, painting, drawing",
-    "restyle_prompt": "Convert this image into a thermal camera image, heat-map palette from black and purple to orange, yellow and white, warm bodies glowing, cold background dark blue, low detail, sensor noise. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a thermal camera image, heat-map palette from black and purple to orange, yellow and white, warm bodies glowing, cold background dark blue, low detail, sensor noise. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Photo looks"
   },
@@ -836,7 +836,7 @@
     "label": "Photocopy",
     "video_prompt": "a photocopied zine page, harsh black-and-white, toner speckles and streaks, crushed blacks, grainy degraded copy",
     "negative": "cartoon, illustration, painting, drawing",
-    "restyle_prompt": "Convert this image into a photocopied zine page, harsh black-and-white, toner speckles and streaks, crushed blacks, grainy degraded copy. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a photocopied zine page, harsh black-and-white, toner speckles and streaks, crushed blacks, grainy degraded copy. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Photo looks"
   },
@@ -844,7 +844,7 @@
     "label": "Photogram",
     "video_prompt": "a darkroom photogram, white glowing silhouettes on solid black, translucent objects in grey tones, no camera perspective",
     "negative": "cartoon, illustration, painting, drawing",
-    "restyle_prompt": "Convert this image into a darkroom photogram, white glowing silhouettes on solid black, translucent objects in grey tones, no camera perspective. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a darkroom photogram, white glowing silhouettes on solid black, translucent objects in grey tones, no camera perspective. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Photo looks"
   },
@@ -852,7 +852,7 @@
     "label": "Cross processing",
     "video_prompt": "cross-processed film, yellow-green highlights, cyan shadows, boosted contrast and saturation, blown highlights",
     "negative": "cartoon, illustration, painting, drawing",
-    "restyle_prompt": "Convert this image into cross-processed film, yellow-green highlights, cyan shadows, boosted contrast and saturation, blown highlights. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into cross-processed film, yellow-green highlights, cyan shadows, boosted contrast and saturation, blown highlights. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Photo looks"
   },
@@ -860,7 +860,7 @@
     "label": "Wabi-sabi",
     "video_prompt": "a wabi-sabi still-life feel, weathered imperfect natural materials, raw clay, aged wood, muted earthy tones, soft diffused light, quiet emptiness",
     "negative": "cartoon, illustration, painting, drawing",
-    "restyle_prompt": "Convert this image into a wabi-sabi still-life feel, weathered imperfect natural materials, raw clay, aged wood, muted earthy tones, soft diffused light, quiet emptiness. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a wabi-sabi still-life feel, weathered imperfect natural materials, raw clay, aged wood, muted earthy tones, soft diffused light, quiet emptiness. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Photo looks"
   },
@@ -868,7 +868,7 @@
     "label": "Fantasy",
     "video_prompt": "a high-fantasy painted illustration, luminous magical light, glowing particles, ornate armour and robes, a lush enchanted landscape, rich saturated colours",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a high-fantasy painted illustration: luminous magical light, glowing particles in the air, rich saturated colours, painterly detail. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a high-fantasy painted illustration: luminous magical light, glowing particles in the air, rich saturated colours, painterly detail. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -876,7 +876,7 @@
     "label": "Dark fantasy",
     "video_prompt": "a dark-fantasy painting, grim desaturated palette, sickly green and blood red accents, fog, twisted thorns, eerie glow, menacing mood",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a dark-fantasy painting: grim desaturated palette, sickly green and blood red accents, fog, eerie glow, menacing mood. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a dark-fantasy painting: grim desaturated palette, sickly green and blood red accents, fog, eerie glow, menacing mood. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -884,7 +884,7 @@
     "label": "Gothic",
     "video_prompt": "Victorian gothic horror, candlelit stone interiors, pointed arches, black lace and velvet, pale faces, deep purple and black, moonlight",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Victorian gothic horror look: candlelight and moonlight, deep purple and black, pale faces, velvet shadows. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Victorian gothic horror look: candlelight and moonlight, deep purple and black, pale faces, velvet shadows. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -892,7 +892,7 @@
     "label": "Dystopian",
     "video_prompt": "a dystopian film still, brutalist concrete, oppressive grey-green palette, surveillance screens, uniform crowds, harsh fluorescent light",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a dystopian film grade: oppressive grey-green palette, harsh fluorescent light, cold concrete tones, bleak contrast. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a dystopian film grade: oppressive grey-green palette, harsh fluorescent light, cold concrete tones, bleak contrast. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -900,7 +900,7 @@
     "label": "Post-apocalyptic",
     "video_prompt": "a post-apocalyptic wasteland, rusted wrecks, dust storms, overgrown ruins, bleached ochre and rust palette, makeshift gear",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a post-apocalyptic grade: bleached ochre and rust palette, dust in the air, grime and wear on every surface. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a post-apocalyptic grade: bleached ochre and rust palette, dust in the air, grime and wear on every surface. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -908,7 +908,7 @@
     "label": "Medieval manuscript",
     "video_prompt": "an illuminated medieval manuscript page, flat figures with no perspective, gold leaf, lapis blue and vermilion, ink outlines, vellum texture",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into an illuminated medieval manuscript painting: flat figures, gold leaf accents, lapis blue and vermilion, ink outlines, vellum texture. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an illuminated medieval manuscript painting: flat figures, gold leaf accents, lapis blue and vermilion, ink outlines, vellum texture. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -916,7 +916,7 @@
     "label": "Byzantine icon",
     "video_prompt": "a Byzantine gold icon, flat frontal figures with large eyes, a glittering gold background, dark outlines, deep red and blue robes",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a Byzantine gold icon, flat frontal figures with large eyes, a glittering gold background, dark outlines, deep red and blue robes. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Byzantine gold icon, flat frontal figures with large eyes, a glittering gold background, dark outlines, deep red and blue robes. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -924,7 +924,7 @@
     "label": "Ancient Egyptian",
     "video_prompt": "an ancient Egyptian wall painting, figures in strict profile, flat ochre, turquoise and black, hieroglyph bands, cracked plaster",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into an ancient Egyptian wall painting, figures in strict profile, flat ochre, turquoise and black, hieroglyph bands, cracked plaster. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an ancient Egyptian wall painting, figures in strict profile, flat ochre, turquoise and black, hieroglyph bands, cracked plaster. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -932,7 +932,7 @@
     "label": "Celtic art",
     "video_prompt": "Celtic insular art, interlaced knotwork borders, spirals, stylised animals, deep green, red and gold, vellum texture",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into Celtic insular art, interlaced knotwork borders, spirals, stylised animals, deep green, red and gold, vellum texture. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into Celtic insular art, interlaced knotwork borders, spirals, stylised animals, deep green, red and gold, vellum texture. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -940,7 +940,7 @@
     "label": "Arabesque",
     "video_prompt": "Islamic arabesque ornament, intricate geometric star patterns and flowing vine scrolls, turquoise, cobalt and gold, glazed tile and carved plaster",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into Islamic arabesque ornament, intricate geometric star patterns and flowing vine scrolls, turquoise, cobalt and gold, glazed tile and carved plaster. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into Islamic arabesque ornament, intricate geometric star patterns and flowing vine scrolls, turquoise, cobalt and gold, glazed tile and carved plaster. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -948,7 +948,7 @@
     "label": "Alebrije",
     "video_prompt": "a Mexican alebrije folk sculpture, carved wooden fantasy creatures painted in neon pink, orange, turquoise and yellow, dense dots and zigzag patterns",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "A version of this scene as a Mexican alebrije folk sculpture, carved wooden fantasy creatures painted in neon pink, orange, turquoise and yellow, dense dots and zigzag patterns: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as a Mexican alebrije folk sculpture, carved wooden fantasy creatures painted in neon pink, orange, turquoise and yellow, dense dots and zigzag patterns: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -956,7 +956,7 @@
     "label": "Magical realism",
     "video_prompt": "a realistic photograph with one quiet impossible element, natural light, warm muted film colours, an everyday setting, dreamy soft glow",
     "negative": "photorealistic, photo, 3d render",
-    "restyle_prompt": "Convert this image into a dreamy realistic photograph: natural light with a soft magical glow, warm muted film colours. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a dreamy realistic photograph: natural light with a soft magical glow, warm muted film colours. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -964,7 +964,7 @@
     "label": "Risograph",
     "video_prompt": "a risograph print, two or three translucent spot inks (fluorescent pink, teal, yellow), misregistered colour layers, grainy uneven ink, overprint purples, matte paper",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "Convert this image into a risograph print, two or three translucent spot inks (fluorescent pink, teal, yellow), misregistered colour layers, grainy uneven ink, overprint purples, matte paper. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a risograph print, two or three translucent spot inks (fluorescent pink, teal, yellow), misregistered colour layers, grainy uneven ink, overprint purples, matte paper. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -972,7 +972,7 @@
     "label": "Clear-line comic",
     "video_prompt": "a clear-line European comic, uniform clean black outlines, flat bright colours, no hatching, simple shadows, detailed realistic backgrounds",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "Convert this image into a clear-line European comic, uniform clean black outlines, flat bright colours, no hatching, simple shadows, detailed realistic backgrounds. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a clear-line European comic, uniform clean black outlines, flat bright colours, no hatching, simple shadows, detailed realistic backgrounds. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -980,7 +980,7 @@
     "label": "Wet-plate tintype",
     "video_prompt": "a wet-plate collodion tintype, silvery monochrome, swirling pour marks, streaky dark plate edges, shallow focus, dust specks",
     "negative": "cartoon, illustration, painting, drawing, 3d render",
-    "restyle_prompt": "Convert this image into a wet-plate collodion tintype, silvery monochrome, swirling pour marks, streaky dark plate edges, shallow focus, dust specks. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a wet-plate collodion tintype, silvery monochrome, swirling pour marks, streaky dark plate edges, shallow focus, dust specks. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Photo looks"
   },
@@ -988,7 +988,7 @@
     "label": "Autochrome",
     "video_prompt": "an early autochrome colour photo, soft dotty starch-grain texture, muted pastel greens and reds, dreamy low contrast",
     "negative": "cartoon, illustration, painting, drawing, 3d render",
-    "restyle_prompt": "Convert this image into an early autochrome colour photo, soft dotty starch-grain texture, muted pastel greens and reds, dreamy low contrast. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an early autochrome colour photo, soft dotty starch-grain texture, muted pastel greens and reds, dreamy low contrast. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Photo looks"
   },
@@ -996,7 +996,7 @@
     "label": "Silent film",
     "video_prompt": "a 1920s silent film frame, sepia-tinted monochrome, flicker and scratches, iris vignette, heavy grain, theatrical makeup",
     "negative": "cartoon, illustration, painting, drawing, 3d render",
-    "restyle_prompt": "Convert this image into a 1920s silent film frame, sepia-tinted monochrome, flicker and scratches, iris vignette, heavy grain, theatrical makeup. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a 1920s silent film frame, sepia-tinted monochrome, flicker and scratches, iris vignette, heavy grain, theatrical makeup. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -1004,7 +1004,7 @@
     "label": "Super 8 home movie",
     "video_prompt": "a Super 8 home-movie frame, warm saturated colour, large grain, light leaks, soft focus, rounded frame edges",
     "negative": "cartoon, illustration, painting, drawing, 3d render",
-    "restyle_prompt": "Convert this image into a Super 8 home-movie frame, warm saturated colour, large grain, light leaks, soft focus, rounded frame edges. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Super 8 home-movie frame, warm saturated colour, large grain, light leaks, soft focus, rounded frame edges. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -1012,7 +1012,7 @@
     "label": "Bleach bypass",
     "video_prompt": "a bleach-bypass film look, desaturated silvery colour, crushed contrast, gritty grain, steely shadows",
     "negative": "cartoon, illustration, painting, drawing, 3d render",
-    "restyle_prompt": "Convert this image into a bleach-bypass film look, desaturated silvery colour, crushed contrast, gritty grain, steely shadows. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a bleach-bypass film look, desaturated silvery colour, crushed contrast, gritty grain, steely shadows. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Film looks"
   },
@@ -1020,7 +1020,7 @@
     "label": "Double exposure",
     "video_prompt": "a double-exposure photo, each silhouette filled with a second image of a forest, soft blended overlap, pale background",
     "negative": "cartoon, illustration, painting, drawing, 3d render",
-    "restyle_prompt": "Convert this image into a double-exposure photo: a faint second image of a forest blended into the figures and the background. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a double-exposure photo: a faint second image of a forest blended into the figures and the background. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Photo looks"
   },
@@ -1028,7 +1028,7 @@
     "label": "Miniature tilt-shift",
     "video_prompt": "a tilt-shift miniature photo, a narrow band of sharp focus, heavy blur top and bottom, boosted saturation, toy-model look",
     "negative": "cartoon, illustration, painting, drawing, 3d render",
-    "restyle_prompt": "Convert this image into a tilt-shift miniature photo, a narrow band of sharp focus, heavy blur top and bottom, boosted saturation, toy-model look. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a tilt-shift miniature photo, a narrow band of sharp focus, heavy blur top and bottom, boosted saturation, toy-model look. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Photo looks"
   },
@@ -1036,7 +1036,7 @@
     "label": "Night vision",
     "video_prompt": "a night-vision scope image, monochrome phosphor green, bright glowing eyes and lights, heavy noise, circular vignette",
     "negative": "cartoon, illustration, painting, drawing, 3d render",
-    "restyle_prompt": "Convert this image into a night-vision scope image, monochrome phosphor green, bright glowing eyes and lights, heavy noise, circular vignette. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a night-vision scope image, monochrome phosphor green, bright glowing eyes and lights, heavy noise, circular vignette. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Photo looks"
   },
@@ -1044,7 +1044,7 @@
     "label": "X-ray",
     "video_prompt": "an X-ray radiograph, translucent glowing blue-white bones and structures on black, inverted density, ghostly soft edges",
     "negative": "cartoon, illustration, painting, drawing, 3d render",
-    "restyle_prompt": "Convert this image into an X-ray radiograph, translucent glowing blue-white bones and structures on black, inverted density, ghostly soft edges. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an X-ray radiograph, translucent glowing blue-white bones and structures on black, inverted density, ghostly soft edges. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Photo looks"
   },
@@ -1052,7 +1052,7 @@
     "label": "Anaglyph 3D",
     "video_prompt": "a red-cyan anaglyph 3D image, offset red and cyan colour fringes on every edge, double outlines",
     "negative": "cartoon, illustration, painting, drawing, 3d render",
-    "restyle_prompt": "Convert this image into a red-cyan anaglyph 3D image, offset red and cyan colour fringes on every edge, double outlines. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a red-cyan anaglyph 3D image, offset red and cyan colour fringes on every edge, double outlines. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Photo looks"
   },
@@ -1060,7 +1060,7 @@
     "label": "4-colour handheld",
     "video_prompt": "a handheld game console screen, only 4 shades of olive green, chunky square pixels, about 160 by 144 resolution, dithering",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "A version of this scene as a handheld game console screen, only 4 shades of olive green, chunky square pixels, about 160 by 144 resolution, dithering: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as a handheld game console screen, only 4 shades of olive green, chunky square pixels, about 160 by 144 resolution, dithering: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -1068,7 +1068,7 @@
     "label": "ASCII art",
     "video_prompt": "ASCII art, the image made of typed text characters in a monospace grid, white on black, character density as shading",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "A version of this scene as ASCII art, the image made of typed text characters in a monospace grid, white on black, character density as shading: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as ASCII art, the image made of typed text characters in a monospace grid, white on black, character density as shading: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -1076,7 +1076,7 @@
     "label": "Cel-shaded 3D",
     "video_prompt": "a cel-shaded 3D render, hard two-tone toon shading, thick black ink outlines on 3D forms, flat bright colours",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "Convert this image into a cel-shaded 3D render, hard two-tone toon shading, thick black ink outlines on 3D forms, flat bright colours. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a cel-shaded 3D render, hard two-tone toon shading, thick black ink outlines on 3D forms, flat bright colours. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Digital & retro"
   },
@@ -1084,7 +1084,7 @@
     "label": "1930s rubber-hose cartoon",
     "video_prompt": "a 1930s black-and-white cartoon, bendy rubber-hose limbs, pie-cut eyes, white gloves, film grain and flicker",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "Convert this image into a 1930s black-and-white cartoon, bendy rubber-hose limbs, pie-cut eyes, white gloves, film grain and flicker. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a 1930s black-and-white cartoon, bendy rubber-hose limbs, pie-cut eyes, white gloves, film grain and flicker. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Basics"
   },
@@ -1092,7 +1092,7 @@
     "label": "Rotoscope",
     "video_prompt": "rotoscoped animation, live-action motion traced as flat colour shapes, wobbly hand-traced outlines, posterised shading",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "Convert this image into rotoscoped animation, live-action motion traced as flat colour shapes, wobbly hand-traced outlines, posterised shading. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into rotoscoped animation, live-action motion traced as flat colour shapes, wobbly hand-traced outlines, posterised shading. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Basics"
   },
@@ -1100,7 +1100,7 @@
     "label": "Blueprint",
     "video_prompt": "an architectural blueprint, white technical lines on deep blue paper, dimension marks, a grid, drafting precision",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "Convert this image into an architectural blueprint, white technical lines on deep blue paper, dimension marks, a grid, drafting precision. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into an architectural blueprint, white technical lines on deep blue paper, dimension marks, a grid, drafting precision. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -1108,7 +1108,7 @@
     "label": "Scratchboard",
     "video_prompt": "a scratchboard illustration, fine white lines scratched out of solid black, engraved texture, dramatic contrast",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "Convert this image into a scratchboard illustration, fine white lines scratched out of solid black, engraved texture, dramatic contrast. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a scratchboard illustration, fine white lines scratched out of solid black, engraved texture, dramatic contrast. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Painting & drawing"
   },
@@ -1116,7 +1116,7 @@
     "label": "Needle felt",
     "video_prompt": "needle-felted wool figures, fuzzy matted fibres, soft rounded forms, muted colours, a miniature craft photo",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "A version of this scene as needle-felted wool figures, fuzzy matted fibres, soft rounded forms, muted colours, a miniature craft photo: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as needle-felted wool figures, fuzzy matted fibres, soft rounded forms, muted colours, a miniature craft photo: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -1124,7 +1124,7 @@
     "label": "Pyrography",
     "video_prompt": "wood-burned pyrography on pale plywood, brown scorched lines and shading, wood grain showing",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "Convert this image into wood-burned pyrography on pale plywood, brown scorched lines and shading, wood grain showing. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into wood-burned pyrography on pale plywood, brown scorched lines and shading, wood grain showing. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -1132,7 +1132,7 @@
     "label": "Wood marquetry",
     "video_prompt": "wood marquetry inlay, the image pieced from veneers of different woods, visible grain and seams, varnished glow",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "A version of this scene as wood marquetry inlay, the image pieced from veneers of different woods, visible grain and seams, varnished glow: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as wood marquetry inlay, the image pieced from veneers of different woods, visible grain and seams, varnished glow: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -1140,7 +1140,7 @@
     "label": "Paper marbling",
     "video_prompt": "marbled paper, swirling combed ink veins in floating colour, feathered patterns, glossy paper",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "Convert this image into marbled paper, swirling combed ink veins in floating colour, feathered patterns, glossy paper. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into marbled paper, swirling combed ink veins in floating colour, feathered patterns, glossy paper. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -1148,7 +1148,7 @@
     "label": "Medieval tapestry",
     "video_prompt": "a woven medieval tapestry, flat stylised figures, visible woven threads, muted madder red, woad blue and ochre, millefleur background",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "A version of this scene as a woven medieval tapestry, flat stylised figures, visible woven threads, muted madder red, woad blue and ochre, millefleur background: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes.",
+    "restyle_prompt": "A version of this scene as a woven medieval tapestry, flat stylised figures, visible woven threads, muted madder red, woad blue and ochre, millefleur background: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -1156,7 +1156,7 @@
     "label": "Persian miniature",
     "video_prompt": "a Persian miniature painting, flat jewel colours, tilted bird's-eye perspective, ornate patterned borders, gold accents, delicate fine lines",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "Convert this image into a Persian miniature painting, flat jewel colours, tilted bird's-eye perspective, ornate patterned borders, gold accents, delicate fine lines. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Persian miniature painting, flat jewel colours, tilted bird's-eye perspective, ornate patterned borders, gold accents, delicate fine lines. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -1164,7 +1164,7 @@
     "label": "Gongbi",
     "video_prompt": "a Chinese gongbi painting, meticulous fine outlines, delicate layered mineral colours on silk, aged silk tone",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "Convert this image into a Chinese gongbi painting, meticulous fine outlines, delicate layered mineral colours on silk, aged silk tone. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a Chinese gongbi painting, meticulous fine outlines, delicate layered mineral colours on silk, aged silk tone. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -1172,7 +1172,7 @@
     "label": "Shadow puppet",
     "video_prompt": "shadow-puppet theatre, flat cut-out silhouettes with perforated lace patterns, warm backlit screen glow, jointed limbs",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "Convert this image into shadow-puppet theatre, flat cut-out silhouettes with perforated lace patterns, warm backlit screen glow, jointed limbs. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into shadow-puppet theatre, flat cut-out silhouettes with perforated lace patterns, warm backlit screen glow, jointed limbs. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Fantasy & cultural"
   },
@@ -1180,7 +1180,7 @@
     "label": "Sand art",
     "video_prompt": "sand-art animation, the image drawn in sand on a backlit glass table, grainy amber light through the sand, soft smeared edges",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "Convert this image into sand-art animation, the image drawn in sand on a backlit glass table, grainy amber light through the sand, soft smeared edges. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into sand-art animation, the image drawn in sand on a backlit glass table, grainy amber light through the sand, soft smeared edges. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   },
@@ -1188,7 +1188,7 @@
     "label": "Outsider art",
     "video_prompt": "outsider art, raw naive drawing, crude flat figures, dense obsessive patterns, crayon and marker on cardboard",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "Convert this image into outsider art, raw naive drawing, crude flat figures, dense obsessive patterns, crayon and marker on cardboard. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into outsider art, raw naive drawing, crude flat figures, dense obsessive patterns, crayon and marker on cardboard. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Art movements"
   },
@@ -1196,7 +1196,7 @@
     "label": "Screen-print poster",
     "video_prompt": "a hand-pulled screen-print poster, three flat opaque inks, solid shapes, slight ink-edge gain, textured paper",
     "negative": "photorealistic, photo",
-    "restyle_prompt": "Convert this image into a hand-pulled screen-print poster, three flat opaque inks, solid shapes, slight ink-edge gain, textured paper. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit.",
+    "restyle_prompt": "Convert this image into a hand-pulled screen-print poster, three flat opaque inks, solid shapes, slight ink-edge gain, textured paper. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Print & craft"
   }
