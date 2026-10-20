@@ -16,6 +16,7 @@ the same Wi-Fi can't use the laptop. For access away from home use Tailscale
 
 import argparse
 import asyncio
+import copy
 import hmac
 import io
 import json
@@ -37,6 +38,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 import animate  # noqa: E402
+import soundtrack  # noqa: E402
 
 STATIC = os.path.join(HERE, "static")
 CONFIG = os.path.join(HERE, "config.json")
@@ -87,7 +89,7 @@ class Jobs:
 
     def public(self, job):
         with self.lock:
-            data = {k: v for k, v in job.items() if k != "cancel"}
+            data = copy.deepcopy({k: v for k, v in job.items() if k != "cancel"})
         data["queue_position"] = self.position(job["id"])
         return data
 
@@ -251,14 +253,14 @@ class KeyframeMaker:
 class IdleStop:
     """Stops the rented GPU after a while with no work and no user action, so a forgotten pod stops billing.
 
-    Work = a queued/running video job or a running image task. A user action = any API call that
+    Work = a queued/running video job, a running image task, or audio being generated or dubbed. A user action = any API call that
     changes something (POST/DELETE), including "Keep running" in the app. Open tabs only poll with
     GET, so they don't keep the pod alive by themselves.
     """
 
-    def __init__(self, minutes, jobs, maker):
+    def __init__(self, minutes, jobs, maker, sound):
         self.seconds = minutes * 60
-        self.jobs, self.maker = jobs, maker
+        self.jobs, self.maker, self.sound = jobs, maker, sound
         self.last = time.time()
         self.pod_id, self.api_key = os.environ.get("RUNPOD_POD_ID"), os.environ.get("RUNPOD_API_KEY")
         self.command = os.environ.get("IDLE_STOP_COMMAND")  # other hosts, e.g. "vastai stop instance 123"
@@ -273,7 +275,7 @@ class IdleStop:
         with self.jobs.lock:
             if any(j["status"] in ("queued", "running") for j in self.jobs.jobs.values()):
                 return True
-        return any(t["status"] == "running" for t in list(self.maker.tasks.values()))
+        return any(t["status"] == "running" for t in list(self.maker.tasks.values())) or self.sound.busy()
 
     def seconds_left(self):
         if not self.enabled:
@@ -364,7 +366,7 @@ def clean_settings(raw, n_keyframes, styles):
 
 # ---------------------------------------------------------------- web app
 
-def make_app(jobs, token, maker, idle):
+def make_app(jobs, token, maker, idle, sound):
     @web.middleware
     async def auth(request, handler):
         if request.path.startswith("/api/"):
@@ -418,6 +420,7 @@ def make_app(jobs, token, maker, idle):
                          "ready": not h3_missing, "missing": h3_missing}],
             "queued": sum(1 for j in jobs.jobs.values() if j["status"] == "queued"),
             "running": any(j["status"] == "running" for j in jobs.jobs.values()),
+            "elevenlabs": sound.info(),
             "idle_stop": None if left is None else {"minutes": idle.seconds // 60, "seconds_left": round(left)},
         })
 
@@ -488,14 +491,59 @@ def make_app(jobs, token, maker, idle):
         return web.json_response({"ok": True})
 
     async def video(request):
+        """The render; ?version=mix for it with its soundtrack, ?version=<language> for a dubbed mix."""
         job = get_job(request)
-        path = os.path.join(jobs.dir(job["id"]), "result.mp4")
+        version = request.query.get("version", "original")
+        if version != "original" and version != "mix" and version not in soundtrack.LANGUAGES:
+            raise web.HTTPNotFound()
+        path = sound.video_path(job, version)
         if not os.path.exists(path):
             raise web.HTTPNotFound()
         headers = {}
         if request.query.get("download"):
-            headers["Content-Disposition"] = f'attachment; filename="animation-{job["id"]}.mp4"'
+            suffix = "" if version == "original" else "-sound" if version == "mix" else f"-{version}"
+            headers["Content-Disposition"] = f'attachment; filename="animation-{job["id"]}{suffix}.mp4"'
         return web.FileResponse(path, headers=headers)
+
+    # ---- soundtrack (ElevenLabs, opt-in)
+
+    async def sound_call(fn, *args):
+        try:
+            return web.json_response(await asyncio.to_thread(fn, *args))
+        except (ValueError, TypeError, KeyError) as e:
+            return web.json_response({"error": str(e).strip("'")}, status=400)
+        except RuntimeError as e:  # ElevenLabs or ffmpeg
+            return web.json_response({"error": str(e)}, status=502)
+
+    async def voices(request):
+        if not sound.enabled:
+            return web.json_response({"error": "ElevenLabs is off: set ELEVENLABS_API_KEY on the GPU machine"}, status=400)
+        return await sound_call(sound.voices)
+
+    async def add_track(request):
+        return await sound_call(sound.add, get_job(request), await request.json())
+
+    async def update_track(request):
+        job = get_job(request)
+        return await sound_call(lambda raw: sound.update(job, request.match_info["track"], raw) or {"ok": True},
+                                await request.json())
+
+    async def delete_track(request):
+        job = get_job(request)
+        return await sound_call(lambda: sound.remove(job, request.match_info["track"]) or {"ok": True})
+
+    async def add_dub(request):
+        return await sound_call(sound.dub, get_job(request), (await request.json()).get("language"))
+
+    async def delete_dub(request):
+        job = get_job(request)
+        return await sound_call(lambda: sound.remove_dub(job, request.match_info["lang"]) or {"ok": True})
+
+    async def audio_file(request):
+        path = sound.file(get_job(request), request.match_info["name"])
+        if not path:
+            raise web.HTTPNotFound()
+        return web.FileResponse(path)
 
     async def image(request):
         job = get_job(request)
@@ -570,6 +618,13 @@ def make_app(jobs, token, maker, idle):
         web.post("/api/jobs/{id}/cancel", cancel_job),
         web.delete("/api/jobs/{id}", delete_job),
         web.get("/api/jobs/{id}/video", video),
+        web.get("/api/voices", voices),
+        web.post("/api/jobs/{id}/audio", add_track),
+        web.patch("/api/jobs/{id}/audio/{track}", update_track),
+        web.delete("/api/jobs/{id}/audio/{track}", delete_track),
+        web.get("/api/jobs/{id}/audio/{name}", audio_file),
+        web.post("/api/jobs/{id}/dubs", add_dub),
+        web.delete("/api/jobs/{id}/dubs/{lang}", delete_dub),
         web.get("/api/jobs/{id}/image/{kind}/{name}", image),
         web.post("/api/keyframes/generate", keyframe_generate),
         web.get("/api/keyframes/tasks/{id}", keyframe_task),
@@ -594,11 +649,15 @@ def _fetch_json(url):
 
 # ---------------------------------------------------------------- startup
 
+def load_config():
+    if not os.path.exists(CONFIG):
+        return {}
+    with open(CONFIG, encoding="utf-8") as f:
+        return json.load(f)
+
+
 def load_token(regenerate):
-    cfg = {}
-    if os.path.exists(CONFIG):
-        with open(CONFIG, encoding="utf-8") as f:
-            cfg = json.load(f)
+    cfg = load_config()
     if regenerate or not cfg.get("token"):
         cfg["token"] = secrets.token_urlsafe(18)
         with open(CONFIG, "w", encoding="utf-8") as f:
@@ -671,7 +730,8 @@ def main():
     token = load_token(args.new_token)
     jobs = Jobs(args.comfy)
     maker = KeyframeMaker(args.comfy)
-    idle = IdleStop(args.idle_stop, jobs, maker)
+    sound = soundtrack.Soundtrack(jobs, os.environ.get("ELEVENLABS_API_KEY") or load_config().get("elevenlabs_api_key"))
+    idle = IdleStop(args.idle_stop, jobs, maker, sound)
     print_links(args.port, token, args.public_url or default_public_url(args.port))
     if idle.enabled:
         print(f"Auto-stop: the pod stops after {args.idle_stop} min with no work and no user action "
@@ -679,7 +739,9 @@ def main():
     elif os.environ.get("RUNPOD_POD_ID") and args.idle_stop:
         print("Auto-stop is OFF: RUNPOD_API_KEY is not set in this pod, so it can't stop itself. "
               "Remember to stop the pod when you're done.\n")
-    web.run_app(make_app(jobs, token, maker, idle), host=args.host, port=args.port, print=None)
+    print("ElevenLabs sound (paid per use): " + ("on.\n" if sound.enabled else
+          "off. Set ELEVENLABS_API_KEY to turn it on.\n"))
+    web.run_app(make_app(jobs, token, maker, idle, sound), host=args.host, port=args.port, print=None)
 
 
 if __name__ == "__main__":

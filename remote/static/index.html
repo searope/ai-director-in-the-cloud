@@ -268,6 +268,63 @@
   </div>
 </div>
 
+<div id="soundSheet" class="overlay hidden" role="dialog" aria-modal="true">
+  <div class="sheet sound-sheet">
+    <div class="sheet-head">
+      <h3>Sound</h3>
+      <div id="sndLicense" class="license warn"></div>
+      <button type="button" class="lb-close" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="sound-body">
+      <div class="sound-preview">
+        <div id="sndVideo" class="snd-video"></div>
+        <div id="sndVersions" class="chips"></div>
+        <div id="sndDownload"></div>
+      </div>
+      <div class="sound-edit">
+        <div id="sndOff" class="notice hidden">
+          <b>ElevenLabs is off.</b> On the GPU machine, start the app with <code>ELEVENLABS_API_KEY=…</code> set
+          (or add <code>"elevenlabs_api_key"</code> to <code>remote/config.json</code>). Each generation uses your paid ElevenLabs credits.
+        </div>
+        <span class="lbl">Layers</span>
+        <div id="sndTracks" class="snd-tracks"></div>
+
+        <span class="lbl">Add a layer</span>
+        <div id="sndKinds" class="seg seg4">
+          <button type="button" data-kind="voice" class="on">Voice-over</button>
+          <button type="button" data-kind="dialogue">Dialogue</button>
+          <button type="button" data-kind="sfx">Effect</button>
+          <button type="button" data-kind="music">Music</button>
+        </div>
+        <div class="snd-form" data-form="voice">
+          <select id="sndVoice" class="voice-select"></select>
+          <textarea id="sndVoiceText" placeholder="Narration, e.g. The keeper had not seen another ship in forty years."></textarea>
+        </div>
+        <div class="snd-form hidden" data-form="dialogue">
+          <div id="sndLines"></div>
+          <button type="button" id="sndAddLine" class="btn small ghost">+ Line</button>
+        </div>
+        <div class="snd-form hidden" data-form="sfx">
+          <textarea id="sndSfxText" placeholder="Describe the sound, e.g. waves crashing on rocks, gulls, strong wind"></textarea>
+          <div class="field-row"><label>Length (s) <input id="sndSfxLen" type="number" min="0.5" max="30" step="0.5" placeholder="auto"></label>
+            <label class="toggle"><input id="sndSfxLoop" type="checkbox"><span>Seamless loop</span></label></div>
+        </div>
+        <div class="snd-form hidden" data-form="music">
+          <textarea id="sndMusicText" placeholder="Mood, genre, instruments, e.g. slow melancholic piano with soft strings"></textarea>
+          <div class="field-row"><label>Length (s) <input id="sndMusicLen" type="number" min="3" max="300" step="1"></label>
+            <label class="toggle"><input id="sndMusicInst" type="checkbox" checked><span>Instrumental</span></label></div>
+        </div>
+        <div class="field-row"><label>Starts at (s) <input id="sndStart" type="number" min="0" step="0.1" value="0"></label><div></div></div>
+        <button type="button" id="sndGo" class="btn primary wide">Generate layer</button>
+
+        <span class="lbl">Dub into another language <span class="hint">translates the voice-over and dialogue layers</span></span>
+        <div class="dub-row"><select id="sndLang"></select><button type="button" id="sndDub" class="btn">Dub</button></div>
+        <div id="sndDubs" class="snd-tracks"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast hidden"></div>
 <script src="/static/studio.js"></script>
 </body>

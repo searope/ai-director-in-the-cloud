@@ -27,7 +27,12 @@ async function api(path, opts = {}) {
 const withToken = (url) => url + (url.includes("?") ? "&" : "?") + "t=" + encodeURIComponent(token);
 const imgUrl = (id) => withToken(`/api/keyframes/image/${id}`);
 const jobImg = (j, kind, name) => withToken(`/api/jobs/${j.id}/image/${kind}/${name}`);
-const jobVideo = (j) => withToken(`/api/jobs/${j.id}/video`);
+// A video's current version: with its soundtrack once it has one (?v= busts the cache after a remix).
+const jobVideo = (j, version, download) => {
+  const mixed = j.audio?.mixed;
+  version = version || (mixed ? "mix" : "original");
+  return withToken(`/api/jobs/${j.id}/video?version=${version}` + (mixed ? `&v=${Math.round(mixed)}` : "") + (download ? "&download=1" : ""));
+};
 
 function toast(msg) {
   const t = $("toast"); t.textContent = msg; t.classList.remove("hidden");
@@ -280,7 +285,7 @@ document.addEventListener("click", (e) => {
   } else openVideo(tile.dataset.job);
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { closeOverlay("lightbox"); closeOverlay("picker"); }
+  if (e.key === "Escape") { closeOverlay("lightbox"); closeOverlay("picker"); closeOverlay("soundSheet"); }
   if (e.key === "Enter" && e.target.matches?.(".tile")) e.target.click();
 });
 
@@ -341,15 +346,161 @@ function openVideo(id) {
     <div class="prompt">${s.prompts.map((p, i) => `${i + 1} → ${i + 2}: ${esc(p)}`).join("\n")}</div>
     <dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
     <div class="acts">
-      <a class="btn" href="${withToken(`/api/jobs/${j.id}/video?download=1`)}">Download</a>
+      <button type="button" class="btn" data-lb="sound">Sound</button>
+      <a class="btn" href="${jobVideo(j, null, true)}">Download</a>
       <button type="button" class="btn danger" data-lb="delete">Delete</button>
     </div>`;
   $("lbInfo").onclick = async (e) => {
-    if (e.target.closest("[data-lb]")?.dataset.lb !== "delete") return;
-    if (await deleteJob(id)) closeOverlay("lightbox");
+    const a = e.target.closest("[data-lb]")?.dataset.lb;
+    if (a === "sound") openSound(id);
+    else if (a === "delete" && await deleteJob(id)) closeOverlay("lightbox");
   };
   $("lightbox").classList.remove("hidden");
 }
+
+// ---------------------------------------------------------------- sound (ElevenLabs layers, opt-in)
+const SND = { job: null, kind: "voice", version: "original", lines: [], sig: "", video: "" };
+const SND_KINDS = { voice: "Voice-over", dialogue: "Dialogue", sfx: "Effect", music: "Music" };
+const sndJob = () => S.jobs.find((x) => x.id === SND.job);
+const sndAudio = (j) => j.audio || { tracks: [], dubs: {}, video_volume: 1, mixed: null };
+
+async function loadVoices() {
+  if (S.voices || !S.info?.elevenlabs?.enabled) return;
+  try { S.voices = await api("/api/voices"); } catch (e) { toast(e.message); }
+}
+const voiceOptions = (sel) => (S.voices || []).map((v) =>
+  `<option value="${esc(v.id)}"${v.id === sel ? " selected" : ""}>${esc(v.name)}${v.labels ? ` · ${esc(v.labels)}` : ""}</option>`).join("")
+  || `<option value="">No voices loaded</option>`;
+
+async function openSound(id) {
+  const j = S.jobs.find((x) => x.id === id); if (!j) return;
+  const el = S.info.elevenlabs;
+  SND.job = id; SND.sig = ""; SND.video = ""; SND.version = sndAudio(j).mixed ? "mix" : "original";
+  $("sndLicense").textContent = "ElevenLabs: " + el.license;
+  $("sndOff").classList.toggle("hidden", el.enabled);
+  $("sndGo").disabled = $("sndDub").disabled = !el.enabled;
+  $("sndLang").innerHTML = Object.entries(el.languages).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  $("sndLang").value = store.get("dub_lang", "es");
+  closeOverlay("lightbox");
+  $("soundSheet").classList.remove("hidden");
+  renderSound();
+  await loadVoices();
+  $("sndVoice").innerHTML = voiceOptions(store.get("voice"));
+  if (!SND.lines.length) SND.lines = [{ voice_id: store.get("voice"), text: "" }, { voice_id: "", text: "" }];
+  renderLines();
+}
+
+function renderLines() {
+  $("sndLines").innerHTML = SND.lines.map((l, i) => `<div class="line-row" data-line="${i}">
+    <select data-f="voice_id" aria-label="Voice for line ${i + 1}">${voiceOptions(l.voice_id)}</select>
+    <textarea data-f="text" placeholder="Line ${i + 1}">${esc(l.text)}</textarea>
+    <button type="button" class="btn small ghost" data-del-line aria-label="Remove line">✕</button></div>`).join("");
+}
+function readLines() {
+  SND.lines = [...$("sndLines").querySelectorAll(".line-row")].map((r) =>
+    ({ voice_id: r.querySelector("select").value, text: r.querySelector("textarea").value }));
+}
+$("sndAddLine").onclick = () => { readLines(); SND.lines.push({ voice_id: SND.lines.at(-2)?.voice_id || "", text: "" }); renderLines(); };
+$("sndLines").onclick = (e) => {
+  const row = e.target.closest("[data-del-line]")?.parentElement; if (!row) return;
+  readLines(); SND.lines.splice(+row.dataset.line, 1); renderLines();
+};
+$("sndKinds").onclick = (e) => {
+  const b = e.target.closest("[data-kind]"); if (!b) return;
+  SND.kind = b.dataset.kind;
+  $("sndKinds").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".snd-form").forEach((f) => f.classList.toggle("hidden", f.dataset.form !== SND.kind));
+};
+
+function trackRow(j, t) {
+  const state = t.status === "generating" ? `<span class="status running">generating</span>` :
+                t.status === "failed" ? `<span class="status failed">failed</span>` :
+                `<span class="status done">${t.length ? t.length.toFixed(1) + " s" : "ready"}</span>`;
+  return `<div class="snd-track" data-track="${t.id}">
+    <div class="head"><b>${SND_KINDS[t.kind]}</b><span class="txt" title="${esc(t.label)}">${esc(t.label)}</span>${state}</div>
+    ${t.error ? `<div class="error">${esc(t.error)}</div>` : ""}
+    ${t.status === "done" ? `<audio controls preload="none" src="${withToken(`/api/jobs/${j.id}/audio/${t.file}`)}"></audio>` : ""}
+    <div class="ctl"><label>Start (s)<input type="number" data-f="start" min="0" step="0.1" value="${t.start}"></label>
+      <label>Volume ${Math.round(t.volume * 100)}%<input type="range" data-f="volume" min="0" max="2" step="0.05" value="${t.volume}"></label>
+      <button type="button" class="btn small danger" data-del>Remove</button></div>
+  </div>`;
+}
+
+function renderSound() {
+  const j = sndJob(); if (!j) { closeOverlay("soundSheet"); return; }
+  const a = sndAudio(j), langs = S.info.elevenlabs.languages;
+  const dubs = Object.entries(a.dubs);
+  if (SND.version !== "original" && SND.version !== "mix" && a.dubs[SND.version]?.status !== "done") SND.version = a.mixed ? "mix" : "original";
+  if (SND.version === "mix" && !a.mixed) SND.version = "original";
+  const src = jobVideo(j, SND.version);
+  if (src !== SND.video) {  // only reload the player when the file changed
+    SND.video = src;
+    $("sndVideo").innerHTML = `<video controls playsinline loop src="${src}"></video>`;
+  }
+  const sig = JSON.stringify([a, SND.version]);
+  if (sig === SND.sig || document.activeElement?.closest?.("#sndTracks")) return;  // don't clobber a field being edited
+  SND.sig = sig;
+  const versions = [["original", "Original"], ...(a.mixed ? [["mix", "With sound"]] : []),
+                    ...dubs.filter(([, d]) => d.status === "done").map(([k]) => [k, langs[k] || k])];
+  $("sndVersions").innerHTML = versions.map(([k, label]) =>
+    `<button type="button" class="chip${k === SND.version ? " on" : ""}" data-version="${k}">${esc(label)}</button>`).join("");
+  $("sndDownload").innerHTML = `<a class="btn small" href="${jobVideo(j, SND.version, true)}">Download this version</a>`;
+  const hasOwnSound = j.settings.engine === "minimax-h3";
+  $("sndTracks").innerHTML = (hasOwnSound ? `<div class="snd-track" data-track="video">
+      <div class="head"><b>Render</b><span class="txt">the video's own generated sound</span></div>
+      <div class="ctl"><span></span><label>Volume ${Math.round(a.video_volume * 100)}%<input type="range" data-f="volume" min="0" max="2" step="0.05" value="${a.video_volume}"></label><span></span></div>
+    </div>` : "") + (a.tracks.map((t) => trackRow(j, t)).join("") || `<div class="snd-empty">No layers yet. Add a voice-over, dialogue, sound effect or music below.</div>`);
+  $("sndDubs").innerHTML = dubs.map(([k, d]) => `<div class="snd-track" data-dub="${k}">
+      <div class="head"><b>${esc(langs[k] || k)}</b><span class="txt">${d.status === "working" ? esc(d.progress || "working") : d.stale ? "out of date: the speech layers changed since, dub again" : ""}</span>
+        <span class="status ${d.status === "working" ? "running" : d.status}">${d.status === "working" ? "dubbing" : d.status}</span></div>
+      ${d.error ? `<div class="error">${esc(d.error)}</div>` : ""}
+      <div class="row"><button type="button" class="btn small danger" data-del-dub>Remove</button></div>
+    </div>`).join("");
+}
+
+$("sndVersions").onclick = (e) => {
+  const b = e.target.closest("[data-version]"); if (!b) return;
+  SND.version = b.dataset.version; SND.sig = ""; renderSound();
+};
+async function soundChanged() { await refreshJobs(); SND.sig = ""; renderSound(); }
+$("sndTracks").onchange = async (e) => {
+  const f = e.target.dataset.f, id = e.target.closest("[data-track]")?.dataset.track; if (!f || !id) return;
+  try {
+    await api(`/api/jobs/${SND.job}/audio/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [f]: +e.target.value }) });
+    e.target.blur(); await soundChanged();
+  } catch (err) { toast(err.message); }
+};
+$("sndTracks").onclick = async (e) => {
+  const id = e.target.closest("[data-del]") && e.target.closest("[data-track]").dataset.track; if (!id) return;
+  try { await api(`/api/jobs/${SND.job}/audio/${id}`, { method: "DELETE" }); await soundChanged(); } catch (err) { toast(err.message); }
+};
+$("sndDubs").onclick = async (e) => {
+  const lang = e.target.closest("[data-del-dub]") && e.target.closest("[data-dub]").dataset.dub; if (!lang) return;
+  try { await api(`/api/jobs/${SND.job}/dubs/${lang}`, { method: "DELETE" }); await soundChanged(); } catch (err) { toast(err.message); }
+};
+
+$("sndGo").onclick = async () => {
+  const k = SND.kind, body = { kind: k, start: +$("sndStart").value || 0 };
+  if (k === "voice") { body.voice_id = $("sndVoice").value; body.text = $("sndVoiceText").value; store.set("voice", body.voice_id); }
+  if (k === "dialogue") { readLines(); body.lines = SND.lines; }
+  if (k === "sfx") { body.text = $("sndSfxText").value; body.duration = $("sndSfxLen").value || null; body.loop = $("sndSfxLoop").checked; }
+  if (k === "music") { body.prompt = $("sndMusicText").value; body.seconds = $("sndMusicLen").value || null; body.instrumental = $("sndMusicInst").checked; }
+  const btn = $("sndGo"); btn.disabled = true;
+  try {
+    await api(`/api/jobs/${SND.job}/audio`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    toast(`${SND_KINDS[k]} is generating (uses ElevenLabs credits).`);
+    await soundChanged();
+  } catch (e) { toast(e.message); } finally { btn.disabled = false; }
+};
+$("sndDub").onclick = async () => {
+  const lang = $("sndLang").value; store.set("dub_lang", lang);
+  if (!confirm(`Dub the voice-over and dialogue into ${S.info.elevenlabs.languages[lang]}? Dubbing uses ElevenLabs credits per minute of audio.`)) return;
+  try {
+    await api(`/api/jobs/${SND.job}/dubs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ language: lang }) });
+    await soundChanged();
+  } catch (e) { toast(e.message); }
+};
 
 // ---------------------------------------------------------------- picker (library images)
 const picker = { mode: "tray", sel: [] };
@@ -519,7 +670,8 @@ function jobCard(j) {
     ${j.error ? `<div class="error">${esc(j.error)}</div>` : ""}
     ${j.status === "done" ? `<video controls playsinline loop preload="metadata" src="${jobVideo(j)}"></video>` : `<div class="mini">${imgs}</div>`}
     <div class="row">
-      ${j.status === "done" ? `<a class="btn small" href="${withToken(`/api/jobs/${j.id}/video?download=1`)}">Download</a>` : ""}
+      ${j.status === "done" ? `<button type="button" class="btn small" data-job-act="sound">Sound</button>
+        <a class="btn small" href="${jobVideo(j, null, true)}">Download</a>` : ""}
       ${active ? `<button type="button" class="btn small" data-job-act="cancel">Cancel</button>` : ""}
       ${j.status !== "running" ? `<button type="button" class="btn small danger" data-job-act="delete">Delete</button>` : ""}
     </div></div>`;
@@ -558,6 +710,7 @@ $("jobList").onclick = async (e) => {
   const act = e.target.closest("[data-job-act]")?.dataset.jobAct; if (!act) return;
   const id = e.target.closest(".job").dataset.id;
   if (act === "delete") return deleteJob(id);
+  if (act === "sound") return openSound(id);
   try { await api(`/api/jobs/${id}/cancel`, { method: "POST" }); await refreshJobs(); renderJobs(); }
   catch (err) { toast(err.message); }
 };
@@ -626,6 +779,7 @@ function renderAll() {
   if (S.page === "image") { renderImagePage(); renderSource(); }
   if (S.page === "video") renderVideoPage();
   if (S.page === "library") renderLibrary();
+  if (!$("soundSheet").classList.contains("hidden")) renderSound();
 }
 
 // ---------------------------------------------------------------- start

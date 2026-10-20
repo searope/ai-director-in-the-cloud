@@ -15,6 +15,14 @@
   MiniMax H3 Max, Runway, Vidu…), fal.ai, Replicate, OpenArt credits and similar.
 - Metered LLM API keys that bill per token, when the subscription can do the job.
 
+**Approved exception (owner, Oct 2026): ElevenLabs sound.** The app's Sound editor (voice-over,
+dialogue, sound effects, music, dubbing; `remote/soundtrack.py`) calls the ElevenLabs API, which
+bills the owner's ElevenLabs credits per use. It must stay opt-in: off unless `ELEVENLABS_API_KEY`
+is set, labelled as paid in the app and docs, and never required by any other feature. Commercial
+use needs a paid ElevenLabs plan; **the owner has one** (free-plan dubs are watermarked; unverified
+secondary sources say free-plan output is non-commercial and needs attribution). Check ElevenLabs'
+terms before using generated music commercially.
+
 **Consequences for the code:**
 
 - Every engine must run on the rented GPU from downloadable weights (e.g. Wan 2.2, LTX-2.5,

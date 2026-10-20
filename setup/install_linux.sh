@@ -36,7 +36,7 @@ step "Installing PyTorch (CUDA 13.0 build)"
 step "Installing ComfyUI requirements"
 "$PY" -m pip install -r "$COMFY/requirements.txt"
 "$PY" -m pip install -r "$COMFY/manager_requirements.txt"
-"$PY" -m pip install qrcode  # QR code for the phone remote
+"$PY" -m pip install qrcode imageio-ffmpeg  # QR code for the phone remote; ffmpeg for mixing sound
 
 if [ "$WITH_GGUF" = 1 ]; then
   step "Installing ComfyUI-GGUF"
