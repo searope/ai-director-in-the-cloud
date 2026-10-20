@@ -690,6 +690,25 @@ def load_default_styles():
         return {k: v for k, v in json.load(f).items() if not k.startswith("_")}
 
 
+HIDDEN_STYLES_FILE = os.path.join(ROOT, "output", "styles_hidden.json")  # styles the user removed from the lists
+
+
+def load_hidden_styles():
+    try:
+        with open(HIDDEN_STYLES_FILE, encoding="utf-8") as f:
+            return set(json.load(f))
+    except (OSError, ValueError):
+        return set()
+
+
+def set_style_hidden(style_id, hidden):
+    ids = load_hidden_styles()
+    ids = ids | {style_id} if hidden else ids - {style_id}
+    os.makedirs(os.path.dirname(HIDDEN_STYLES_FILE), exist_ok=True)
+    with open(HIDDEN_STYLES_FILE, "w", encoding="utf-8") as f:
+        json.dump(sorted(ids), f, indent=1)
+
+
 def load_user_styles():
     try:
         with open(USER_STYLES_FILE, encoding="utf-8") as f:
@@ -715,6 +734,8 @@ def load_styles():
             styles[k] = {**styles[k], **{f: v for f, v in fields.items() if f in EDITABLE_STYLE_FIELDS}, "edited": True}
     for k, v in load_custom_styles().items():
         styles.setdefault(k, v)
+    for k in load_hidden_styles() & set(styles):  # removed from the lists, still usable by renders made in them
+        styles[k] = dict(styles[k], hidden=True)
     return styles
 
 

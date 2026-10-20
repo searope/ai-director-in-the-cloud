@@ -798,7 +798,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
             "styles": [{"id": k, "label": v.get("label", k), "restyle": bool(v.get("restyle_prompt")), "group": v.get("group", "Other"),
                         "look": v.get("video_prompt", ""),  # searched on the Styles page, editable
                         "restyle_prompt": v.get("restyle_prompt", ""), "negative": v.get("negative", ""),
-                        "edited": bool(v.get("edited")), "custom": bool(v.get("custom")),
+                        "edited": bool(v.get("edited")), "custom": bool(v.get("custom")), "hidden": bool(v.get("hidden")),
                         # the AI review of the shipped examples, while it is about the current prompt
                         "review": (lambda r: {f: r.get(f) for f in ("coverage", "strength", "unstyled", "replaced", "summary")}
                                    if r and r.get("prompt") == v.get("restyle_prompt") else None)(reviews.get(k)),
@@ -1078,6 +1078,12 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         animate.save_user_style(style_id, {**current, **fields})
         return web.json_response({"ok": True, "edited": style_id in animate.load_user_styles()})
 
+    async def hide_style(request):
+        """Remove a style from the lists (Styles page, Create video), or bring it back. Renders made in it keep working."""
+        style_id = style_or_404(request)
+        animate.set_style_hidden(style_id, bool((await request.json()).get("hidden", True)))
+        return web.json_response({"ok": True})
+
     async def reset_style(request):
         """Back to the prompts in styles.json, and the shipped example pictures; deletes one of the user's own."""
         style_id = style_or_404(request)
@@ -1300,6 +1306,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         web.post("/api/styles", create_style),
         web.put("/api/styles/{id}", edit_style),
         web.delete("/api/styles/{id}", reset_style),
+        web.post("/api/styles/{id}/hidden", hide_style),
         web.post("/api/styles/{id}/examples", redraw_style_examples),
         web.get("/api/styles/{id}/example/{n}", style_example),
         web.get("/api/keyframes/tasks/{id}", keyframe_task),
