@@ -599,3 +599,15 @@ body.no-scroll { overflow: hidden; }
 #motion:has(.gap:nth-child(3)) .gap .pair img { height: 90px; }
 
 #vidGoAll { margin-top: 6px; }
+
+/* keyframe viewer: a fixed size (originals and redrawn keyframes differ in resolution), current thumbnail marked */
+.lb.kf-view { height: calc(var(--vh) - 40px); width: min(1400px, 100%); grid-template-columns: 1fr 380px; }
+.lb.kf-view .lb-media { height: 100%; min-height: 0; }
+.lb.kf-view .lb-media img { width: 100%; height: 100%; max-height: none; object-fit: contain; }
+.lb-info .kf-thumb img { height: 130px; }
+.kf-thumb.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+@media (max-width: 760px) {
+  .lb.kf-view { height: auto; grid-template-columns: 1fr; }
+  .lb.kf-view .lb-media { height: 60vh; }
+  .lb-info .kf-thumb img { height: 96px; }
+}

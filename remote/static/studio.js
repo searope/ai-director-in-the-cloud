@@ -325,7 +325,7 @@ new MutationObserver(() => document.body.classList.toggle("no-scroll", !!documen
 function closeOverlay(id) {
   const o = $(id); if (o.classList.contains("hidden")) return;
   o.classList.add("hidden"); o.querySelectorAll("video").forEach((v) => v.pause());
-  if (id === "lightbox") $("lbMedia").innerHTML = "";
+  if (id === "lightbox") { $("lbMedia").innerHTML = ""; document.querySelector("#lightbox .lb").classList.remove("kf-view"); }
 }
 document.querySelectorAll(".overlay").forEach((o) => o.addEventListener("click", (e) => {
   if (e.target === o || e.target.closest("[data-close]")) closeOverlay(o.id);
@@ -423,6 +423,8 @@ function openKeyframe(jobId, ref, back) {
     if (kf) return openKeyframe(jobId, kf.dataset.kf, back);
     if (e.target.closest('[data-lb="video"]')) openVideo(jobId);
   };
+  $("lbInfo").querySelector(`[data-kf="${CSS.escape(ref)}"]`)?.classList.add("current");  // the one shown
+  document.querySelector("#lightbox .lb").classList.add("kf-view");  // one size for every keyframe
   $("lightbox").classList.remove("hidden");
 }
 
