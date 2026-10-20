@@ -914,6 +914,8 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
                                        f"keyframe_anim/{run_id}/styled{attempt}", report, should_cancel)
             if not check:
                 break
+            if should_cancel():
+                raise Cancelled()
             report(f"checking the redrawn keyframes (try {attempt + 1}/{tries})")
             try:
                 result = check(keys, styled)
@@ -957,6 +959,8 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
         images = sorted(outputs["save"]["images"], key=lambda im: im["filename"])
         # Many downloads at once: through a remote GPU's proxy each frame takes ~1.5 s on its own
         # (161 frames: ~4 min one by one, ~9 s sixteen at a time).
+        if should_cancel():
+            raise Cancelled()
         report(f"{label}: downloading {len(images)} frames")
         with ThreadPoolExecutor(16) as pool:
             frames = list(pool.map(lambda im: Image.open(io.BytesIO(comfy.fetch(im))).convert("RGB"), images))
