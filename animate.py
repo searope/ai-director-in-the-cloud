@@ -35,6 +35,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 STYLES_FILE = os.path.join(ROOT, "styles.json")
@@ -671,7 +672,11 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
             graph = build_segment_graph(cfg, style, uploaded[a], uploaded[b], full_prompt, seed + i, width, height, prefix)
         outputs = comfy.wait(comfy.queue(graph), label, report, should_cancel)
         images = sorted(outputs["save"]["images"], key=lambda im: im["filename"])
-        frames = [Image.open(io.BytesIO(comfy.fetch(im))).convert("RGB") for im in images]
+        # Many downloads at once: through a remote GPU's proxy each frame takes ~1.5 s on its own
+        # (161 frames: ~4 min one by one, ~9 s sixteen at a time).
+        report(f"{label}: downloading {len(images)} frames")
+        with ThreadPoolExecutor(16) as pool:
+            frames = list(pool.map(lambda im: Image.open(io.BytesIO(comfy.fetch(im))).convert("RGB"), images))
         all_frames.extend(frames if i == 0 else frames[1:])  # segment i starts on segment i-1's last frame
         if h3 and cfg["audio"]:
             samples, audio_rate = decode_audio(comfy.fetch(outputs["save_audio"]["audio"][0]))
