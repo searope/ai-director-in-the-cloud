@@ -1191,12 +1191,22 @@ function busyButton(btn, text) {
 // After queueing a render: bring the list to it and flash it, so it's clear where it went.
 function showNewJob(id) {
   S.flashJob = { id, until: Date.now() + 3000 };  // kept in the state: the card is redrawn when its status changes
+  (S.seenJobs ||= new Set()).add(id);
   renderJobs();
-  requestAnimationFrame(() => document.querySelector(`#jobList .job[data-id="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  setTimeout(() => {  // one jump after the redraw (a smooth scroll is cancelled when the card is redrawn mid-way)
+    const el = document.querySelector(`#jobList .job[data-id="${id}"]`); if (!el || !el.offsetParent) return;
+    window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + scrollY - 80) });
+  }, 50);
   setTimeout(() => renderJobs(), 3100);
 }
 function renderJobs() {
   const list = $("jobList");
+  // A render that wasn't in the list before (queued here, from the Director or another device): bring it into view.
+  if (S.seenJobs) {
+    const fresh = S.jobs.find((j) => !S.seenJobs.has(j.id));
+    if (fresh && S.flashJob?.id !== fresh.id) { S.jobs.forEach((j) => S.seenJobs.add(j.id)); return showNewJob(fresh.id); }
+  }
+  S.seenJobs = new Set([...(S.seenJobs || []), ...S.jobs.map((j) => j.id)]);
   if (!S.jobs.length) { setHtml(list, emptyState("No renders yet. Add keyframes on the left, describe the motion, and render.")); return; }
   if (list.querySelector(".empty")) { list.innerHTML = ""; list.dataset.sig = ""; }
   // Only touch cards that changed, and never move unchanged ones: detaching a <video> stops playback.
