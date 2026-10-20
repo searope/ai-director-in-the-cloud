@@ -341,16 +341,24 @@ def _flux3_sample(g, positive, negative, latent, seed, prefix):
     return g
 
 
-def build_restyle_graph(cfg, image_name, instruction, seed, prefix, reference_name=None, megapixels=1.0):
+def build_restyle_graph(cfg, image_name, instruction, seed, prefix, reference_name=None, megapixels=1.0,
+                        references=(), size=None):
     """Image edit with the configured image model, as in ComfyUI's Klein 'Image Edit' templates.
 
     reference_name: an already-restyled keyframe passed as a second reference image so
-    every keyframe comes out in the same look. megapixels counts 1024x1024 pixels.
+    every keyframe comes out in the same look. references: more reference images after it
+    (e.g. character portraits). Without image_name, a new image of size (width, height) is made
+    from the references alone. megapixels counts 1024x1024 pixels.
     """
     m = image_model(cfg)
     g = _image_loaders(m, instruction)
     g["zero"] = {"class_type": "ConditioningZeroOut", "inputs": {"conditioning": ["text", 0]}}
-    refs = [("img", image_name)] + ([("ref", reference_name)] if reference_name else [])
+    refs = (([("img", image_name)] if image_name else []) + ([("ref", reference_name)] if reference_name else [])
+            + [(f"ref{i + 2}", name) for i, name in enumerate(references)])
+    if not image_name and not size:
+        raise ValueError("an image to edit or an output size is needed")
+    if size:
+        g["latent"] = {"class_type": "EmptyFlux2LatentImage", "inputs": {"width": size[0], "height": size[1], "batch_size": 1}}
 
     if m["family"] == "flux3":
         refs_in = {}
@@ -360,10 +368,9 @@ def build_restyle_graph(cfg, image_name, instruction, seed, prefix, reference_na
         g["refs"] = {"class_type": "ReferenceMultiLatent", "inputs": dict(
             refs_in, positive=["text", 0], negative=["zero", 0], vae=["vae", 0],
             resolution="resize", **{"resolution.megapixels": megapixels})}
-        return _flux3_sample(g, ["refs", 0], ["refs", 1], ["refs", 2], seed, prefix)
+        return _flux3_sample(g, ["refs", 0], ["refs", 1], ["latent", 0] if size else ["refs", 2], seed, prefix)
 
     pos, neg = ["text", 0], ["zero", 0]
-    refs = [("img", image_name)] + ([("ref", reference_name)] if reference_name else [])
     for key, name in refs:
         g[f"{key}_load"] = {"class_type": "LoadImage", "inputs": {"image": name}}
         g[f"{key}_scale"] = {"class_type": "ImageScaleToTotalPixels", "inputs": {
@@ -373,10 +380,14 @@ def build_restyle_graph(cfg, image_name, instruction, seed, prefix, reference_na
         g[f"{key}_neg"] = {"class_type": "ReferenceLatent", "inputs": {"conditioning": neg, "latent": [f"{key}_enc", 0]}}
         pos, neg = [f"{key}_pos", 0], [f"{key}_neg", 0]
 
+    if size:
+        width, height = size
+    else:  # the output keeps the edited image's size
+        width, height = ["size", 0], ["size", 1]
+        g["size"] = {"class_type": "GetImageSize", "inputs": {"image": ["img_scale", 0]}}
+        g["latent"] = {"class_type": "EmptyFlux2LatentImage", "inputs": {"width": width, "height": height, "batch_size": 1}}
     g.update({
-        "size": {"class_type": "GetImageSize", "inputs": {"image": ["img_scale", 0]}},
-        "latent": {"class_type": "EmptyFlux2LatentImage", "inputs": {"width": ["size", 0], "height": ["size", 1], "batch_size": 1}},
-        "sigmas": {"class_type": "Flux2Scheduler", "inputs": {"steps": 4, "width": ["size", 0], "height": ["size", 1]}},
+        "sigmas": {"class_type": "Flux2Scheduler", "inputs": {"steps": 4, "width": width, "height": height}},
         "guider": {"class_type": "CFGGuider", "inputs": {"model": ["unet", 0], "positive": pos, "negative": neg, "cfg": 1.0}},
         "sampler": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler"}},
         "noise": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}},
@@ -421,12 +432,14 @@ EDIT_SUFFIX = (" Keep the same characters, art style, lighting, colors, backgrou
 
 
 def make_keyframe(server, prompt, out_path, seed=None, aspect="16:9", source=None,
-                  report=lambda text, final=False: None, model="klein4b"):
+                  report=lambda text, final=False: None, model="klein4b", references=()):
     """Create one keyframe image with an IMAGE_MODELS model and save it to out_path.
 
     Without source: text-to-image at the given aspect. With source (an image path):
     edit that image according to prompt, keeping its size, so a chain of edits
-    stays consistent. Returns the seed used.
+    stays consistent. references: more image paths passed to the model after the source
+    (e.g. character portraits, which the prompt then names as image 2, 3...; image 1, 2...
+    without a source). Returns the seed used.
     """
     from PIL import Image
 
@@ -436,12 +449,15 @@ def make_keyframe(server, prompt, out_path, seed=None, aspect="16:9", source=Non
     comfy = Comfy(server)
     comfy.ping()
     prefix = f"keyframe_maker/{uuid.uuid4().hex[:8]}"
+    refs = [comfy.upload_image(path, f"kfm_{uuid.uuid4().hex[:8]}.png") for path in references]
     if source:
         with Image.open(source) as im:
             megapixels = min(1.0, im.width * im.height / (1024 * 1024))
         name = comfy.upload_image(source, f"kfm_{uuid.uuid4().hex[:8]}.png")
         graph = build_restyle_graph(cfg, name, prompt.strip().rstrip(".") + "." + EDIT_SUFFIX, seed, prefix,
-                                    megapixels=megapixels)
+                                    megapixels=megapixels, references=refs)
+    elif refs:
+        graph = build_restyle_graph(cfg, None, prompt, seed, prefix, references=refs, size=KEYFRAME_SIZES[aspect])
     else:
         width, height = KEYFRAME_SIZES[aspect]
         graph = build_text_to_image_graph(cfg, prompt, seed, width, height, prefix)

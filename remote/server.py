@@ -45,7 +45,10 @@ STATIC = os.path.join(HERE, "static")
 CONFIG = os.path.join(HERE, "config.json")
 JOBS_DIR = os.path.join(ROOT, "output", "remote_jobs")
 KEYFRAMES_DIR = os.path.join(ROOT, "output", "keyframe_maker")
+CHARACTERS_DIR = os.path.join(ROOT, "output", "characters")
 MAX_KEYFRAMES = 12
+MAX_CHARACTER_REFS = 4  # reference images per character; the first one goes to the image model
+MAX_CAST = 3            # characters per keyframe: each adds a reference image to the model's input
 MAX_SIDE = 2048  # phone photos are downscaled to this before rendering
 
 SIZES = {"preview": 512 * 288, "standard": 832 * 480}
@@ -222,7 +225,8 @@ class KeyframeMaker:
             if os.path.exists(p):
                 os.remove(p)
 
-    def start(self, prompt, aspect, source_id=None, seed=None, model="klein4b"):
+    def start(self, prompt, aspect, source_id=None, seed=None, model="klein4b", cast=()):
+        """cast: characters (from Characters.get) whose first reference image goes to the model."""
         if aspect not in animate.KEYFRAME_SIZES:
             raise ValueError("bad aspect")
         if model not in animate.IMAGE_MODELS:
@@ -234,10 +238,20 @@ class KeyframeMaker:
         task = {"id": task_id, "status": "running", "progress": "waiting for the GPU", "started": time.time()}
         with self.lock:
             self.tasks[task_id] = task
-        threading.Thread(target=self._run, args=(task, prompt, aspect, source, seed, model), daemon=True).start()
+        threading.Thread(target=self._run, args=(task, prompt, aspect, source, seed, model, list(cast)), daemon=True).start()
         return task
 
-    def _run(self, task, prompt, aspect, source, seed, model):
+    @staticmethod
+    def cast_prompt(prompt, cast, first_image):
+        """Name each character's reference image, so the model knows who is who."""
+        if not cast:
+            return prompt
+        who = "; ".join(f"{c['name']} is the character in image {first_image + i}"
+                        + (f" ({c['description']})" if c["description"] else "") for i, c in enumerate(cast))
+        return (f"{prompt.strip().rstrip('.')}. {who}. Keep each character's face, hair, body and outfit "
+                "exactly as in their reference image.")
+
+    def _run(self, task, prompt, aspect, source, seed, model, cast):
         image_id = uuid.uuid4().hex[:16]
 
         def report(text, final=False):
@@ -245,10 +259,13 @@ class KeyframeMaker:
 
         try:
             server = self.gpu.ensure(report)
-            used = animate.make_keyframe(server, prompt, self.path(image_id), seed, aspect, source, report, model)
+            refs = [self.path(c["refs"][0]) for c in cast]
+            used = animate.make_keyframe(server, self.cast_prompt(prompt, cast, 2 if source else 1), self.path(image_id),
+                                         seed, aspect, source, report, model, refs)
             self.save_meta(image_id, kind="edit" if source else "text", prompt=prompt, model=model,
                            aspect=None if source else aspect, seed=used,
-                           source=os.path.basename(source)[:-4] if source else None)
+                           source=os.path.basename(source)[:-4] if source else None,
+                           characters=[{"id": c["id"], "name": c["name"]} for c in cast])
             task.update(status="done", image_id=image_id, seed=used)
         except Exception as e:
             task.update(status="failed", error=str(e)[-1500:])
@@ -258,6 +275,86 @@ class KeyframeMaker:
 
     def busy(self):
         return any(t["status"] == "running" for t in list(self.tasks.values()))
+
+
+class Characters:
+    """Named characters for consistent keyframes: output/characters/<id>.json with a name, a short
+    description and library image ids. The first image is the one passed to the image model."""
+
+    def __init__(self, maker):
+        self.maker = maker
+        self.lock = threading.Lock()
+        os.makedirs(CHARACTERS_DIR, exist_ok=True)
+
+    @staticmethod
+    def path(char_id):
+        if not char_id or len(char_id) != 12 or not all(c in "0123456789abcdef" for c in char_id):
+            raise ValueError("bad character id")
+        return os.path.join(CHARACTERS_DIR, char_id + ".json")
+
+    def _have(self, image_id):
+        try:
+            return os.path.exists(self.maker.path(image_id))
+        except ValueError:
+            return False
+
+    def get(self, char_id):
+        """The character, with images deleted from the library left out; None if there is none."""
+        try:
+            with open(self.path(char_id), encoding="utf-8") as f:
+                char = json.load(f)
+        except (OSError, ValueError):
+            return None
+        char["refs"] = [r for r in char.get("refs", []) if self._have(r)]
+        return char
+
+    def list(self):
+        items = [self.get(name[:-5]) for name in os.listdir(CHARACTERS_DIR) if name.endswith(".json")]
+        return sorted((c for c in items if c), key=lambda c: c["name"].lower())
+
+    def save(self, raw, char_id=None):
+        name = str(raw.get("name") or "").strip()[:60]
+        if not name:
+            raise ValueError("give the character a name")
+        refs = list(dict.fromkeys(str(r) for r in (raw.get("refs") or [])))
+        if not refs:
+            raise ValueError("add at least one reference image")
+        if len(refs) > MAX_CHARACTER_REFS:
+            raise ValueError(f"up to {MAX_CHARACTER_REFS} reference images per character")
+        if not all(self._have(r) for r in refs):
+            raise ValueError("a reference image is no longer in the library")
+        with self.lock:
+            old = self.get(char_id) if char_id else None
+            if char_id and not old:
+                raise KeyError("no such character")
+            char = {"id": char_id or uuid.uuid4().hex[:12], "name": name,
+                    "description": str(raw.get("description") or "").strip()[:400], "refs": refs,
+                    "created": old["created"] if old else time.time(), "updated": time.time()}
+            tmp = self.path(char["id"]) + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(char, f, indent=1)
+            os.replace(tmp, self.path(char["id"]))
+        return char
+
+    def delete(self, char_id):
+        path = self.path(char_id)
+        if os.path.exists(path):
+            os.remove(path)
+
+    def cast(self, ids):
+        """Characters for one keyframe, in the order chosen."""
+        ids = list(dict.fromkeys(str(i) for i in (ids or [])))
+        if len(ids) > MAX_CAST:
+            raise ValueError(f"up to {MAX_CAST} characters per image")
+        cast = []
+        for char_id in ids:
+            char = self.get(char_id)
+            if not char:
+                raise ValueError("a chosen character no longer exists")
+            if not char["refs"]:
+                raise ValueError(f"{char['name']} has no reference image left in the library")
+            cast.append(char)
+        return cast
 
 
 class IdleStop:
@@ -374,7 +471,7 @@ def clean_settings(raw, n_keyframes, styles):
 
 # ---------------------------------------------------------------- web app
 
-def make_app(jobs, token, maker, idle, sound, gpu):
+def make_app(jobs, token, maker, idle, sound, gpu, characters):
     @web.middleware
     async def auth(request, handler):
         if request.path.startswith("/api/"):
@@ -591,7 +688,8 @@ def make_app(jobs, token, maker, idle, sound, gpu):
         seed = data.get("seed")
         try:
             task = maker.start(prompt, data.get("aspect", "16:9"), data.get("source") or None,
-                               int(seed) if str(seed or "").isdigit() else None, data.get("model") or "klein4b")
+                               int(seed) if str(seed or "").isdigit() else None, data.get("model") or "klein4b",
+                               characters.cast(data.get("characters")))
         except ValueError as e:
             return web.json_response({"error": str(e)}, status=400)
         return web.json_response(task)
@@ -622,6 +720,27 @@ def make_app(jobs, token, maker, idle, sound, gpu):
     async def delete_image(request):
         try:
             maker.delete(request.match_info["id"])
+        except ValueError:
+            raise web.HTTPNotFound()
+        return web.json_response({"ok": True})
+
+    # ---- characters
+
+    async def list_characters(request):
+        return web.json_response(await asyncio.to_thread(characters.list))
+
+    async def save_character(request):
+        try:
+            char = await asyncio.to_thread(characters.save, await request.json(), request.match_info.get("id"))
+        except (ValueError, TypeError, AttributeError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+        except KeyError:
+            raise web.HTTPNotFound()
+        return web.json_response(char)
+
+    async def delete_character(request):
+        try:
+            characters.delete(request.match_info["id"])
         except ValueError:
             raise web.HTTPNotFound()
         return web.json_response({"ok": True})
@@ -663,6 +782,10 @@ def make_app(jobs, token, maker, idle, sound, gpu):
         web.get("/api/keyframes/image/{id}", keyframe_image),
         web.get("/api/images", list_images),
         web.delete("/api/images/{id}", delete_image),
+        web.get("/api/characters", list_characters),
+        web.post("/api/characters", save_character),
+        web.put("/api/characters/{id}", save_character),
+        web.delete("/api/characters/{id}", delete_character),
         web.static("/static", STATIC),
     ])
     return app
@@ -790,7 +913,8 @@ def main():
               "Remember to stop the pod when you're done.\n")
     print("ElevenLabs sound (paid per use): " + ("on.\n" if sound.enabled else
           "off. Set ELEVENLABS_API_KEY to turn it on.\n"))
-    web.run_app(make_app(jobs, token, maker, idle, sound, gpu), host=args.host, port=args.port, print=None)
+    web.run_app(make_app(jobs, token, maker, idle, sound, gpu, Characters(maker)),
+                host=args.host, port=args.port, print=None)
 
 
 if __name__ == "__main__":
