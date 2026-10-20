@@ -439,8 +439,13 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
 .scene-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .scene-pick .lbl { margin: 0; }
 .scroll-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; } .scroll-chips .chip { flex: none; }
-.style-tool { position: sticky; top: 150px; z-index: 3; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; margin-bottom: 10px;
-              background: var(--panel); border: 1px solid var(--line2); border-radius: 12px; font-size: 13.5px; }
+/* the selection bar floats at the bottom (over the page, so selecting never moves the grid) */
+.style-tool { position: fixed; z-index: 8; top: auto; bottom: 18px; left: calc(var(--side) + 24px); right: 24px; max-width: 900px; margin: 0 auto;
+              display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px;
+              background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; font-size: 13.5px;
+              box-shadow: 0 10px 30px #000a; animation: toolin .18s ease-out; }
+@keyframes toolin { from { transform: translateY(12px); opacity: 0; } }
+.page[data-page="styles"] { padding-bottom: 90px; }  /* room to scroll the last row above the bar */
 .style-tool img { width: 40px; height: 40px; object-fit: cover; border-radius: 7px; }
 .style-tool span { flex: 1; min-width: 120px; color: var(--muted); }
 .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
@@ -459,7 +464,6 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
   .style-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
   .style-card .sc-label { padding: 5px 6px; font-size: 11.5px; }
   .styles-bar { top: calc(50px + env(safe-area-inset-top)); }
-  .style-tool { top: calc(140px + env(safe-area-inset-top)); }
 }
 
 /* ---------- Director storyboard board (also printed) */
@@ -631,3 +635,8 @@ body.no-scroll { overflow: hidden; }
 .lb-pair img { width: 100%; height: 100%; object-fit: contain; }
 .lb-pair figcaption { position: absolute; top: 8px; left: 8px; background: #000a; color: #fff; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
 @media (max-width: 760px) { .lb-pair { height: 60vh; } }
+
+@media (max-width: 760px) {
+  .style-tool { left: 10px; right: 10px; bottom: calc(66px + env(safe-area-inset-bottom)); }
+  .page[data-page="styles"] { padding-bottom: 150px; }
+}
