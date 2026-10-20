@@ -326,6 +326,9 @@ def ltx_length(wan_length):
 
 
 LTX_FPS = 25
+# LTX-2.3's frame size at "standard": about 0.73 MP (736x992 for a 3:4 keyframe). Side-by-side tests (Oct 2026):
+# sharper than ~0.4 MP at a similar render time on an RTX 5090. "preview" keeps its smaller size.
+LTX_STANDARD_AREA = 736 * 992
 LTX_SIGMAS = "1., 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0"  # 8 steps, distilled model
 
 
@@ -901,7 +904,8 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
     keys = cfg["keyframes"]
     width, height = cfg["width"], cfg["height"]
     if width == "auto" or height == "auto":
-        width, height = auto_size(keys[0], cfg["area"], 32 if sound else 16)
+        area = max(cfg["area"], LTX_STANDARD_AREA) if ltx and cfg["area"] >= 832 * 480 else cfg["area"]
+        width, height = auto_size(keys[0], area, 32 if sound else 16)
     elif sound:
         width, height = width // 32 * 32, height // 32 * 32
     seed = cfg["seed"] if cfg["seed"] is not None else random.randint(0, 2**32 - 1)
