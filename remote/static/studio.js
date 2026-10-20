@@ -697,10 +697,13 @@ function renderMotion() {
   if (!n) { box.innerHTML = `<p class="hint" style="margin:0">Add at least two keyframes.</p>`; return; }
   box.innerHTML = Array.from({ length: n }, (_, i) => {
     const a = S.tray[i], b = S.tray[(i + 1) % S.tray.length];
-    return `<div class="gap"><div class="pair"><img alt="" src="${imgUrl(a)}">${i + 1} → ${(i + 1) % S.tray.length + 1}<img alt="" src="${imgUrl(b)}"></div>
+    return `<div class="gap"><div class="pair"><img alt="Keyframe ${i + 1}" src="${imgUrl(a)}" data-open-img="${a}"><span>${i + 1} → ${(i + 1) % S.tray.length + 1}</span><img alt="Keyframe ${(i + 1) % S.tray.length + 1}" src="${imgUrl(b)}" data-open-img="${b}"></div>
       <textarea data-gap="${i}" placeholder="${i ? "Same as above" : "What moves, and the camera, e.g. she turns and smiles, slow push-in"}">${esc(S.motion[i] || "")}</textarea></div>`;
   }).join("");
 }
+$("motion").onclick = async (e) => {  // a keyframe full size
+  const img = e.target.closest("[data-open-img]"); if (img) { await refreshImages(); openImage(img.dataset.openImg); }
+};
 $("motion").oninput = (e) => {
   const t = e.target.closest("[data-gap]"); if (!t) return;
   S.motion[+t.dataset.gap] = t.value; store.set("motion", S.motion);
