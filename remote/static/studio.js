@@ -358,18 +358,19 @@ function openImage(id) {
   $("lightbox").classList.remove("hidden");
 }
 
+const modeLabel = (s) => !s.fast ? "Quality" : s.engine === "minimax-h3" ? (s.turbo_steps === 4 ? "Fast, 4 steps" : "Balanced, 8 steps") : "Fast";
 function jobSummary(j) {
   const s = j.settings;
   if (j.kind === "film") return { style: "", engine: "", text: `Film · ${j.title} · ${s.prompts.length} shots` };
   const style = s.custom_style || (S.info?.styles.find((x) => x.id === s.style) || {}).label || s.style;
   const engine = (S.info?.engines.find((e) => e.id === s.engine) || {}).label || s.engine;
-  return { style, engine, text: `${engine} · ${style} · ${j.inputs.length} keyframes${s.loop ? " · loop" : ""} · ${s.fast ? "fast" : "quality"}` };
+  return { style, engine, text: `${engine} · ${style} · ${j.inputs.length} keyframes${s.loop ? " · loop" : ""} · ${modeLabel(s).toLowerCase()}` };
 }
 function openVideo(id) {
   const j = S.jobs.find((x) => x.id === id); if (!j) return;
   const s = j.settings, sum = jobSummary(j);
   $("lbMedia").innerHTML = `<video controls autoplay loop playsinline src="${jobVideo(j)}"></video>`;
-  const rows = [["Engine", sum.engine], ["Style", sum.style], ["Keyframes", j.inputs.length], ["Mode", s.fast ? "Fast" : "Quality"],
+  const rows = [["Engine", sum.engine], ["Style", sum.style], ["Keyframes", j.inputs.length], ["Mode", modeLabel(s)],
                 ["Seed", s.seed ?? "random"], ["Render time", j.started && j.finished ? fmtTime(j.finished - j.started) : ""], ["Created", ago(j.created)]]
     .filter(([, v]) => v !== "");
   $("lbInfo").innerHTML = `<h3>${j.kind === "film" ? esc(j.title) : "Video"}</h3>
@@ -667,13 +668,26 @@ function renderEngines() {
 }
 $("engine").onchange = () => {
   const e = S.info.engines.find((x) => x.id === $("engine").value);
-  $("engine").dataset.chosen = e.id;
   const h3 = e.id === "minimax-h3";
   $("soundBox").classList.toggle("hidden", !h3);
   $("smooth").checked = !h3;  // H3 already renders 24 fps
-  const el = $("engineLicense");
-  el.className = "license " + licenseClass(e.license);
-  el.textContent = (h3 ? "24 fps with generated sound. " : "16 fps, silent. ") + "License: " + e.license;
+  // H3 has two turbo LoRAs (4 and 8 steps); Wan's fast mode is its 4-step LoRA.
+  const keep = $("vmode").value;
+  $("vmode").innerHTML = (h3
+    ? [["fast4", "Fast (4 steps)" + (e.turbo4 ? "" : " (not installed)"), !e.turbo4], ["fast", "Balanced (8 steps)"], ["quality", "Quality (20 steps)"]]
+    : [["fast", "Fast (4 steps)"], ["quality", "Quality (20 steps)"]])
+    .map(([v, label, off]) => `<option value="${v}"${off ? " disabled" : ""}>${label}</option>`).join("");
+  $("vmode").value = [...$("vmode").options].some((o) => o.value === keep && !o.disabled) ? keep : "fast";
+  $("vmode").onchange();
+};
+// Remember only the user's own choice (renderEngines calls onchange itself when it picks a default).
+$("engine").addEventListener("change", () => { $("engine").dataset.chosen = $("engine").value; });
+$("vmode").onchange = () => {
+  const e = S.info.engines.find((x) => x.id === $("engine").value), h3 = e.id === "minimax-h3";
+  const el = $("engineLicense"), turbo = h3 && $("vmode").value !== "quality";
+  el.className = "license " + (turbo ? "warn" : licenseClass(e.license));
+  el.textContent = (h3 ? "24 fps with generated sound. " : "16 fps, silent. ") + "License: " + e.license
+    + (turbo ? `. ${e.turbo_license}; Quality mode doesn't use it.` : "");
 };
 
 async function renderVideoJob() {
@@ -686,7 +700,7 @@ async function renderVideoJob() {
     engine: $("engine").value, image_model: S.imageModel,
     audio: $("audio").checked, sound: $("sound").value,
     style: S.style === "__custom" ? "photoreal" : S.style, custom_style: custom,
-    restyle: $("restyle").checked, fast: $("vmode").value === "fast",
+    restyle: $("restyle").checked, fast: $("vmode").value !== "quality", turbo_steps: $("vmode").value === "fast4" ? 4 : 8,
     length: +$("length").value, size: $("size").value,
     loop: $("loop").checked, smooth: $("smooth").checked, seed: $("vseed").value,
   };

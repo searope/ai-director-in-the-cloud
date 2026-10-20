@@ -147,7 +147,8 @@ class RunpodGPU:
             "disk": c["disk_gb"],
             "ports": [f"{GATEWAY_PORT}/http"],
             "env": {"GATEWAY_TOKEN": c["gateway_token"], "GATEWAY_IDLE_MINUTES": str(c.get("pod_safety_minutes", 30)),
-                    **c.get("env", {})},
+                    # optional model profiles (setup/models.json) the pod downloads after the defaults
+                    "EXTRA_MODEL_PROFILES": " ".join(c.get("extra_models", [])), **c.get("env", {})},
             "cloud": c["cloud"],
             "dataCenterIds": [c["datacenter"]],
             "mounts": {"network": [{"volumeId": c["volume_id"], "path": "/workspace"}]},
