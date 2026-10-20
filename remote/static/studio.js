@@ -391,7 +391,9 @@ function openVideo(id) {
 // ---------------------------------------------------------------- sound (ElevenLabs layers, opt-in)
 const SND = { job: null, kind: "voice", version: "original", lines: [], sig: "", video: "" };
 const SND_KINDS = { voice: "Voice-over", dialogue: "Dialogue", sfx: "Effect", music: "Music" };
-const sndJob = () => S.jobs.find((x) => x.id === SND.job);
+// An older film may be outside the newest 50 jobs: the open Director project carries its job.
+const jobById = (id) => S.jobs.find((x) => x.id === id) || (D.project?.film?.job?.id === id ? D.project.film.job : null);
+const sndJob = () => jobById(SND.job);
 const sndAudio = (j) => j.audio || { tracks: [], dubs: {}, video_volume: 1, mixed: null };
 
 async function loadVoices() {
@@ -403,7 +405,7 @@ const voiceOptions = (sel) => (S.voices || []).map((v) =>
   || `<option value="">No voices loaded</option>`;
 
 async function openSound(id) {
-  const j = S.jobs.find((x) => x.id === id); if (!j) return;
+  const j = jobById(id); if (!j) return;
   const el = S.info.elevenlabs;
   SND.job = id; SND.sig = ""; SND.video = ""; SND.version = sndAudio(j).mixed ? "mix" : "original";
   $("sndLicense").textContent = "ElevenLabs: " + el.license;
@@ -991,7 +993,7 @@ function renderShots(p) {
   list.dataset.sig = "";
 }
 function renderFilm(p) {
-  const f = p.film || {}, job = f.job_id && S.jobs.find((j) => j.id === f.job_id);
+  const f = p.film || {}, job = f.job;  // sent with the project: the job list only holds the newest 50
   setHtml($("dirFilmBox"), f.status === "done" && job ? `<div class="film"><video controls playsinline preload="metadata" src="${jobVideo(job)}"></video>
       <div class="row"><b>Film</b><span class="hint" style="margin:0">${f.shots} shots · made ${ago(f.finished)}${job.audio?.mixed ? " · with sound" : ""}</span>
       <button type="button" class="btn small" data-film-sound="${job.id}">Sound</button>

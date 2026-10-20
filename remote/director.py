@@ -147,7 +147,7 @@ def find_claude(path=None):
 def _run(cmd, stdin, timeout, shell=False):
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     try:
-        return subprocess.run(cmd, input=stdin, capture_output=True, text=True, encoding="utf-8", timeout=timeout,
+        return subprocess.run(cmd, input=stdin, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
                               shell=shell, cwd=tempfile.gettempdir(), creationflags=flags)
     except subprocess.TimeoutExpired:
         raise WriterError(f"no answer after {timeout // 60} minutes") from None
@@ -329,7 +329,7 @@ class Director:
         self.writers, self.maker, self.characters = writers, maker, characters
         self.queue_job, self.jobs, self.add_film = queue_job, jobs, add_film
         self.lock = threading.RLock()
-        self.busy_ids = set()  # projects with an AI request, keyframes or a film in progress
+        self.running = {}  # project id -> number of AI requests, keyframe pairs and films in progress
         os.makedirs(self.dir, exist_ok=True)
         for name in os.listdir(self.dir):  # work interrupted by a restart
             if name.endswith(".json"):
@@ -392,9 +392,14 @@ class Director:
             job = self.jobs.jobs.get(shot.get("job_id") or "")
             shot["render"] = ({"status": job["status"], "progress": job.get("progress"), "error": job.get("error")}
                               if job else None)
+            shot["characters"] = [c for c in shot["characters"] if self.characters.get(c)]
         project["cast"] = [c for c in project["cast"] if self.characters.get(c)]
-        if project.get("film", {}).get("status") == "done" and not self.film_path(project):
-            project["film"] = {"status": "idle"}  # its video was deleted from the library
+        film = project.get("film", {})
+        if film.get("status") == "done":
+            if self.film_path(project):  # the job itself, for its player, Sound and Download
+                film["job"] = self.jobs.public(self.jobs.jobs[film["job_id"]])
+            else:
+                project["film"] = {"status": "idle"}  # its video was deleted from the library
         return project
 
     def list(self):
@@ -404,12 +409,27 @@ class Director:
                 p = self._load(name[:-5])
                 if p:
                     items.append({"id": p["id"], "title": p["title"], "updated": p["updated"], "shots": len(p["shots"]),
-                                  "logline": p.get("logline", ""), "cover": next((s.get("start_image") for s in p["shots"]
-                                                                                  if s.get("start_image")), None)})
+                                  "logline": p.get("logline", ""), "cover": next((s["start_image"] for s in p["shots"]
+                                                                                  if self.maker.exists(s.get("start_image"))), None)})
         return sorted(items, key=lambda p: p["updated"], reverse=True)
 
     def busy(self):
-        return bool(self.busy_ids)
+        return any(self.running.values())
+
+    def _task_started(self, project_id):
+        with self.lock:
+            self.running[project_id] = self.running.get(project_id, 0) + 1
+
+    def _task_done(self, project_id):
+        with self.lock:
+            self.running[project_id] = max(0, self.running.get(project_id, 0) - 1)
+
+    def _update_quietly(self, project_id, fn):
+        """update() from a background task: the project or shot may have been deleted meanwhile."""
+        try:
+            self.update(project_id, fn)
+        except KeyError:
+            pass
 
     # ---- editing
 
@@ -420,12 +440,6 @@ class Director:
         return {"idea": _clean_text(raw.get("idea"), 4000), "style": _clean_text(raw.get("style"), 300),
                 "seconds": max(4, min(300, int(seconds))) if str(seconds or "").isdigit() else 30, "aspect": aspect,
                 "notes": _clean_text(raw.get("notes"), 2000)}
-
-    def _have_image(self, image_id):
-        try:
-            return os.path.exists(self.maker.path(image_id))
-        except ValueError:
-            return False
 
     def _clean_cast(self, ids):
         return [i for i in dict.fromkeys(str(i) for i in (ids or [])) if self.characters.get(i)][:12]
@@ -445,7 +459,7 @@ class Director:
         shot.setdefault("characters", [])
         for key in ("start_image", "end_image"):  # a library image chosen as a keyframe (e.g. the user's own photo)
             if key in raw and raw[key] != shot.get(key):
-                if raw[key] and not self._have_image(raw[key]):
+                if raw[key] and not self.maker.exists(raw[key]):
                     raise ValueError("that image is no longer in the library")
                 shot[key] = raw[key] or None
                 shot.update(job_id=None, kf_status="done" if shot.get("start_image") and shot.get("end_image") else "idle", kf_error=None)
@@ -488,7 +502,7 @@ class Director:
         return self.update(project_id, change)
 
     def delete(self, project_id):
-        if project_id in self.busy_ids:
+        if self.running.get(project_id):
             raise ValueError("wait for the running step to finish")
         path = self.path(project_id)
         if os.path.exists(path):
@@ -545,12 +559,12 @@ class Director:
             raise ValueError(f"{writer.label} isn't set up on this computer")
         if task == "check" and not project["shots"]:
             raise ValueError("write the script first")
-        with self.lock:
-            if project.get("ai", {}).get("status") == "working":
+        def claim(p):  # under the lock, on the saved copy: two quick taps can't start two writers
+            if p.get("ai", {}).get("status") == "working":
                 raise ValueError("the AI model is already working on this film")
-            self.busy_ids.add(project_id)
-        self.update(project_id, lambda p: p.update(ai={"status": "working", "task": task, "writer": writer.id,
-                                                       "started": time.time(), "instruction": instruction}))
+            p["ai"] = {"status": "working", "task": task, "writer": writer.id, "started": time.time(), "instruction": instruction}
+        self.update(project_id, claim)
+        self._task_started(project_id)
         threading.Thread(target=self._write, args=(project_id, writer, instruction, task), daemon=True).start()
 
     def _write(self, project_id, writer, instruction, task="write"):
@@ -564,9 +578,9 @@ class Director:
                 self.update(project_id, lambda p: self._apply_script(p, script, writer))
         except Exception as e:  # report any failure in the app
             msg = str(e) if isinstance(e, WriterError) else f"{type(e).__name__}: {e}"
-            self.update(project_id, lambda p: p["ai"].update(status="failed", error=msg[-800:], finished=time.time()))
+            self._update_quietly(project_id, lambda p: p["ai"].update(status="failed", error=msg[-800:], finished=time.time()))
         finally:
-            self.busy_ids.discard(project_id)
+            self._task_done(project_id)
 
     def _apply_script(self, project, script, writer):
         if not isinstance(script, dict) or not isinstance(script.get("shots"), list) or not script["shots"]:
@@ -629,12 +643,12 @@ class Director:
         if not project:
             raise KeyError("no such project")
         shot = self._shot(project, shot_id)
-        keep_start = keep_start and self._have_image(shot.get("start_image") or "")
+        keep_start = keep_start and self.maker.exists(shot.get("start_image") or "")
         if not shot["end_change"] or not (keep_start or shot["start_frame"]):
             raise ValueError("write the start frame and the end change first")
         if shot.get("kf_status") == "working":
             raise ValueError("these keyframes are already being made")
-        cast = self.characters.cast(shot["characters"])
+        cast = self.characters.cast([c for c in shot["characters"] if self.characters.get(c)])  # skip deleted ones
 
         def mark(p):
             s = self._shot(p, shot_id)
@@ -642,7 +656,7 @@ class Director:
             if not keep_start:
                 s["start_image"] = None
         self.update(project_id, mark)
-        self.busy_ids.add(project_id)
+        self._task_started(project_id)
         threading.Thread(target=self._keyframes, args=(project_id, shot_id, project, shot, cast, keep_start), daemon=True).start()
 
     def _keyframes(self, project_id, shot_id, project, shot, cast, keep_start=False):
@@ -656,10 +670,9 @@ class Director:
             end = self._wait_task(self.maker.start(shot["end_change"], aspect, start, None, model, cast))
             self.update(project_id, lambda p: self._shot(p, shot_id).update(end_image=end, kf_status="done"))
         except Exception as e:
-            self.update(project_id, lambda p: self._shot(p, shot_id).update(kf_status="failed", kf_error=str(e)[-600:]))
+            self._update_quietly(project_id, lambda p: self._shot(p, shot_id).update(kf_status="failed", kf_error=str(e)[-600:]))
         finally:
-            if not any(s.get("kf_status") == "working" for s in (self._load(project_id) or {}).get("shots", [])):
-                self.busy_ids.discard(project_id)
+            self._task_done(project_id)
 
     def render(self, project_id, shot_id):
         project = self._load(project_id)
@@ -692,7 +705,7 @@ class Director:
             if not shot["render"] or shot["render"]["status"] != "done":
                 raise ValueError(f"shot {i + 1} isn't rendered yet")
             clips.append(os.path.join(self.jobs.dir(shot["job_id"]), "result.mp4"))
-            if self._have_image(shot.get("start_image") or ""):
+            if self.maker.exists(shot.get("start_image") or ""):
                 keyframes.append(self.maker.path(shot["start_image"]))
             if shot["narration"]:
                 narration.append({"start": round(start, 2), "text": shot["narration"], "shot": i + 1})
@@ -704,7 +717,7 @@ class Director:
         info = {"title": project["title"], "fast": project.get("fast", True), "narration": narration,
                 "prompts": [s["action"] or s["motion"] for s in project["shots"]]}
         self.update(project_id, lambda p: p.update(film={"status": "working", "started": time.time()}))
-        self.busy_ids.add(project_id)
+        self._task_started(project_id)
         threading.Thread(target=self._film, args=(project_id, clips, keyframes, info), daemon=True).start()
 
     @staticmethod
@@ -727,6 +740,6 @@ class Director:
             self.update(project_id, lambda p: p.update(film={"status": "done", "finished": time.time(),
                                                               "shots": len(clips), "job_id": job["id"]}))
         except Exception as e:
-            self.update(project_id, lambda p: p.update(film={"status": "failed", "error": str(e)[-600:]}))
+            self._update_quietly(project_id, lambda p: p.update(film={"status": "failed", "error": str(e)[-600:]}))
         finally:
-            self.busy_ids.discard(project_id)
+            self._task_done(project_id)

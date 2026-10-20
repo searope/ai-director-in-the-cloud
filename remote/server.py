@@ -193,6 +193,13 @@ class KeyframeMaker:
             raise ValueError("bad image id")
         return os.path.join(KEYFRAMES_DIR, image_id + ".png")
 
+    def exists(self, image_id):
+        """Is this library image still there? (False for a malformed id too.)"""
+        try:
+            return os.path.exists(self.path(image_id))
+        except ValueError:
+            return False
+
     def save_meta(self, image_id, **meta):
         """Sidecar JSON next to the PNG, so every device's library shows the prompt, model and seed."""
         meta = {"id": image_id, "created": time.time(), **meta}
@@ -294,12 +301,6 @@ class Characters:
             raise ValueError("bad character id")
         return os.path.join(CHARACTERS_DIR, char_id + ".json")
 
-    def _have(self, image_id):
-        try:
-            return os.path.exists(self.maker.path(image_id))
-        except ValueError:
-            return False
-
     def get(self, char_id):
         """The character, with images deleted from the library left out; None if there is none."""
         try:
@@ -307,7 +308,7 @@ class Characters:
                 char = json.load(f)
         except (OSError, ValueError):
             return None
-        char["refs"] = [r for r in char.get("refs", []) if self._have(r)]
+        char["refs"] = [r for r in char.get("refs", []) if self.maker.exists(r)]
         return char
 
     def list(self):
@@ -323,7 +324,7 @@ class Characters:
             raise ValueError("add at least one reference image")
         if len(refs) > MAX_CHARACTER_REFS:
             raise ValueError(f"up to {MAX_CHARACTER_REFS} reference images per character")
-        if not all(self._have(r) for r in refs):
+        if not all(self.maker.exists(r) for r in refs):
             raise ValueError("a reference image is no longer in the library")
         with self.lock:
             old = self.get(char_id) if char_id else None
