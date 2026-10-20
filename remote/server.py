@@ -155,6 +155,7 @@ class Jobs:
             "fast": s.get("fast", True),
             "turbo_steps": s.get("turbo_steps", 8),
             "keyframe_check": self.keyframe_checker(job) if s.get("check_keyframes") else None,
+            "on_render_info": lambda info: self.update(job, render=info),  # shown in the app's Details
             "length": s.get("length", 81),
             "interpolate": s.get("interpolate", 2),
             "area": SIZES.get(s.get("size"), SIZES["standard"]),

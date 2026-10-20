@@ -882,6 +882,23 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
            f"{'distilled' if ltx else 'fast' if cfg['fast'] else 'quality'} mode, seed {seed}",
            final=True)
 
+    if cfg.get("on_render_info"):  # what this render really uses, for the app's Details
+        frames = h3_length(cfg["length"]) if h3 else ltx_length(cfg["length"]) if ltx else cfg["length"]
+        steps = ("8 (distilled)" if ltx else (4 if cfg.get("turbo_steps") == 4 else 8) if cfg["fast"] else 20) if sound \
+            else (4 if cfg["fast"] else 20)
+        pairs_n = len(keys) - (0 if cfg["loop"] else 1)
+        cfg["on_render_info"]({
+            "engine": cfg["engine"], "width": width, "height": height, "frames_per_segment": frames, "fps": base_fps,
+            "output_fps": out_fps, "segments": pairs_n, "seconds": round(pairs_n * (frames - 1) / base_fps, 1), "steps": steps,
+            "seed": seed, "audio": bool(sound and cfg["audio"]), "sound_prompt": cfg.get("sound") or "",
+            "style": style.get("label", "?"), "look": style.get("video_prompt", ""),
+            "restyle": bool(cfg["restyle"]), "restyle_prompt": style.get("restyle_prompt") if cfg["restyle"] else None,
+            "restyle_note": cfg.get("restyle_note") or "", "image_model": IMAGE_MODELS[cfg["image_model"] or DEFAULT_IMAGE_MODEL]["label"],
+            "negative": cfg.get("negative") if not sound else "",
+            "loras": [] if sound else [l.get("high") or l.get("name") or str(l) for l in style.get("loras") or []],
+            "prompts": [", ".join(x for x in (p, style.get("video_prompt")) if x) for p in cfg["prompts"]],
+        })
+
     uploaded = {p: comfy.upload_image(p, f"{run_id}_{i:02d}{os.path.splitext(p)[1]}") for i, p in enumerate(keys)}
 
     if cfg["restyle"]:

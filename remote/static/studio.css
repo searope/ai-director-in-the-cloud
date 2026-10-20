@@ -550,3 +550,10 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
 .lb-count { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: #0009; color: #fff;
             font-size: 12px; padding: 2px 8px; border-radius: 6px; }
 body.no-scroll { overflow: hidden; }
+
+/* a render's facts (Details and the video viewer) */
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 6px 0 10px; font-size: 13px; }
+.facts dt { color: var(--muted); white-space: nowrap; }
+.facts dd { margin: 0; word-break: break-word; white-space: pre-wrap; }
+.facts-prompts ol { margin: 4px 0 10px; padding-left: 0; list-style: none; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.facts-prompts li b { color: var(--muted); font-weight: 600; margin-right: 6px; }
