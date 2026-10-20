@@ -255,7 +255,7 @@ class Soundtrack:
 
     def add(self, job, raw):
         if not self.enabled:
-            raise ValueError("ElevenLabs is off: set ELEVENLABS_API_KEY on the GPU machine")
+            raise ValueError("ElevenLabs is off: add \"elevenlabs_api_key\" to remote/config.json on the computer that runs the app, then restart it")
         if job["status"] != "done":
             raise ValueError("add sound once the video has finished rendering")
         kind = raw.get("kind")
@@ -321,7 +321,7 @@ class Soundtrack:
 
     def dub(self, job, language):
         if not self.enabled:
-            raise ValueError("ElevenLabs is off: set ELEVENLABS_API_KEY on the GPU machine")
+            raise ValueError("ElevenLabs is off: add \"elevenlabs_api_key\" to remote/config.json on the computer that runs the app, then restart it")
         if language not in LANGUAGES:
             raise ValueError("unsupported language")
         if not self._speech_layers(job):

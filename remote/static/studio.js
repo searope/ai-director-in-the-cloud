@@ -309,7 +309,7 @@ document.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {  // the picker can sit on top of the character sheet: close only the top one
     if (!$("picker").classList.contains("hidden")) return closeOverlay("picker");
-    closeOverlay("lightbox"); closeOverlay("charSheet"); closeOverlay("soundSheet");
+    closeOverlay("lightbox"); closeOverlay("charSheet"); closeOverlay("soundSheet"); closeOverlay("styleSheet");
   }
   if (e.key === "Enter" && e.target.matches?.(".tile")) e.target.click();
 });
@@ -687,7 +687,8 @@ $("loop").onchange = renderMotion;
 // ---------------------------------------------------------------- styles (Create video's style, and the Styles page)
 const styleById = (id) => (S.info?.styles || []).find((s) => s.id === id);
 const styleLabel = (id) => id === "__custom" ? "Custom" : styleById(id)?.label || id;
-const styleThumb = (st, cls = "") => st?.example ? `<img class="${cls}" loading="lazy" alt="" src="${st.example}">`
+const exampleUrl = (url) => url.startsWith("/api/") ? withToken(url) : url;
+const styleThumb = (st, cls = "") => st?.example ? `<img class="${cls}" loading="lazy" alt="" src="${exampleUrl(st.example)}">`
   : `<span class="${cls} style-ph">${esc((st?.label || "?").slice(0, 2))}</span>`;
 function setVideoStyle(id) {
   S.style = id;
@@ -735,7 +736,8 @@ function renderStylesPage() {
   const pick = STY.mode === "video";
   const cards = list.map((s) => `<div class="style-card${STY.sel.has(s.id) ? " sel" : ""}${S.style === s.id ? " current" : ""}" data-sid="${s.id}" tabindex="0">
       ${styleThumb(s, "sc-img")}${!pick && STY.sel.has(s.id) ? `<span class="num">✓</span>` : ""}
-      <div class="sc-label"><b>${esc(s.label)}</b>${S.style === s.id ? `<span class="in-use">in use</span>` : ""}</div>
+      <button type="button" class="sc-info" data-info="${s.id}" aria-label="Prompts and examples of ${esc(s.label)}" title="Prompts and examples">✎</button>
+      <div class="sc-label"><b>${esc(s.label)}</b>${S.style === s.id ? `<span class="in-use">in use</span>` : s.edited ? `<span class="sc-edited">edited</span>` : ""}</div>
       ${!pick && s.restyle === false ? `<span class="sc-note">no redraw</span>` : ""}
     </div>`).join("");
   const custom = pick && !q ? `<div class="style-card" data-sid="__custom" tabindex="0"><span class="sc-img style-ph">✎</span><div class="sc-label"><b>Custom…</b></div></div>` : "";
@@ -754,6 +756,8 @@ $("styleGroups").onclick = (e) => {
   STY.group = b.dataset.group; STY.q = ""; $("styleSearch").value = ""; renderStylesPage();
 };
 $("styleGrid").onclick = (e) => {
+  const info = e.target.closest("[data-info]");
+  if (info) return openStyleSheet(info.dataset.info);
   const card = e.target.closest("[data-sid]"); if (!card) return;
   const id = card.dataset.sid;
   if (STY.mode === "video") { setVideoStyle(id); STY.mode = "browse"; go("video"); return; }
@@ -768,6 +772,76 @@ $("styleTool").onclick = async (e) => {
   else if (a === "use") { setVideoStyle([...STY.sel][0]); toast(`${styleLabel(S.style)} is now the style for videos`); renderStylesPage(); }
   else if (a === "try") { if (STY.image) tryStyles(STY.image); else openPicker("trystyle"); }
 };
+// A style's details: its example pictures (city street, close-up face, landscape, indoor scene) and its two
+// prompts, editable. "Redraw examples" redoes the pictures with the edited redraw prompt on the GPU.
+const SCENES = ["City street", "Close-up face", "Landscape", "Indoor scene"];
+const SS = { id: null, redrawing: {} };  // redrawing: style id -> tasks still running
+function openStyleSheet(id) {
+  const st = styleById(id); if (!st) return;
+  SS.id = id;
+  $("ssTitle").textContent = st.label;
+  $("ssRestyle").value = st.restyle_prompt || "";
+  $("ssLook").value = st.look || "";
+  renderStyleSheet();
+  $("styleSheet").classList.remove("hidden");
+}
+function renderStyleSheet() {
+  const st = styleById(SS.id); if (!st) return;
+  const running = SS.redrawing[st.id] || [];
+  $("ssSub").textContent = `${st.group}${st.edited ? " · edited" : ""}`;
+  $("ssExamples").innerHTML = SCENES.map((name, i) => `<figure>${st.examples?.[i] ? `<img alt="" src="${exampleUrl(st.examples[i])}">`
+    : `<span class="style-ph"></span>`}<figcaption>${name}</figcaption></figure>`).join("");
+  $("ssRestyleBlock").classList.toggle("hidden", !st.restyle);
+  $("ssRedraw").classList.toggle("hidden", !st.restyle);
+  $("ssRedraw").disabled = running.length > 0;
+  $("ssRedrawing").classList.toggle("hidden", !running.length);
+  $("ssRedrawing").textContent = running.length ? `Redrawing the examples on the GPU: ${running.length} left…` : "";
+  $("ssReset").classList.toggle("hidden", !st.edited);
+}
+async function saveStyle() {
+  const body = { look: $("ssLook").value };
+  if (styleById(SS.id).restyle) body.restyle_prompt = $("ssRestyle").value;
+  await api(`/api/styles/${SS.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  await refreshInfo(); renderStylesPage(); renderStyles(); renderStyleSheet();
+}
+$("ssSave").onclick = async () => { try { await saveStyle(); toast("Saved: renders in this style use the new prompts"); } catch (e) { toast(e.message); } };
+$("ssReset").onclick = async () => {
+  if (!confirm("Go back to the original prompts and example pictures for this style?")) return;
+  try {
+    await api(`/api/styles/${SS.id}`, { method: "DELETE" });
+    await refreshInfo(); openStyleSheet(SS.id); renderStylesPage(); renderStyles();
+  } catch (e) { toast(e.message); }
+};
+$("ssRedraw").onclick = async () => {
+  const id = SS.id;
+  try {
+    await saveStyle();
+    const tasks = await api(`/api/styles/${id}/examples`, { method: "POST" });
+    SS.redrawing[id] = tasks.map((t) => t.task);
+    renderStyleSheet();
+    pollStyleRedraw(id);
+  } catch (e) { toast(e.message); }
+};
+async function pollStyleRedraw(id) {
+  while ((SS.redrawing[id] || []).length) {
+    await new Promise((r) => setTimeout(r, 3000));
+    const left = [];
+    for (const t of SS.redrawing[id]) {
+      try {
+        const now = await api(`/api/keyframes/tasks/${t.id}`);
+        if (now.status === "running") left.push(now);
+        else if (now.status === "failed") toast(`Example failed: ${now.error || "unknown error"}`);
+      } catch { /* the task is gone (app restarted): stop waiting for it */ }
+    }
+    SS.redrawing[id] = left;
+    if (SS.id === id) renderStyleSheet();
+  }
+  delete SS.redrawing[id];
+  await refreshInfo(); renderStylesPage();
+  if (SS.id === id) renderStyleSheet();
+  toast(`${styleLabel(id)}: examples redrawn`);
+}
+
 async function tryStyles(imageId) {
   const ids = [...STY.sel];
   try {
