@@ -733,7 +733,8 @@ async function checkClip(jobId) {
   await refreshJobs(); return true;
 }
 // action: the button under the suggested prompt, e.g. ["rerender", "Render again with this prompt"]
-function reviewBlock(r, action) {
+// redrawn: the render restyled its keyframes, so offer to keep the redrawn ones (default: start from the originals)
+function reviewBlock(r, action, redrawn = false) {
   if (!r) return "";
   const who = esc(writerById(r.writer)?.label || r.writer || "");
   if (r.status === "working") return `<div class="ai-status"><div class="spinner"></div>Checking the clip with ${who}…</div>`;
@@ -746,6 +747,7 @@ function reviewBlock(r, action) {
       `<li class="${i.severity}"><b>${esc(i.when)}</b> ${esc(i.what)}</li>`).join("")}</ul></details>` : ""}
     ${r.keyframe_advice ? `<div class="note">${esc(r.keyframe_advice)}</div>` : ""}
     ${r.verdict !== "good" && r.motion_prompt ? `<label class="sf">Suggested prompt<textarea data-fix-prompt rows="3">${esc(r.motion_prompt)}</textarea></label>
+      ${redrawn ? `<label class="toggle"><input type="checkbox" data-keep-styled><span>Keep the redrawn keyframes (otherwise your original keyframes are redrawn again)</span></label>` : ""}
       <button type="button" class="btn small" data-fix="${action[0]}">${action[1]}</button>` : ""}
   </div>`;
 }
@@ -765,7 +767,7 @@ function jobCard(j) {
     ${active ? `<div class="bar"><span></span></div>` : ""}
     ${j.error ? `<div class="error">${esc(j.error)}</div>` : ""}
     ${j.status === "done" ? `<video controls playsinline loop preload="metadata" src="${jobVideo(j)}"></video>` : `<div class="mini">${imgs}</div>`}
-    ${reviewBlock(j.review, ["rerender", "Render again with this prompt"])}
+    ${reviewBlock(j.review, ["rerender", "Render again with this prompt"], j.styled.length > 0)}
     <div class="row">
       ${j.status === "done" && j.kind !== "film" && j.review?.status !== "working" ? `<button type="button" class="btn small" data-job-act="check">${j.review ? "Check again" : "Check clip"}</button>` : ""}
       ${j.status === "done" ? `<button type="button" class="btn small" data-job-act="sound">Sound</button>
@@ -809,7 +811,7 @@ $("jobList").onclick = async (e) => {
   if (e.target.closest('[data-fix="rerender"]')) {
     const prompt = card.querySelector("[data-fix-prompt]").value.trim();
     try {
-      await api(`/api/jobs/${card.dataset.id}/rerender`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompts: [prompt] }) });
+      await api(`/api/jobs/${card.dataset.id}/rerender`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompts: [prompt], keep_styled: !!card.querySelector("[data-keep-styled]")?.checked }) });
       toast("Queued with the new prompt"); await refreshJobs(); renderJobs();
     } catch (err) { toast(err.message); }
     return;

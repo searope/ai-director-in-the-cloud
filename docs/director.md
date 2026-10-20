@@ -85,8 +85,9 @@ objects that appear, vanish or duplicate, smearing, flicker, motion that ignores
 away from the keyframes), gives a verdict, writes an improved motion prompt, and says when the real
 cause is a keyframe (for example an END keyframe with an object the START doesn't have).
 
-- **Render again with this prompt** re-renders the same keyframes. If the render redrew them in a
-  style, the redrawn keyframes are reused, so only the prompt changes.
+- **Render again with this prompt** renders again from your original keyframes with the same
+  settings, so a style redraw runs again too (a bad redraw is often what the check found). Tick
+  **Keep the redrawn keyframes** to reuse the redrawn ones and change only the prompt.
 - In the Director, **Use this prompt and render again** saves it as the shot's motion and renders.
 - Keyframe advice is shown as a note; act on it with Remake keyframes or by editing the end change.
 

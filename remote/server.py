@@ -477,8 +477,9 @@ def clean_settings(raw, n_keyframes, styles):
     }
 
 
-def queue_job(jobs, files, raw):
-    """Queue a video render: files are 2-12 keyframes (image bytes or paths), raw the settings from the app."""
+def queue_job(jobs, files, raw, extra=None):
+    """Queue a video render: files are 2-12 keyframes (image bytes or paths), raw the settings from the app,
+    extra more fields for the job record (set before it's queued: the worker may start on it at once)."""
     if not 2 <= len(files) <= MAX_KEYFRAMES:
         raise ValueError(f"send 2 to {MAX_KEYFRAMES} keyframes")
     settings = clean_settings(raw, len(files), animate.load_styles())
@@ -495,7 +496,7 @@ def queue_job(jobs, files, raw):
         shutil.rmtree(jobs.dir(job_id), ignore_errors=True)
         raise ValueError(f"could not read image {len(names) + 1}: {e}") from None
     job = {"id": job_id, "created": time.time(), "status": "queued", "progress": "queued",
-           "settings": settings, "inputs": names, "styled": [], "log": []}
+           "settings": settings, "inputs": names, "styled": [], "log": [], **(extra or {})}
     jobs.add(job)
     return job
 
@@ -525,21 +526,22 @@ def review_job(jobs, job, writer):
     threading.Thread(target=run, daemon=True).start()
 
 
-def rerender_job(jobs, job, prompts):
-    """Render the same keyframes again with new motion prompts. A job that restyled its keyframes passes the
-    restyled ones on and skips the restyle, so only the prompt changes."""
+def rerender_job(jobs, job, prompts, keep_styled=False):
+    """Render a job again with new motion prompts, from its original keyframes and with its settings, so a
+    restyle runs again too (a bad restyle is often what the clip check found). keep_styled reuses the
+    restyled keyframes instead and skips the restyle, so only the prompt changes."""
     if job.get("kind") == "film":
         raise ValueError("a film can't be rendered again; render its shots in the Director")
     prompts = [str(p).strip()[:1500] for p in prompts][:len(job["settings"]["prompts"])]
     if not prompts or not all(prompts):
         raise ValueError("write the motion prompt")
     prompts += job["settings"]["prompts"][len(prompts):]
-    settings = dict(job["settings"], prompts=prompts, seed=None, restyle=False if job.get("styled") else job["settings"].get("restyle"))
-    new = queue_job(jobs, job_keyframes(jobs, job), {"smooth": settings.get("interpolate", 2) > 1, "length": settings["length"],
-                                                     "size": settings["size"], "fast": settings["fast"], **settings})
-    new["retry_of"] = job["id"]
-    jobs.save(new)
-    return new
+    reuse = keep_styled and bool(job.get("styled"))
+    keyframes = job_keyframes(jobs, job) if reuse else [os.path.join(jobs.dir(job["id"]), "inputs", n) for n in job["inputs"]]
+    settings = dict(job["settings"], prompts=prompts, seed=None, restyle=False if reuse else job["settings"].get("restyle"))
+    return queue_job(jobs, keyframes, {"smooth": settings.get("interpolate", 2) > 1, "length": settings["length"],
+                                       "size": settings["size"], "fast": settings["fast"], **settings},
+                     extra={"retry_of": job["id"]})
 
 
 def add_film_job(jobs, make_video, keyframes, info):
@@ -701,7 +703,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
     async def rerender(request):
         job, raw = get_job(request), await request.json()
         try:
-            new = await asyncio.to_thread(rerender_job, jobs, job, raw.get("prompts") or [])
+            new = await asyncio.to_thread(rerender_job, jobs, job, raw.get("prompts") or [], bool(raw.get("keep_styled")))
         except (ValueError, TypeError) as e:
             return web.json_response({"error": str(e)}, status=400)
         return web.json_response(jobs.public(new))
