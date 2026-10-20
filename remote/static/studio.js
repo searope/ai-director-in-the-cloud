@@ -430,11 +430,10 @@ function openVideo(id) {
   const j = S.jobs.find((x) => x.id === id); if (!j) return;
   const s = j.settings, sum = jobSummary(j);
   $("lbMedia").innerHTML = `<video controls autoplay loop playsinline src="${jobVideo(j)}"></video>`;
-  const rows = [["Engine", sum.engine], ["Style", sum.style], ["Keyframes", j.inputs.length], ["Mode", modeLabel(s)],
-                ["Seed", s.seed ?? "random"], ["Render time", j.started && j.finished ? fmtTime(j.finished - j.started) : ""], ["Created", ago(j.created)]]
+  const rows = [["Keyframes", j.inputs.length], ["Render time", j.started && j.finished ? fmtTime(j.finished - j.started) : ""], ["Created", ago(j.created)]]
     .filter(([, v]) => v !== "");
   $("lbInfo").innerHTML = `<h3>${j.kind === "film" ? esc(j.title) : "Video"}</h3>
-    <div class="prompt">${s.prompts.map((p, i) => j.kind === "film" ? `Shot ${i + 1}: ${esc(p)}` : `${i + 1} → ${i + 2}: ${esc(p)}`).join("\n")}</div>
+    ${j.kind === "film" ? `<div class="prompt">${s.prompts.map((p, i) => `Shot ${i + 1}: ${esc(p)}`).join("\n")}</div>` : renderFacts(j)}
     <dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
     ${keyframeStrip(j)}
     <div class="acts">
@@ -1115,6 +1114,30 @@ function reviewBlock(r, action, redrawn = false) {
 // Which cards' Details are open (by job id): kept across the regular re-renders. Unset = the default
 // (open while queued or rendering, so the keyframes show during the render; closed once done).
 const detailsOpen = new Map();
+// Everything about a render: engine and its settings, size, length, seed, style with its prompts, motion prompts.
+// j.render holds what the renderer really used (set once it starts); before that, the requested settings.
+function renderFacts(j) {
+  const s = j.settings, r = j.render || {}, sum = jobSummary(j);
+  const engine = (S.info?.engines || []).find((e) => e.id === s.engine);
+  const size = r.width ? `${r.width}×${r.height}` : { standard: "standard", large: "large", small: "small" }[s.size] || s.size;
+  const length = r.frames_per_segment ? `${r.segments} × ${r.frames_per_segment} frames at ${r.fps} fps (≈ ${r.seconds} s)`
+    + (r.output_fps && r.output_fps !== r.fps ? `, smoothed to ${r.output_fps} fps` : "") : `${s.length} frames per gap (Wan scale)`;
+  const style = s.custom_style ? `Custom: ${s.custom_style}` : (r.style || sum.style);
+  const rows = [
+    ["Engine", engine?.label || s.engine], ["Mode", modeLabel(s) + (r.steps ? ` · ${r.steps} steps` : "")],
+    ["Size", size], ["Length", length], ["Seed", r.seed ?? s.seed ?? "random"],
+    ["Sound", r.audio ?? (SOUND_ENGINES.includes(s.engine) && s.audio) ? `generated${s.sound ? `: ${s.sound}` : ""}` : "none"],
+    ["Style", style], ["Style look", r.look || ""],
+    ["Redraw keyframes", (r.restyle ?? s.restyle) ? `yes, with ${r.image_model || s.image_model}` : "no"],
+    ["Redraw prompt", r.restyle_prompt || ""], ["Your redraw note", r.restyle_note || ""],
+    ["Keyframe check", s.check_keyframes ? "on" : ""], ["Approval stop", s.approve_keyframes ? "on" : ""],
+    ["Style LoRAs", (r.loras || []).join(", ")], ["Negative prompt", r.negative || ""],
+    ["Loop", s.loop ? "yes" : ""], ["Retry of", j.retry_of || ""],
+  ].filter(([, v]) => v !== "" && v != null);
+  const prompts = (r.prompts || s.prompts).map((p, i) => `<li><b>${j.kind === "film" ? `Shot ${i + 1}` : `${i + 1} → ${i + 2}`}</b> ${esc(p || "(smooth natural motion)")}</li>`).join("");
+  return `<dl class="facts">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(String(v))}</dd>`).join("")}</dl>
+    <div class="facts-prompts"><span class="kf-label">Motion prompts${r.prompts ? " (as sent, with the style)" : ""}</span><ol>${prompts}</ol></div>`;
+}
 function jobCard(j) {
   const sum = jobSummary(j);
   const end = j.finished || Date.now() / 1000, took = j.started ? fmtTime(end - j.started) : "";
@@ -1142,6 +1165,7 @@ function jobCard(j) {
         <button type="button" class="btn small" data-approve="redraw">Redraw again</button></div>
     </div>` : ""}
     <details class="job-details"${open ? " open" : ""}><summary>Details ${badges}</summary>
+      ${renderFacts(j)}
       ${keyframeStrip(j)}
       ${reviewBlock(r, ["rerender", "Render again with this prompt"], j.styled.length > 0)}
     </details>
