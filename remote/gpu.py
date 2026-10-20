@@ -22,6 +22,8 @@ import urllib.request
 
 API = "https://api.runpod.io/v2"
 GATEWAY_PORT = 8700
+# Runpod's proxy (Cloudflare) rejects Python's default "Python-urllib" User-Agent with error 1010.
+USER_AGENT = "ai-director/1.0"
 
 
 class LocalGPU:
@@ -59,7 +61,7 @@ class RunpodGPU:
             raise ValueError("gpu config is missing: " + ", ".join(missing))
         if not self.cfg.get("gateway_token"):
             self.cfg["gateway_token"] = secrets.token_urlsafe(24)
-        self.headers = {"X-Gateway-Token": self.cfg["gateway_token"]}
+        self.headers = {"X-Gateway-Token": self.cfg["gateway_token"], "User-Agent": USER_AGENT}
         self.busy = busy
         self.state_path, self.log_path = state_path, log_path
         self.lock = threading.Lock()
@@ -119,7 +121,8 @@ class RunpodGPU:
 
     def api(self, method, path, body=None, timeout=60):
         req = urllib.request.Request(API + path, method=method, data=None if body is None else json.dumps(body).encode(),
-                                     headers={"Authorization": f"Bearer {self.cfg['api_key']}", "Content-Type": "application/json"})
+                                     headers={"Authorization": f"Bearer {self.cfg['api_key']}", "Content-Type": "application/json",
+                                              "User-Agent": USER_AGENT})
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 raw = resp.read()
