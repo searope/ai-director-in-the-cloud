@@ -393,3 +393,12 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
   .char-card .row { flex-direction: column; padding: 10px; } .char-card .row .btn { width: 100%; }
 }
 .kf-check { font-size: 12.5px; padding-left: 70px; } .kf-check.ok { color: var(--ok); } .kf-check.warn { color: var(--warn); }
+/* compact render cards: details folded into one row */
+.job-details { margin-top: 10px; }
+.job-details > summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 600; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; list-style: none; }
+.job-details > summary::-webkit-details-marker { display: none; }
+.job-details > summary::before { content: "▸"; font-size: 11px; }
+.job-details[open] > summary::before { content: "▾"; }
+.badge-s { font-size: 11.5px; font-weight: 600; padding: 2px 7px; border-radius: 99px; background: var(--raise); color: var(--muted); }
+.badge-s.ok { color: var(--ok); } .badge-s.warn { color: var(--warn); }
+.btn.icon-only { padding: 6px 9px; margin-left: auto; }
