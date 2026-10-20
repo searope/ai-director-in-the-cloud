@@ -36,7 +36,7 @@ SCENES = {  # remote/server.py STYLE_SCENES must match the count
         "counter, a bowl of fruit and potted plants, warm light from the window, natural photo."),  # interior
 }
 SEED = 20261020
-WIDTH = 384  # example size: small enough for the app to load quickly
+WIDTH = 640  # example size: sharp enough to enlarge, small enough to load quickly
 
 
 def save_jpg(png_bytes, path):

@@ -309,6 +309,7 @@ document.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {  // the picker can sit on top of the character sheet: close only the top one
     if (!$("picker").classList.contains("hidden")) return closeOverlay("picker");
+    if (!$("ssZoom").classList.contains("hidden")) return closeOverlay("ssZoom");
     closeOverlay("lightbox"); closeOverlay("charSheet"); closeOverlay("soundSheet"); closeOverlay("styleSheet");
   }
   if (e.key === "Enter" && e.target.matches?.(".tile")) e.target.click();
@@ -589,11 +590,12 @@ $("sndDub").onclick = async () => {
 
 // ---------------------------------------------------------------- picker (library images)
 const picker = { mode: "tray", sel: [] };
-const pickOne = () => ["source", "shotstart", "trystyle"].includes(picker.mode);  // single choice, not a list
+const pickOne = () => ["source", "shotstart", "trystyle", "sstry"].includes(picker.mode);  // single choice, not a list
 function openPicker(mode) {
   picker.mode = mode; picker.sel = [];
   $("pickerTitle").textContent = { source: "Choose the image to edit", refs: "Add reference images",
-                                   shotstart: "Choose the shot's start frame", trystyle: "Choose the image to try the styles on" }[mode] || "Add keyframes, in order";
+                                   shotstart: "Choose the shot's start frame", trystyle: "Choose the image to try the styles on",
+                                   sstry: "Choose a picture to try this style on" }[mode] || "Add keyframes, in order";
   $("pickerDone").textContent = pickOne() ? "Use image" : "Add";
   renderPicker();
   $("picker").classList.remove("hidden");
@@ -618,6 +620,7 @@ $("pickerDone").onclick = () => {
   else if (picker.mode === "refs") addRefs(picker.sel);
   else if (picker.mode === "shotstart") setShotStart(picker.shot, picker.sel[0]);
   else if (picker.mode === "trystyle") tryStyles(picker.sel[0]);
+  else if (picker.mode === "sstry") tryOnPicture(picker.sel[0]);
   else addToTray(picker.sel);
   closeOverlay("picker");
 };
@@ -783,7 +786,7 @@ $("styleTool").onclick = async (e) => {
 // A style's details: its example pictures (city street, close-up face, landscape, indoor scene) and its two
 // prompts, editable. "Redraw examples" redoes the pictures with the edited redraw prompt on the GPU.
 const SCENES = ["City street", "Close-up face", "Landscape", "Indoor scene"];
-const SS = { id: null, redrawing: {} };  // redrawing: style id -> tasks still running
+const SS = { id: null, redrawing: {}, tries: [] };  // tries: pictures tried in a style here {style, source, task, image}  // redrawing: style id -> tasks still running
 function openStyleSheet(id) {
   const st = styleById(id); if (!st) return;
   SS.id = id;
@@ -797,7 +800,7 @@ function renderStyleSheet() {
   const st = styleById(SS.id); if (!st) return;
   const running = SS.redrawing[st.id] || [];
   $("ssSub").textContent = `${st.group}${st.edited ? " · edited" : ""}`;
-  $("ssExamples").innerHTML = SCENES.map((name, i) => `<figure>${st.examples?.[i] ? `<img alt="" src="${exampleUrl(st.examples[i])}">`
+  $("ssExamples").innerHTML = SCENES.map((name, i) => `<figure>${st.examples?.[i] ? `<img alt="${name}, tap to enlarge" src="${exampleUrl(st.examples[i])}" data-zoom-scene="${i}">`
     : `<span class="style-ph"></span>`}<figcaption>${name}</figcaption></figure>`).join("");
   $("ssRestyleBlock").classList.toggle("hidden", !st.restyle);
   $("ssRedraw").classList.toggle("hidden", !st.restyle);
@@ -805,6 +808,12 @@ function renderStyleSheet() {
   $("ssRedrawing").classList.toggle("hidden", !running.length);
   $("ssRedrawing").textContent = running.length ? `Redrawing the examples on the GPU: ${running.length} left…` : "";
   $("ssReset").classList.toggle("hidden", !st.edited);
+  $("ssTryBlock").classList.toggle("hidden", !st.restyle);
+  const tries = SS.tries.filter((t) => t.style === st.id);
+  $("ssTries").innerHTML = tries.map((t, i) => `<div class="ss-try">
+      <img alt="Before" src="${imgUrl(t.source)}" data-try="${SS.tries.indexOf(t)}" data-side="before"><span>→</span>
+      ${t.image ? `<img alt="After" src="${imgUrl(t.image)}" data-try="${SS.tries.indexOf(t)}" data-side="after">`
+        : `<div class="ph">${t.error ? esc(t.error.slice(0, 80)) : `<div class="spinner"></div>`}</div>`}</div>`).join("");
   const r = st.review;
   $("ssReview").classList.toggle("hidden", !r);
   $("ssReview").innerHTML = !r ? "" : `<div class="ss-cov"><b>${r.coverage}% styled</b> · ${esc(r.strength)} · <span class="hint">AI check of the examples</span></div>
@@ -812,6 +821,79 @@ function renderStyleSheet() {
     ${r.unstyled.length ? `<p><b>May stay unstyled:</b> ${r.unstyled.map(esc).join(", ")}. Similar things in your pictures may not take the style well.</p>` : ""}
     ${r.replaced.length ? `<p class="warn-text"><b>Changed content:</b> ${r.replaced.map(esc).join("; ")}.</p>` : ""}`;
 }
+// Try the style on the user's own picture, from the panel: drop, upload or pick from the Library.
+async function tryOnPicture(imageId) {
+  const id = SS.id, st = styleById(id); if (!st || !imageId) return;
+  try {
+    const [t] = await api("/api/styles/try", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_id: imageId, styles: [id], model: S.imageModel, prompt: $("ssRestyle").value }) });
+    const entry = { style: id, source: imageId, task: t.task, image: null, error: null };
+    SS.tries.unshift(entry);
+    renderStyleSheet();
+    while (entry.task.status === "running") {
+      await new Promise((r) => setTimeout(r, 2500));
+      try { entry.task = await api(`/api/keyframes/tasks/${entry.task.id}`); } catch { entry.task = { status: "failed", error: "the task was lost" }; }
+    }
+    if (entry.task.status === "done") entry.image = entry.task.image_id; else entry.error = entry.task.error || "failed";
+    refreshImages();
+  } catch (e) { toast(e.message); }
+  renderStyleSheet();
+}
+async function tryFiles(files) {
+  for (const id of await uploadImages([...files].filter((f) => f.type.startsWith("image/")))) tryOnPicture(id);
+}
+$("ssDrop").addEventListener("click", (e) => {
+  const a = e.target.closest("[data-sstry]")?.dataset.sstry;
+  if (a === "upload") $("ssFile").click();
+  else if (a === "library") openPicker("sstry");
+});
+$("ssFile").onchange = () => { tryFiles($("ssFile").files); $("ssFile").value = ""; };
+["dragenter", "dragover"].forEach((ev) => $("ssDrop").addEventListener(ev, (e) => { e.preventDefault(); $("ssDrop").classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => $("ssDrop").addEventListener(ev, () => $("ssDrop").classList.remove("over")));
+$("ssDrop").addEventListener("drop", (e) => { e.preventDefault(); tryFiles(e.dataTransfer.files); });
+$("ssTries").onclick = (e) => {
+  const img = e.target.closest("[data-try]"); if (!img) return;
+  const t = SS.tries[+img.dataset.try];
+  ZOOM.custom = { before: imgUrl(t.source), after: t.image ? imgUrl(t.image) : null };
+  ZOOM.before = img.dataset.side === "before" || !t.image;
+  renderZoom(); $("ssZoom").classList.remove("hidden");
+};
+
+// An example full size, over the style panel: After (the redraw) or Before (the original photo), ‹ › for the scenes.
+const ZOOM = { scene: 0, before: false, custom: null };  // custom: {before, after} of a picture tried here
+function renderZoom() {
+  const st = styleById(SS.id); if (!st) return;
+  const c = ZOOM.custom;
+  const url = c ? (ZOOM.before ? c.before : c.after) : ZOOM.before ? `/static/styles/_base-${ZOOM.scene + 1}.jpg` : st.examples?.[ZOOM.scene];
+  $("ssZoomImg").src = url ? exampleUrl(url) : "";
+  $("ssZoomCap").textContent = `${st.label} · ${c ? "your picture" : SCENES[ZOOM.scene]} · ${ZOOM.before ? "original" : "redrawn"}`;
+  document.querySelectorAll("#ssZoom [data-zoom=prev], #ssZoom [data-zoom=next]").forEach((b) => b.classList.toggle("hidden", !!c));
+  document.querySelectorAll("#ssZoom [data-zoom=after], #ssZoom [data-zoom=before]").forEach((b) =>
+    b.classList.toggle("on", (b.dataset.zoom === "before") === ZOOM.before));
+}
+function zoomStep(d) {
+  const st = styleById(SS.id), have = SCENES.map((_, i) => i).filter((i) => st?.examples?.[i]);
+  if (!have.length) return;
+  ZOOM.scene = have[(have.indexOf(ZOOM.scene) + d + have.length) % have.length];
+  renderZoom();
+}
+$("ssExamples").onclick = (e) => {
+  const img = e.target.closest("[data-zoom-scene]"); if (!img) return;
+  ZOOM.scene = +img.dataset.zoomScene; ZOOM.before = false; ZOOM.custom = null;
+  renderZoom(); $("ssZoom").classList.remove("hidden");
+};
+$("ssZoom").addEventListener("click", (e) => {
+  const a = e.target.closest("[data-zoom]")?.dataset.zoom;
+  if (a === "prev" || a === "next") zoomStep(a === "prev" ? -1 : 1);
+  else if (a) { ZOOM.before = a === "before"; renderZoom(); }
+  else if (e.target.id === "ssZoomImg") { ZOOM.before = !ZOOM.before; renderZoom(); }  // tap the picture to compare
+});
+document.addEventListener("keydown", (e) => {
+  if ($("ssZoom").classList.contains("hidden")) return;
+  if (e.key === "ArrowLeft" || e.key === "ArrowRight") zoomStep(e.key === "ArrowLeft" ? -1 : 1);
+  else if (e.key === " ") { e.preventDefault(); ZOOM.before = !ZOOM.before; renderZoom(); }
+});
+
 async function saveStyle() {
   const body = { look: $("ssLook").value };
   if (styleById(SS.id).restyle) body.restyle_prompt = $("ssRestyle").value;

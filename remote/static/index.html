@@ -380,6 +380,16 @@
   </div>
 </div>
 
+<div id="ssZoom" class="overlay ss-zoom hidden" role="dialog" aria-modal="true" aria-label="Style example">
+  <button type="button" class="lb-close" data-close aria-label="Close">✕</button>
+  <figure><img id="ssZoomImg" alt=""><figcaption id="ssZoomCap"></figcaption></figure>
+  <div class="ss-zoom-bar">
+    <button type="button" class="btn small" data-zoom="prev" aria-label="Previous scene">‹</button>
+    <div class="seg"><button type="button" data-zoom="after" class="on">After</button><button type="button" data-zoom="before">Before</button></div>
+    <button type="button" class="btn small" data-zoom="next" aria-label="Next scene">›</button>
+  </div>
+</div>
+
 <div id="styleSheet" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="ssTitle">
   <div class="sheet style-sheet">
     <div class="sheet-head">
@@ -391,6 +401,16 @@
       <div id="ssExamples" class="ss-examples"></div>
       <p id="ssRedrawing" class="hint hidden"></p>
       <div id="ssReview" class="ss-review hidden"></div>
+      <div id="ssTryBlock" class="field-block">
+        <label class="lbl">Try it on your picture <span class="hint">uses the prompt below as typed; results also go to the Library</span></label>
+        <div id="ssDrop" class="ss-drop" tabindex="0">
+          <span>Drop an image here, or</span>
+          <button type="button" class="btn small" data-sstry="upload">Upload</button>
+          <button type="button" class="btn small" data-sstry="library">From the Library</button>
+          <input type="file" id="ssFile" accept="image/*" multiple hidden>
+        </div>
+        <div id="ssTries" class="ss-tries"></div>
+      </div>
       <div class="field-block" id="ssRestyleBlock">
         <label class="lbl" for="ssRestyle">Redraw prompt <span class="hint">turns keyframes and pictures into this style</span></label>
         <textarea id="ssRestyle" maxlength="2000" rows="4"></textarea>

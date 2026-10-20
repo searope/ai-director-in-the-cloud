@@ -201,7 +201,7 @@ class Jobs:
             keep_awake(False)
 
 
-def save_example_jpg(png_path, jpg_path, width=384):
+def save_example_jpg(png_path, jpg_path, width=640):
     """A style example as a small JPG (the size setup/style_examples.py makes)."""
     from PIL import Image
     with Image.open(png_path) as im:
@@ -982,6 +982,9 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         if model in animate.IMAGE_MODELS and animate.missing_image_model_files(MODELS_DIR, model, model_checker(gpu)):
             return web.json_response({"error": f"{animate.IMAGE_MODELS[model]['label']} isn't installed on the GPU"}, status=400)
         seed = data.get("seed")
+        prompt = str(data.get("prompt") or "").strip()[:2000]  # one style with its prompt as typed (not saved yet)
+        if prompt and len(chosen) == 1:
+            styles[chosen[0]] = dict(styles[chosen[0]], restyle_prompt=prompt)
         try:
             tasks = [{"style": k, "task": maker.start(styles[k]["restyle_prompt"], "16:9", data.get("image_id"),
                                                       int(seed) if str(seed or "").isdigit() else None, model, style=k)}
