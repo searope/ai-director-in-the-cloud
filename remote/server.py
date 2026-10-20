@@ -24,6 +24,7 @@ import queue
 import secrets
 import shutil
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -247,6 +248,61 @@ class KeyframeMaker:
         return self.tasks.get(task_id)
 
 
+class IdleStop:
+    """Stops the rented GPU after a while with no work and no user action, so a forgotten pod stops billing.
+
+    Work = a queued/running video job or a running image task. A user action = any API call that
+    changes something (POST/DELETE), including "Keep running" in the app. Open tabs only poll with
+    GET, so they don't keep the pod alive by themselves.
+    """
+
+    def __init__(self, minutes, jobs, maker):
+        self.seconds = minutes * 60
+        self.jobs, self.maker = jobs, maker
+        self.last = time.time()
+        self.pod_id, self.api_key = os.environ.get("RUNPOD_POD_ID"), os.environ.get("RUNPOD_API_KEY")
+        self.command = os.environ.get("IDLE_STOP_COMMAND")  # other hosts, e.g. "vastai stop instance 123"
+        self.enabled = bool(self.seconds and (self.command or (self.pod_id and self.api_key)))
+        if self.enabled:
+            threading.Thread(target=self._watch, daemon=True).start()
+
+    def touch(self):
+        self.last = time.time()
+
+    def busy(self):
+        with self.jobs.lock:
+            if any(j["status"] in ("queued", "running") for j in self.jobs.jobs.values()):
+                return True
+        return any(t["status"] == "running" for t in list(self.maker.tasks.values()))
+
+    def seconds_left(self):
+        if not self.enabled:
+            return None
+        if self.busy():
+            self.touch()
+        return max(0, self.seconds - (time.time() - self.last))
+
+    def _stop(self):
+        if self.command:
+            subprocess.run(self.command, shell=True, check=True, timeout=120)
+            return
+        req = urllib.request.Request(f"https://rest.runpod.io/v1/pods/{self.pod_id}/stop", method="POST",
+                                     headers={"Authorization": f"Bearer {self.api_key}"})
+        urllib.request.urlopen(req, timeout=60).close()
+
+    def _watch(self):
+        while True:
+            time.sleep(30)
+            if self.seconds_left() > 0:
+                continue
+            print(time.strftime("%H:%M:%S"), f"Idle for {self.seconds // 60} min: stopping the pod.", flush=True)
+            try:
+                self._stop()
+            except Exception as e:  # keep serving and try again after another idle period
+                print("Could not stop the pod:", e, flush=True)
+            self.touch()  # don't repeat the request while the pod shuts down
+
+
 def keep_awake(on):
     """Stop Windows from sleeping mid-render (e.g. when the lid timer kicks in)."""
     if os.name != "nt":
@@ -308,13 +364,15 @@ def clean_settings(raw, n_keyframes, styles):
 
 # ---------------------------------------------------------------- web app
 
-def make_app(jobs, token, maker):
+def make_app(jobs, token, maker, idle):
     @web.middleware
     async def auth(request, handler):
         if request.path.startswith("/api/"):
             given = request.headers.get("X-Token") or request.query.get("t", "")
             if not hmac.compare_digest(given.encode(), token.encode()):
                 return web.json_response({"error": "bad or missing token"}, status=401)
+            if request.method != "GET":
+                idle.touch()
         response = await handler(request)
         if request.path.startswith("/static/"):
             response.headers["Cache-Control"] = "no-cache"  # pick up app updates after a git pull
@@ -348,6 +406,7 @@ def make_app(jobs, token, maker):
                      "ram_free": stats.get("system", {}).get("ram_free")}
         except Exception:
             pass
+        left = idle.seconds_left()
         return web.json_response({
             "styles": [{"id": k, "label": v.get("label", k), "restyle": bool(v.get("restyle_prompt"))} for k, v in styles.items()],
             "comfy": comfy,
@@ -359,7 +418,11 @@ def make_app(jobs, token, maker):
                          "ready": not h3_missing, "missing": h3_missing}],
             "queued": sum(1 for j in jobs.jobs.values() if j["status"] == "queued"),
             "running": any(j["status"] == "running" for j in jobs.jobs.values()),
+            "idle_stop": None if left is None else {"minutes": idle.seconds // 60, "seconds_left": round(left)},
         })
+
+    async def keepalive(request):
+        return web.json_response({"ok": True})  # the middleware already reset the idle timer
 
     async def list_jobs(request):
         items = sorted(jobs.jobs.values(), key=lambda j: j["created"], reverse=True)
@@ -500,6 +563,7 @@ def make_app(jobs, token, maker):
         web.get("/", index),
         web.get("/classic", classic),
         web.get("/api/info", info),
+        web.post("/api/keepalive", keepalive),
         web.get("/api/jobs", list_jobs),
         web.post("/api/jobs", create_job),
         web.get("/api/jobs/{id}", job_detail),
@@ -599,12 +663,23 @@ def main():
     ap.add_argument("--new-token", action="store_true", help="invalidate old phone links")
     ap.add_argument("--public-url", help="public HTTPS address of this machine, e.g. a cloud GPU's proxy URL "
                                          "(auto-detected on RunPod; or set PUBLIC_URL)")
+    ap.add_argument("--idle-stop", type=int, default=int(os.environ.get("IDLE_STOP_MINUTES", 30)), metavar="MIN",
+                    help="on RunPod (or with IDLE_STOP_COMMAND set), stop the pod after MIN minutes with no work "
+                         "and no user action; 0 turns it off (default: 30, or IDLE_STOP_MINUTES)")
     args = ap.parse_args()
 
     token = load_token(args.new_token)
     jobs = Jobs(args.comfy)
+    maker = KeyframeMaker(args.comfy)
+    idle = IdleStop(args.idle_stop, jobs, maker)
     print_links(args.port, token, args.public_url or default_public_url(args.port))
-    web.run_app(make_app(jobs, token, KeyframeMaker(args.comfy)), host=args.host, port=args.port, print=None)
+    if idle.enabled:
+        print(f"Auto-stop: the pod stops after {args.idle_stop} min with no work and no user action "
+              "(--idle-stop 0 turns this off).\n")
+    elif os.environ.get("RUNPOD_POD_ID") and args.idle_stop:
+        print("Auto-stop is OFF: RUNPOD_API_KEY is not set in this pod, so it can't stop itself. "
+              "Remember to stop the pod when you're done.\n")
+    web.run_app(make_app(jobs, token, maker, idle), host=args.host, port=args.port, print=None)
 
 
 if __name__ == "__main__":

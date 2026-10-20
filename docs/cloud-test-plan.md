@@ -50,7 +50,7 @@ terminal**.
 | 1.6 | Start everything inside `tmux` (so it keeps running if the web terminal closes): `tmux new -s anim` then `./start_all.sh` | It prints an **`https://…proxy.runpod.net/?t=…`** link and a QR code |
 | 1.7 | Open that link on your **phone**, then on **another device**. The status pill should show the 5090 and ~32 GB. | Same link works everywhere; bookmark it / "Add to Home Screen" |
 | 1.8 | Render one short test (Preview, 2 s) from the phone. Close the browser, reopen the link from another device, and check the job is there. | Confirms jobs live on the server, not the device |
-| 1.9 | **Stop the pod** (not just close the tab). | GPU billing stops; the volume keeps models, jobs and the token |
+| 1.9 | **Stop the pod** (not just close the tab). | GPU billing stops; the volume keeps models, jobs and the token. If you forget, the app stops it after 30 idle minutes (see the safety checklist) |
 
 **Next sessions** take ~2 minutes: start the pod with the same volume → web terminal →
 `cd /workspace/ai-director-in-the-cloud && tmux new -s anim ./start_all.sh` → open your bookmarked link. The
@@ -135,7 +135,12 @@ plus the network volume for the month. **Total ≈ $20–40.**
 - Expose **only port 8700** (the web app, token-protected). Never expose ComfyUI's 8188.
 - Treat the link with `?t=…` like a password. If it leaks, run `./run_remote.sh --new-token` once
   (old links stop working) and restart.
-- **Stop the pod** when done, and check the RunPod dashboard shows nothing running.
+- **Stop the pod** when done, and check the RunPod dashboard shows nothing running. As a safety
+  net, the web app stops the pod by itself after **30 minutes with nothing rendering and no
+  action in the app** (open tabs that only watch don't count). In the last 10 minutes the app shows
+  "Stops in N min"; tap it to keep the pod running. Change the time with
+  `./start_all.sh --idle-stop 60`, or turn it off with `--idle-stop 0`. The startup message says
+  whether auto-stop is on.
 - Keep the HF token as an environment variable in the session; never commit it.
 - Keyframes and prompts are processed on the provider's machine, so don't upload anything you
   wouldn't put on a third-party server.
@@ -143,8 +148,6 @@ plus the network volume for the month. **Total ≈ $20–40.**
 
 ## Known gaps to close before or during the test (Claude)
 
-- **Idle auto-stop:** the pod keeps billing if you forget to stop it. Add a timer that stops the
-  pod after N idle minutes.
 - **One-command start:** a RunPod start script (or template) so a new session doesn't need any
   typing in the terminal.
 - **Proxy limits:** RunPod's HTTPS proxy has request time limits. Uploads and polling are short

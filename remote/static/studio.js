@@ -598,10 +598,17 @@ function renderStatus() {
     card.querySelector(".gpu-sub").textContent = "Start it with start_all.sh";
     card.querySelector(".meter span").style.width = "0";
   }
+  const idle = info.idle_stop, ip = $("idlePill");
+  ip.classList.toggle("hidden", !idle || idle.seconds_left > 600);
+  if (idle) ip.innerHTML = `Stops in ${Math.max(1, Math.ceil(idle.seconds_left / 60))} min<span class="wide-only"> · keep running</span>`;
   const q = $("queuePill");
   q.classList.toggle("hidden", !active); q.textContent = `${active} in queue`;
   const badge = $("tabBadge"); badge.classList.toggle("hidden", !active); badge.textContent = active;
 }
+
+$("idlePill").onclick = async () => {
+  try { await api("/api/keepalive", { method: "POST" }); await refreshInfo(); toast("The pod keeps running."); } catch (e) { toast(e.message); }
+};
 
 async function refreshInfo() {
   const first = !S.info;

@@ -53,7 +53,9 @@ any device sees the same state.
 4. **More engines (open weights, on the GPU, commercial use allowed):** LTX-2.5 first/last frame,
    a Wan 2.2 "max quality" preset (20 steps, 720p, upscaling).
 5. **Finishing:** 1080p upscaling of chosen shots, voice-over and music tracks, continuity check.
-6. **Cloud ops:** one-command session start, idle auto-stop, cost tracking per project.
+6. **Cloud ops:** one-command session start, cost tracking per project. (Idle auto-stop is done:
+   the app stops a RunPod pod after 30 minutes with nothing rendering and no action in the app;
+   `--idle-stop MIN` changes it, `0` turns it off.)
 
 ## Model licenses
 
@@ -82,7 +84,9 @@ bash setup/install_linux.sh       # ComfyUI + PyTorch + default models
 tmux new -s anim ./start_all.sh   # prints https://<pod-id>-8700.proxy.runpod.net/?t=... and a QR code
 ```
 
-Expose **only port 8700**. Stop the pod when you're done.
+Expose **only port 8700**. Stop the pod when you're done; if you forget, the app stops it after 30
+minutes with nothing rendering and no action in the app (`./start_all.sh --idle-stop 60` to change,
+`0` to turn off). On other hosts, set `IDLE_STOP_COMMAND` to the command that stops the machine.
 
 ## Origin
 
