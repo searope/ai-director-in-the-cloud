@@ -285,7 +285,8 @@
 
         <div class="feed">
           <div class="dir-head">
-            <div><h2 id="dirHeadTitle"></h2><p id="dirLogline" class="hint"></p></div>
+            <div><h2 id="dirHeadTitle"></h2><p id="dirLogline" class="hint"></p>
+              <div class="seg dir-tabs" id="dirTabs"><button type="button" data-dtab="shots" class="on">Shots</button><button type="button" data-dtab="board">Storyboard</button></div></div>
             <div class="row">
               <label class="toggle"><input id="dirFast" type="checkbox" checked><span>Fast renders</span></label>
               <button type="button" class="btn small" id="dirAllKf">Make all keyframes</button>
@@ -297,6 +298,7 @@
           <div id="dirFilmBox"></div>
           <div id="dirShots" class="shots"></div>
           <button type="button" id="dirAddShot" class="btn ghost wide">+ Add a shot</button>
+          <div id="dirBoard" class="hidden"></div>
         </div>
       </div>
     </section>

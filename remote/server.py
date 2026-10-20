@@ -1073,9 +1073,14 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
 
     async def write_script(request):
         pid, raw = project_id(request), await request.json()
-        task = "check" if raw.get("task") == "check" else "write"
+        task = raw.get("task") if raw.get("task") in ("check", "board") else "write"
         return await director_call(lambda: director.write(pid, raw.get("instruction") or "", raw.get("writer"), task)
                                    or director.get(pid))
+
+    async def draw_board(request):
+        pid, raw = project_id(request), await request.json()
+        keys = [str(k) for k in raw.get("keys") or []][:20] or None
+        return await director_call(lambda: director.draw_board(pid, keys) or director.get(pid))
 
     async def shot_keyframes(request):
         pid, sid = project_id(request), request.match_info["shot"]
@@ -1152,6 +1157,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         web.put("/api/director/{id}", edit_project),
         web.delete("/api/director/{id}", delete_project),
         web.post("/api/director/{id}/write", write_script),
+        web.post("/api/director/{id}/board/draw", draw_board),
         web.post("/api/director/{id}/shots/{shot}/keyframes", shot_keyframes),
         web.post("/api/director/{id}/shots/{shot}/render", shot_render),
         web.post("/api/director/{id}/film", make_film),

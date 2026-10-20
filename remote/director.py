@@ -128,6 +128,71 @@ nothing needs fixing. The summary is one sentence on the shot list's overall sta
 "Consistent, except Mara's coat in shot 3." """
 
 
+CAMERA_MOVES = ["STATIC", "PAN", "TILT", "DOLLY", "TRACK", "HANDHELD", "STEADICAM", "CRANE", "DRONE", "ZOOM", "ORBIT"]
+FRAMINGS = ["EXTREME WIDE", "WIDE", "MEDIUM WIDE", "MEDIUM", "MEDIUM CLOSE-UP", "CLOSE-UP", "EXTREME CLOSE-UP", "OVER THE SHOULDER", "POV"]
+_PROMPTED = {"type": "object", "additionalProperties": False, "required": ["name", "prompt"],
+             "properties": {"name": {"type": "string"}, "prompt": {"type": "string"}}}
+
+BOARD_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["palette", "fingerprint", "references", "environments", "camera_plan", "shots", "lighting", "mood",
+                 "cinematography"],
+    "properties": {
+        "palette": {"type": "array", "items": {
+            "type": "object", "additionalProperties": False, "required": ["name", "hex"],
+            "properties": {"name": {"type": "string"}, "hex": {"type": "string"}}}},
+        "fingerprint": {"type": "string"},
+        "references": {"type": "array", "items": {
+            "type": "object", "additionalProperties": False, "required": ["name", "kind", "prompt"],
+            "properties": {"name": {"type": "string"}, "kind": {"type": "string", "enum": ["character", "vehicle", "prop", "creature"]},
+                           "prompt": {"type": "string"}}}},
+        "environments": {"type": "array", "items": _PROMPTED},
+        "camera_plan": {"type": "object", "additionalProperties": False, "required": ["prompt", "cuts"],
+                        "properties": {"prompt": {"type": "string"}, "cuts": {"type": "array", "items": {
+                            "type": "object", "additionalProperties": False, "required": ["shot", "setup"],
+                            "properties": {"shot": {"type": "integer"}, "setup": {"type": "string"}}}}}},
+        "shots": {"type": "array", "items": {
+            "type": "object", "additionalProperties": False, "required": ["shot", "lens_mm", "camera", "framing", "note"],
+            "properties": {"shot": {"type": "integer"}, "lens_mm": {"type": "integer"},
+                           "camera": {"type": "string", "enum": CAMERA_MOVES}, "framing": {"type": "string", "enum": FRAMINGS},
+                           "note": {"type": "string"}}}},
+        "lighting": {"type": "array", "items": {
+            "type": "object", "additionalProperties": False, "required": ["name", "note", "prompt"],
+            "properties": {"name": {"type": "string"}, "note": {"type": "string"}, "prompt": {"type": "string"}}}},
+        "mood": {"type": "array", "items": {"type": "string"}},
+        "cinematography": {"type": "array", "items": {"type": "string"}},
+    },
+}
+
+BOARD_PROMPT = """You are the director of photography preparing the production board (storyboard sheet) for a
+short AI-animated film, from its brief and shot list. An image model (FLUX.2) draws every picture on the board
+from your prompts alone, so each prompt must be complete and self-contained and include the film's visual style.
+
+- palette: 4 to 6 key colours of the film, each with a short evocative name and its hex code (#rrggbb).
+- fingerprint: one line naming the 2-4 visual elements that make the film's world recognisable.
+- references: the recurring characters, vehicles, props and creatures (at most 6, most important first). Each
+  prompt asks for a reference sheet on a plain light grey studio background with even light: for a character,
+  full-body front, side and back views standing side by side plus a close-up of the face, the same outfit in
+  every view; for a vehicle or prop, front, side and three-quarter views plus one detail close-up; for a
+  creature, side and front views plus a close-up. Describe the subject's look precisely (build, face, hair,
+  clothes, colours, materials) so it matches the shot list. Name cast members exactly as in the cast list.
+- environments: the 1 to 3 main locations, each a wide establishing picture of the empty set, in the film's style
+  and light.
+- camera_plan: prompt for a top-down aerial map of the main location showing the paths the action takes
+  (a clean illustrated plan, like a location scout's map, no text), and for each shot its camera setup in a few
+  words, e.g. "low tracking car alongside, left of the trail".
+- shots: one entry per shot in order (shot numbers from 1): a lens in mm (14-200; wide lenses for space and
+  speed, long lenses for faces and compression), the camera move, the framing, and one sentence on the shot's
+  purpose in the story and what the camera does, e.g. "the chase opens at full speed, establishing the line
+  through the forest".
+- lighting: 3 or 4 lighting/mood references: a short name, a one-line note, and a prompt for an atmospheric
+  picture (a texture or detail of the world in that light, no main characters needed).
+- mood: 4 to 6 mood keywords of two or three words, e.g. "sunlit danger".
+- cinematography: 4 to 6 short rules for the whole film (lens family, contrast, depth of field, camera
+  behaviour, screen direction)."""
+
+
 # ---------------------------------------------------------------- writers
 
 class WriterError(RuntimeError):
@@ -346,6 +411,14 @@ def load_writers(config):
 
 # ---------------------------------------------------------------- projects
 
+def board_items(board):
+    """The board's pictures (references, environments, camera plan, lighting), each a dict with key, prompt, image."""
+    if not board:
+        return []
+    return [*board.get("references", []), *board.get("environments", []),
+            *([board["camera_plan"]] if board.get("camera_plan") else []), *board.get("lighting", [])]
+
+
 def _clean_text(value, limit):
     return str(value or "").strip()[:limit]
 
@@ -396,6 +469,10 @@ class Director:
         if project.get("film", {}).get("status") == "working":
             project["film"].update(status="failed", error="The server restarted while the film was being made.")
             changed = True
+        for item in board_items(project.get("board")):
+            if item.get("img_status") == "working":
+                item.update(img_status="failed", img_error="The server restarted while the picture was being drawn.")
+                changed = True
         for shot in project.get("shots", []):
             if shot.get("kf_status") == "working":
                 shot.update(kf_status="failed", kf_error="The server restarted while the keyframes were being made.")
@@ -562,6 +639,9 @@ class Director:
                 f"Visual style: {b['style'] or '(choose one that suits the idea)'}\nTarget length: about {b['seconds']} seconds\n"
                 f"Aspect ratio: {b['aspect']}\n" + (f"Notes: {b['notes']}\n" if b["notes"] else "")
                 + f"\nCast (reference images are passed to the image model for these characters):\n{self._cast_text(project)}\n")
+        if task == "board":
+            return text + (f"\nShot list:\n{json.dumps(self._current_script(project), indent=1)}\n\n"
+                           "Prepare the production board." + (f" {instruction}" if instruction else ""))
         if task == "check":
             return text + (f"\nShot list to check:\n{json.dumps(self._current_script(project), indent=1)}\n\n"
                            "List only the problems that need fixing, each with its fix.")
@@ -589,7 +669,7 @@ class Director:
             raise ValueError("no AI writer is set up: see docs/director.md")
         if not writer.ready:
             raise ValueError(f"{writer.label} isn't set up on this computer")
-        if task == "check" and not project["shots"]:
+        if task in ("check", "board") and not project["shots"]:
             raise ValueError("write the script first")
         def claim(p):  # under the lock, on the saved copy: two quick taps can't start two writers
             if p.get("ai", {}).get("status") == "working":
@@ -605,6 +685,9 @@ class Director:
             if task == "check":
                 review = writer.write(REVIEW_PROMPT, prompt, REVIEW_SCHEMA)
                 self.update(project_id, lambda p: self._apply_review(p, review, writer))
+            elif task == "board":
+                board = writer.write(BOARD_PROMPT, prompt, BOARD_SCHEMA)
+                self.update(project_id, lambda p: self._apply_board(p, board, writer))
             else:
                 script = writer.write(SYSTEM_PROMPT, prompt, SCRIPT_SCHEMA)
                 self.update(project_id, lambda p: self._apply_script(p, script, writer))
@@ -651,6 +734,95 @@ class Director:
         project["review"] = {"summary": _clean_text(review.get("summary"), 600), "notes": notes,
                              "writer": writer.id, "finished": time.time()}
         project["ai"].update(status="done", error=None, finished=time.time(), writer=writer.id)
+
+    def _apply_board(self, project, board, writer):
+        """Store the board; a picture whose prompt didn't change keeps its image."""
+        if not isinstance(board, dict) or not isinstance(board.get("shots"), list):
+            raise WriterError("the reply had no board")
+        old = {i["key"]: i for i in board_items(project.get("board"))}
+
+        def item(key, name, prompt, **extra):
+            prompt = _clean_text(prompt, 1500)
+            was = old.get(key)
+            keep = was if was and was.get("prompt") == prompt else {}
+            return {"key": key, "name": _clean_text(name, 120), "prompt": prompt, "image": keep.get("image"),
+                    "img_status": keep.get("img_status", "idle") if keep.get("img_status") != "working" else "idle",
+                    "img_error": None, **extra}
+
+        lists = lambda k: [x for x in board.get(k) or [] if isinstance(x, dict)]  # noqa: E731
+        plan = board.get("camera_plan") if isinstance(board.get("camera_plan"), dict) else {}
+        ids = [s["id"] for s in project["shots"]]
+        project["board"] = {
+            "palette": [{"name": _clean_text(c.get("name"), 40), "hex": c["hex"]} for c in lists("palette")[:6]
+                        if isinstance(c.get("hex"), str) and len(c["hex"]) == 7 and c["hex"].startswith("#")
+                        and all(ch in "0123456789abcdefABCDEF" for ch in c["hex"][1:])],
+            "fingerprint": _clean_text(board.get("fingerprint"), 300),
+            "references": [item(f"ref{i}", r.get("name"), r.get("prompt"),
+                                kind=r.get("kind") if r.get("kind") in ("character", "vehicle", "prop", "creature") else "prop")
+                           for i, r in enumerate(lists("references")[:6])],
+            "environments": [item(f"env{i}", e.get("name"), e.get("prompt")) for i, e in enumerate(lists("environments")[:3])],
+            "camera_plan": item("plan", "Top-down plan", plan.get("prompt"),
+                                cuts=[{"shot_id": ids[c["shot"] - 1], "setup": _clean_text(c.get("setup"), 200)}
+                                      for c in plan.get("cuts") or [] if isinstance(c, dict) and isinstance(c.get("shot"), int)
+                                      and 1 <= c["shot"] <= len(ids)]),
+            "shots": [{"shot_id": ids[x["shot"] - 1], "lens_mm": max(8, min(800, x["lens_mm"])) if isinstance(x.get("lens_mm"), int) else 35,
+                       "camera": x.get("camera") if x.get("camera") in CAMERA_MOVES else "STATIC",
+                       "framing": x.get("framing") if x.get("framing") in FRAMINGS else "MEDIUM",
+                       "note": _clean_text(x.get("note"), 400)}
+                      for x in lists("shots") if isinstance(x.get("shot"), int) and 1 <= x["shot"] <= len(ids)],
+            "lighting": [item(f"light{i}", li.get("name"), li.get("prompt"), note=_clean_text(li.get("note"), 200))
+                         for i, li in enumerate(lists("lighting")[:4])],
+            "mood": [_clean_text(m, 40) for m in board.get("mood") or [] if isinstance(m, str)][:6],
+            "cinematography": [_clean_text(m, 160) for m in board.get("cinematography") or [] if isinstance(m, str)][:6],
+            "writer": writer.id, "finished": time.time(),
+        }
+        project["ai"].update(status="done", error=None, finished=time.time(), writer=writer.id)
+
+    def draw_board(self, project_id, keys=None):
+        """Draw the board's pictures on the GPU, one after another: the ones not drawn yet, or `keys` again."""
+        project = self._load(project_id)
+        if not project:
+            raise KeyError("no such project")
+        items = board_items(project.get("board"))
+        if not items:
+            raise ValueError("write the storyboard first")
+        todo = [i["key"] for i in items if i["prompt"] and (i["key"] in keys if keys else i.get("img_status") != "done" or not i.get("image"))]
+        todo = [k for k in todo if next(i for i in items if i["key"] == k).get("img_status") != "working"]
+        if not todo:
+            raise ValueError("all the pictures are drawn: choose one to redraw")
+
+        def mark(p):
+            for i in board_items(p.get("board")):
+                if i["key"] in todo:
+                    i.update(img_status="working", img_error=None)
+        self.update(project_id, mark)
+        self._task_started(project_id)
+        threading.Thread(target=self._draw_board, args=(project_id, todo), daemon=True).start()
+
+    def _draw_board(self, project_id, keys):
+        try:
+            for key in keys:
+                project = self._load(project_id)
+                item = next((i for i in board_items((project or {}).get("board")) if i["key"] == key), None)
+                if not item:
+                    continue
+                # a cast member's reference sheet uses their reference image, so the sheet matches the keyframes
+                cast = [c for c in map(self.characters.get, project["cast"]) if c and c["refs"]
+                        and c["name"].strip().lower() == item["name"].strip().lower()] if key.startswith("ref") else []
+                try:  # (the maker names the cast member's reference image in the prompt)
+                    image = self._wait_task(self.maker.start(item["prompt"], "16:9", None, None, project.get("image_model", "klein4b"),
+                                                             self.characters.cast([cast[0]["id"]]) if cast else ()))
+                    change = {"image": image, "img_status": "done", "img_error": None}
+                except Exception as e:  # keep drawing the others
+                    change = {"img_status": "failed", "img_error": str(e)[-400:]}
+
+                def save(p, key=key, change=change):
+                    for i in board_items(p.get("board")):
+                        if i["key"] == key and i.get("prompt") == item["prompt"]:  # not rewritten meanwhile
+                            i.update(change)
+                self._update_quietly(project_id, save)
+        finally:
+            self._task_done(project_id)
 
     # ---- keyframes, clips and the film
 
