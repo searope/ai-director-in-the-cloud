@@ -44,6 +44,10 @@ animated between a START keyframe and an END keyframe, following a short motion 
 You see one contact sheet: the two keyframes on top, then frames sampled evenly through the
 clip, each labelled with its time in seconds.
 
+Compare START and END first: what changes between them (pose, objects, camera angle, height, distance)?
+A subject seen from a different angle can look different (e.g. hair falling differently) without
+actually being different; don't call that a keyframe mismatch.
+
 Look for what a viewer would find wrong or weird:
 - faces, hands, fingers or bodies that morph, melt, duplicate or change identity between frames;
 - objects that appear, vanish, merge or change shape; text or logos that warp;
@@ -56,7 +60,11 @@ viewer wouldn't notice are fine.
 
 Then write `motion_prompt`: a better motion prompt for the same two keyframes that avoids the
 problems: describe one clear, simple action, what stays still, and the camera (e.g. "static
-camera"). Name the things that must keep their shape. Keep it under about 120 words. Video models follow plain
+camera"). The clip must end exactly on END, so the camera has to get from START's viewpoint to END's:
+if they differ in angle, height or distance, describe that camera move explicitly and early (e.g. "the
+camera slowly rises and moves closer, ending looking down at him from above"). Never ask for a static
+camera or "no reframing" when the keyframes' framing differs: the model then morphs the subject (hair,
+face, objects) to reach END instead of moving the camera. Name the things that must keep their shape. Keep it under about 120 words. Video models follow plain
 physical descriptions better than abstract ones; describing how something moves works better
 than listing what must not happen.
 
