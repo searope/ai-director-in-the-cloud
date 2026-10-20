@@ -77,7 +77,7 @@ def missing_image_model_files(models_dir, name):
 
 DEFAULTS = {
     "server": "http://127.0.0.1:8188",
-    "engine": "wan22",        # "wan22" or "minimax-h3"
+    "engine": "minimax-h3",   # "minimax-h3" (default, with sound) or "wan22"
     "width": "auto",          # "auto" = match the first keyframe's aspect ratio
     "height": "auto",
     "area": 832 * 480,        # pixel budget for "auto" sizing; fits 8 GB VRAM

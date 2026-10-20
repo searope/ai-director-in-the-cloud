@@ -281,7 +281,8 @@ function renderEngines(engines) {
   }
   const h3 = engines.find((e) => e.id === "minimax-h3");
   if (h3 && !h3.ready) ENGINE_HINTS.wan22 += ` MiniMax H3 isn't usable yet; missing in ComfyUI/models: ${h3.missing.join(", ")}`;
-  $("engineHint").textContent = ENGINE_HINTS[sel.value];
+  sel.value = (engines.find((e) => e.ready) || engines[0]).id;  // MiniMax H3 is the default when installed
+  sel.onchange();
 }
 $("engine").onchange = () => {
   const h3 = $("engine").value === "minimax-h3";

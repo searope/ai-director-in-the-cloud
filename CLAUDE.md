@@ -2,8 +2,10 @@
 
 **Compute and AI spending is limited to two things:**
 
-1. **A rented cloud GPU** (pay per hour, e.g. RunPod or Vast.ai) running **open-weight models**
-   locally on that machine: video, image, upscaling, LoRA training, and local language models.
+1. **A rented cloud GPU** (pay per hour, e.g. RunPod or Vast.ai) running **free, open-weight
+   models** locally on that machine: video, image, upscaling, LoRA training, and local language
+   models. "Free" means free to download and run; each model still has its own license. Check it
+   before commercial use (e.g. FLUX.2 Klein 9B is non-commercial; FLUX.2 Klein 4B is Apache 2.0).
 2. **An AI subscription** (Claude, or a similar flat-rate assistant subscription) for the
    language-model work: story planning, scripts, shot lists, continuity review, and development.
 
