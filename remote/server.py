@@ -38,6 +38,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 import animate  # noqa: E402
+import clipreview  # noqa: E402
 import director as directors  # noqa: E402
 import gpu as gpus  # noqa: E402
 import soundtrack  # noqa: E402
@@ -74,6 +75,8 @@ class Jobs:
                 job = json.load(f)
             if job["status"] == "running":
                 job.update(status="failed", error="Server restarted while this job was running.")
+            if (job.get("review") or {}).get("status") == "working":
+                job["review"] = {"status": "failed", "error": "The server restarted during the check."}
             self.jobs[job_id] = job
             if job["status"] == "queued":
                 self.pending.put(job_id)
@@ -134,7 +137,7 @@ class Jobs:
             "server": None,  # set once the GPU is up
             "keyframes": [os.path.join(out_dir, "inputs", name) for name in job["inputs"]],
             "prompts": s["prompts"],
-            "engine": s.get("engine", "wan22"),
+            "engine": s.get("engine", "minimax-h3"),
             "image_model": s.get("image_model", "klein4b"),
             "audio": s.get("audio", True),
             "sound": s.get("sound") or None,
@@ -446,7 +449,7 @@ def clean_settings(raw, n_keyframes, styles):
     style = raw.get("style") or "photoreal"
     if not custom and style not in styles:
         raise ValueError(f"unknown style {style}")
-    engine = raw.get("engine") or "wan22"
+    engine = raw.get("engine") or "minimax-h3"
     if engine not in animate.ENGINES:
         raise ValueError(f"unknown engine {engine}")
     image_model = raw.get("image_model") or "klein4b"
@@ -495,6 +498,48 @@ def queue_job(jobs, files, raw):
     return job
 
 
+def job_keyframes(jobs, job):
+    """The keyframes a render actually used: the redrawn ones when it restyled them, else its inputs."""
+    names, folder = (job["styled"], "result_keyframes") if job.get("styled") else (job["inputs"], "inputs")
+    return [os.path.join(jobs.dir(job["id"]), folder, n) for n in names]
+
+
+def review_job(jobs, job, writer):
+    """Have a writer review a finished clip in the background; the result goes to job["review"]."""
+    if job["status"] != "done" or job.get("kind") == "film":
+        raise ValueError("only a finished clip can be checked")
+    if (job.get("review") or {}).get("status") == "working":
+        raise ValueError("this clip is already being checked")
+    jobs.update(job, review={"status": "working", "writer": writer.id, "started": time.time()})
+
+    def run():
+        keys = job_keyframes(jobs, job)
+        try:
+            result = clipreview.review(writer, os.path.join(jobs.dir(job["id"]), "result.mp4"), [keys[0], keys[-1]],
+                                       " / then: ".join(job["settings"]["prompts"]))
+            jobs.update(job, review={**result, "status": "done", "writer": writer.id, "finished": time.time()})
+        except Exception as e:  # report any failure in the app
+            jobs.update(job, review={"status": "failed", "writer": writer.id, "error": str(e)[-800:]})
+    threading.Thread(target=run, daemon=True).start()
+
+
+def rerender_job(jobs, job, prompts):
+    """Render the same keyframes again with new motion prompts. A job that restyled its keyframes passes the
+    restyled ones on and skips the restyle, so only the prompt changes."""
+    if job.get("kind") == "film":
+        raise ValueError("a film can't be rendered again; render its shots in the Director")
+    prompts = [str(p).strip()[:1500] for p in prompts][:len(job["settings"]["prompts"])]
+    if not prompts or not all(prompts):
+        raise ValueError("write the motion prompt")
+    prompts += job["settings"]["prompts"][len(prompts):]
+    settings = dict(job["settings"], prompts=prompts, seed=None, restyle=False if job.get("styled") else job["settings"].get("restyle"))
+    new = queue_job(jobs, job_keyframes(jobs, job), {"smooth": settings.get("interpolate", 2) > 1, "length": settings["length"],
+                                                     "size": settings["size"], "fast": settings["fast"], **settings})
+    new["retry_of"] = job["id"]
+    jobs.save(new)
+    return new
+
+
 def add_film_job(jobs, make_video, keyframes, info):
     """Record a finished film as a done job, so it shows in the library with Sound and Download.
     make_video(path) writes the video; keyframes are image paths (shown as the job's inputs);
@@ -514,7 +559,7 @@ def add_film_job(jobs, make_video, keyframes, info):
     now = time.time()
     job = {"id": job_id, "kind": "film", "title": info["title"], "narration": info.get("narration", []),
            "created": now, "started": now, "finished": now, "status": "done", "progress": "done",
-           "settings": {"prompts": info["prompts"], "engine": "wan22", "style": "photoreal", "custom_style": "",
+           "settings": {"prompts": info["prompts"], "engine": info.get("engine", "wan22"), "style": "photoreal", "custom_style": "",
                         "fast": info.get("fast", True), "loop": False, "seed": None},
            "inputs": names, "styled": [], "log": []}
     jobs.add(job)  # the worker skips jobs that aren't queued
@@ -576,9 +621,9 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
             "image_models": [{"id": k, "label": v["label"], "license": v["license"],
                               "missing": animate.missing_image_model_files(MODELS_DIR, k, have)}
                              for k, v in animate.IMAGE_MODELS.items()],
-            "engines": [{"id": "wan22", "label": "Wan 2.2", "license": animate.LICENSES["wan22"], "ready": True},
-                        {"id": "minimax-h3", "label": "MiniMax H3 + sound", "license": animate.LICENSES["minimax-h3"],
-                         "ready": not h3_missing, "missing": h3_missing}],
+            "engines": [{"id": "minimax-h3", "label": "MiniMax H3 + sound", "license": animate.LICENSES["minimax-h3"],
+                         "ready": not h3_missing, "missing": h3_missing},
+                        {"id": "wan22", "label": "Wan 2.2 (silent)", "license": animate.LICENSES["wan22"], "ready": True}],
             "queued": sum(1 for j in jobs.jobs.values() if j["status"] == "queued"),
             "running": any(j["status"] == "running" for j in jobs.jobs.values()),
             "elevenlabs": sound.info(),
@@ -637,6 +682,25 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         elif job["status"] == "running":
             job["cancel"] = True
         return web.json_response(jobs.public(job))
+
+    async def check_clip(request):
+        job, raw = get_job(request), await request.json()
+        writer = director.writers.get(raw.get("writer"))
+        if not writer or not writer.ready:
+            return web.json_response({"error": "choose an AI model that is set up (see docs/director.md)"}, status=400)
+        try:
+            review_job(jobs, job, writer)
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        return web.json_response(jobs.public(job))
+
+    async def rerender(request):
+        job, raw = get_job(request), await request.json()
+        try:
+            new = await asyncio.to_thread(rerender_job, jobs, job, raw.get("prompts") or [])
+        except (ValueError, TypeError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+        return web.json_response(jobs.public(new))
 
     async def delete_job(request):
         job = get_job(request)
@@ -867,6 +931,8 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         web.get("/api/jobs/{id}", job_detail),
         web.post("/api/jobs/{id}/cancel", cancel_job),
         web.delete("/api/jobs/{id}", delete_job),
+        web.post("/api/jobs/{id}/review", check_clip),
+        web.post("/api/jobs/{id}/rerender", rerender),
         web.get("/api/jobs/{id}/video", video),
         web.get("/api/voices", voices),
         web.post("/api/jobs/{id}/audio", add_track),

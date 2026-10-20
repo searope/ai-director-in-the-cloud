@@ -43,7 +43,7 @@ minutes.
 | Piece | Where |
 |---|---|
 | Keyframe maker: text → keyframe 1, edits → next keyframes (FLUX.2 Klein 4B default; Klein 9B, FLUX 3 Klein optional) | web app, Keyframes tab |
-| Keyframes → video: Wan 2.2 14B first/last frame (default); MiniMax H3 with sound (optional, see licenses) | web app, Create tab; `animate.py` |
+| Keyframes → video: MiniMax H3 first/last frame with generated sound (default; see licenses); Wan 2.2 14B (silent) | web app, Create tab; `animate.py` |
 | Styles: presets, custom text styles, keyframe redraw, Wan style LoRAs | `styles.json` |
 | Studio web app (dark, OpenArt-style layout): Home, Create image (text → image, edit image), Create video (keyframes from the library, motion per gap), Library of all images and videos; job queue; works on phone and desktop; prints the public link on RunPod. The previous single-page app is at `/classic` | `remote/server.py`, `remote/static/` |
 | Sound for finished videos (**opt-in, paid ElevenLabs credits**): voice-over, multi-voice dialogue, sound effects and music as layers with their own start time and volume, mixed into a copy of the video; dubbing of the speech layers into other languages. Off unless `ELEVENLABS_API_KEY` is set | Sound button on a video; `remote/soundtrack.py` |
@@ -75,7 +75,7 @@ before commercial use. Details per download profile are in `setup/models.json` (
 | Lightx2v Wan 2.2 4-step LoRAs (fast mode) | not yet verified | ❓ quality mode doesn't use them |
 | FLUX 3 Klein | FLUX Kommunity License | ⚠️ free only under $5M annual revenue |
 | FLUX.2 Klein 9B | FLUX non-commercial | ❌ needs a paid Black Forest Labs license |
-| MiniMax H3 (+ turbo LoRA) | MiniMax H3 Community License | ❌ excludes the US, EU, UK and South Korea |
+| MiniMax H3 (+ turbo LoRA) | The owner's written license from MiniMax (Oct 2026); public: MiniMax H3 Community License | ✅ for the owner (all use, no attribution). ❌ for anyone else in the US, EU, UK or South Korea without their own license: use Wan 2.2 |
 | ElevenLabs (sound, opt-in API, not a model) | ElevenLabs terms; paid per use | ⚠️ needs a paid ElevenLabs plan (free-plan dubs are watermarked); check the terms for music |
 
 ## Getting started

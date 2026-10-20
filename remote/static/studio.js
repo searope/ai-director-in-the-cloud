@@ -360,7 +360,7 @@ function openImage(id) {
 
 function jobSummary(j) {
   const s = j.settings;
-  if (j.kind === "film") return { style: "", engine: "Wan 2.2", text: `Film · ${j.title} · ${s.prompts.length} shots` };
+  if (j.kind === "film") return { style: "", engine: "", text: `Film · ${j.title} · ${s.prompts.length} shots` };
   const style = s.custom_style || (S.info?.styles.find((x) => x.id === s.style) || {}).label || s.style;
   const engine = (S.info?.engines.find((e) => e.id === s.engine) || {}).label || s.engine;
   return { style, engine, text: `${engine} · ${style} · ${j.inputs.length} keyframes${s.loop ? " · loop" : ""} · ${s.fast ? "fast" : "quality"}` };
@@ -660,11 +660,14 @@ function renderEngines() {
   const sel = $("engine");
   sel.innerHTML = S.info.engines.map((e) =>
     `<option value="${e.id}"${e.ready ? "" : " disabled"}>${esc(e.label)}${e.ready ? "" : " (not installed)"}</option>`).join("");
-  sel.value = "wan22";  // commercial-safe default; MiniMax H3 only by explicit choice
+  // Keep the current choice if it's still available; otherwise MiniMax H3 (the default) when installed, else Wan.
+  const ok = (id) => S.info.engines.some((e) => e.id === id && e.ready);
+  sel.value = ok(sel.dataset.chosen) ? sel.dataset.chosen : ok("minimax-h3") ? "minimax-h3" : "wan22";
   sel.onchange();
 }
 $("engine").onchange = () => {
   const e = S.info.engines.find((x) => x.id === $("engine").value);
+  $("engine").dataset.chosen = e.id;
   const h3 = e.id === "minimax-h3";
   $("soundBox").classList.toggle("hidden", !h3);
   $("smooth").checked = !h3;  // H3 already renders 24 fps
@@ -701,6 +704,38 @@ async function renderVideoJob() {
 }
 $("vidGo").onclick = renderVideoJob;
 
+// ---------------------------------------------------------------- clip check (an AI model reviews a render)
+const VERDICTS = { good: ["Looks good", "ok"], minor: ["Small flaws", "warn"], redo: ["Needs a redo", "bad"] };
+function reviewWriter() {
+  const ws = (S.info?.writers || []).filter((w) => w.ready);
+  return ws.find((w) => w.id === store.get("writer")) || ws[0];
+}
+async function checkClip(jobId) {
+  const w = reviewWriter();
+  if (!w) return toast("Set up an AI model first (docs/director.md)");
+  if (w.paid && !confirm(`${w.label} is billed per use. Check this clip with it?`)) return false;
+  try { await api(`/api/jobs/${jobId}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ writer: w.id }) }); }
+  catch (e) { toast(e.message); return false; }
+  await refreshJobs(); return true;
+}
+// action: the button under the suggested prompt, e.g. ["rerender", "Render again with this prompt"]
+function reviewBlock(r, action) {
+  if (!r) return "";
+  const who = esc(writerById(r.writer)?.label || r.writer || "");
+  if (r.status === "working") return `<div class="ai-status"><div class="spinner"></div>Checking the clip with ${who}…</div>`;
+  if (r.status === "failed") return `<div class="ai-status bad"><b>The check didn't finish.</b> ${esc(r.error || "")}</div>`;
+  const [label, cls] = VERDICTS[r.verdict] || ["Checked", ""];
+  return `<div class="clip-review">
+    <div class="cr-head"><span class="pill ${cls}">${label}</span><span class="hint">${who}</span></div>
+    <p>${esc(r.summary)}</p>
+    ${r.issues?.length ? `<details><summary>${r.issues.length} problem${r.issues.length === 1 ? "" : "s"}</summary><ul>${r.issues.map((i) =>
+      `<li class="${i.severity}"><b>${esc(i.when)}</b> ${esc(i.what)}</li>`).join("")}</ul></details>` : ""}
+    ${r.keyframe_advice ? `<div class="note">${esc(r.keyframe_advice)}</div>` : ""}
+    ${r.verdict !== "good" && r.motion_prompt ? `<label class="sf">Suggested prompt<textarea data-fix-prompt rows="3">${esc(r.motion_prompt)}</textarea></label>
+      <button type="button" class="btn small" data-fix="${action[0]}">${action[1]}</button>` : ""}
+  </div>`;
+}
+
 function jobCard(j) {
   const sum = jobSummary(j);
   const end = j.finished || Date.now() / 1000, took = j.started ? fmtTime(end - j.started) : "";
@@ -716,7 +751,9 @@ function jobCard(j) {
     ${active ? `<div class="bar"><span></span></div>` : ""}
     ${j.error ? `<div class="error">${esc(j.error)}</div>` : ""}
     ${j.status === "done" ? `<video controls playsinline loop preload="metadata" src="${jobVideo(j)}"></video>` : `<div class="mini">${imgs}</div>`}
+    ${reviewBlock(j.review, ["rerender", "Render again with this prompt"])}
     <div class="row">
+      ${j.status === "done" && j.kind !== "film" && j.review?.status !== "working" ? `<button type="button" class="btn small" data-job-act="check">${j.review ? "Check again" : "Check clip"}</button>` : ""}
       ${j.status === "done" ? `<button type="button" class="btn small" data-job-act="sound">Sound</button>
         <a class="btn small" href="${jobVideo(j, null, true)}">Download</a>` : ""}
       ${active ? `<button type="button" class="btn small" data-job-act="cancel">Cancel</button>` : ""}
@@ -735,7 +772,7 @@ function renderJobs() {
   for (const j of S.jobs) {
     const html = jobCard(j);
     let el = existing.get(j.id);
-    if (!el || el.dataset.html !== html) {
+    if ((!el || el.dataset.html !== html) && !(el && el.contains(document.activeElement))) {  // keep a card being edited
       const tmp = document.createElement("div"); tmp.innerHTML = html;
       const fresh = tmp.firstElementChild; fresh.dataset.html = html;
       if (el) el.replaceWith(fresh);
@@ -754,8 +791,18 @@ async function deleteJob(id) {
   catch (e) { toast(e.message); return false; }
 }
 $("jobList").onclick = async (e) => {
+  const card = e.target.closest(".job"); if (!card) return;
+  if (e.target.closest('[data-fix="rerender"]')) {
+    const prompt = card.querySelector("[data-fix-prompt]").value.trim();
+    try {
+      await api(`/api/jobs/${card.dataset.id}/rerender`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompts: [prompt] }) });
+      toast("Queued with the new prompt"); await refreshJobs(); renderJobs();
+    } catch (err) { toast(err.message); }
+    return;
+  }
   const act = e.target.closest("[data-job-act]")?.dataset.jobAct; if (!act) return;
-  const id = e.target.closest(".job").dataset.id;
+  const id = card.dataset.id;
+  if (act === "check") { if (await checkClip(id)) renderJobs(); return; }
   if (act === "delete") return deleteJob(id);
   if (act === "sound") return openSound(id);
   try { await api(`/api/jobs/${id}/cancel`, { method: "POST" }); await refreshJobs(); renderJobs(); }
@@ -897,6 +944,8 @@ function renderDirPanel(p) {
   setHtml($("dirCast"), S.characters.length ? S.characters.map((c) => `<button type="button" class="cast-chip${p.cast.includes(c.id) ? " on" : ""}" data-dcast="${c.id}">
       ${c.refs[0] ? `<img alt="" src="${imgUrl(c.refs[0])}">` : ""}${esc(c.name)}</button>`).join("")
     : `<p class="hint" style="margin:0">No characters yet. <a href="#/characters">Create them</a> to keep faces consistent; without a cast the AI describes everyone in each prompt.</p>`);
+  setHtml($("dirEngine"), S.info.engines.map((e) => `<option value="${e.id}"${e.ready ? "" : " disabled"}>${esc(e.label)}${e.ready ? "" : " (not installed)"}</option>`).join(""));
+  $("dirEngine").value = p.engine || "wan22";
   const writers = S.info.writers || [];
   setHtml($("dirWriter"), writers.length ? writers.map((w) => `<option value="${w.id}"${w.ready ? "" : " disabled"}>${esc(w.label)}${w.model ? ` · ${esc(w.model)}` : ""}${w.ready ? "" : " (not set up)"}</option>`).join("")
     : `<option value="">No AI model set up</option>`);
@@ -959,6 +1008,7 @@ function shotCard(p, s, i) {
         ${ta("motion", "Motion", 2, "Movement and camera, e.g. slow push-in")}
         ${ta("narration", "Narration", 1, "Voice-over or dialogue (optional)")}
         ${(p.review?.notes || []).filter((n) => n.shot_id === s.id).map((n) => `<div class="note">${esc(n.note)}</div>`).join("")}
+        ${r?.status === "done" ? reviewBlock(r.review, ["usefix", "Use this prompt and render again"]) : ""}
         ${cast.length ? `<div class="cast-pick small">${cast.map((c) => `<button type="button" class="cast-chip${s.characters.includes(c.id) ? " on" : ""}" data-sc="${c.id}">
           ${c.refs[0] ? `<img alt="" src="${imgUrl(c.refs[0])}">` : ""}${esc(c.name)}</button>`).join("")}</div>` : ""}
       </div>
@@ -966,6 +1016,7 @@ function shotCard(p, s, i) {
     <div class="shot-foot"><span class="shot-status${bad ? " bad" : ""}">${esc(status)}</span>
       ${s.start_image && !s.end_image && !kfBusy ? `<button type="button" class="btn small" data-sa="kfend">Make end keyframe</button>` : ""}
       <button type="button" class="btn small" data-sa="kf"${kfBusy ? " disabled" : ""}>${s.start_image ? "Remake both keyframes" : "Make keyframes"}</button>
+      ${r?.status === "done" && r.review?.status !== "working" ? `<button type="button" class="btn small" data-sa="check">${r.review ? "Check again" : "Check clip"}</button>` : ""}
       <button type="button" class="btn small" data-sa="render"${s.start_image && s.end_image && !["queued", "running"].includes(r?.status) && !kfBusy ? "" : " disabled"}>${r?.status === "done" ? "Render again" : "Render shot"}</button>
     </div></div>`;
 }
@@ -1022,6 +1073,7 @@ $("dirCast").onclick = (e) => {
   saveProject({ cast });
 };
 $("dirFast").onchange = () => saveProject({ fast: $("dirFast").checked });
+$("dirEngine").onchange = () => saveProject({ engine: $("dirEngine").value });
 $("dirWrite").onclick = async () => {
   const p = D.project; if (!p) return;
   const w = writerById($("dirWriter").value);
@@ -1074,7 +1126,14 @@ $("dirShots").addEventListener("click", async (e) => {
     shots[i] = { ...s, characters: has ? s.characters.filter((x) => x !== sc.dataset.sc) : [...s.characters, sc.dataset.sc] };
     return saveProject({ shots: shotsForSave(shots) });
   }
+  if (e.target.closest('[data-fix="usefix"]')) {
+    const motion = card.querySelector("[data-fix-prompt]").value.trim(); if (!motion) return;
+    await saveProject({ shots: shotsForSave(shots.map((s) => s.id === id ? { ...s, motion } : s)) });
+    if (await shotAction(`shots/${id}/render`)) { await refreshJobs(); toast("New prompt saved; the shot is rendering again"); }
+    return;
+  }
   const a = e.target.closest("[data-sa]")?.dataset.sa; if (!a) return;
+  if (a === "check") { if (await checkClip(shots[i].job_id)) await refreshDirector(); return renderDirector(); }
   if (a === "kf") return shotAction(`shots/${id}/keyframes`);
   if (a === "kfend") return shotAction(`shots/${id}/keyframes?keep_start=1`);
   if (a === "pickstart") { picker.shot = id; return openPicker("shotstart"); }

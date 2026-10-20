@@ -5,7 +5,8 @@ subscription, the Anthropic API, any OpenAI-compatible endpoint, or any command-
 Every writer gets the same instructions and returns JSON that matches SCRIPT_SCHEMA, so the
 rest of the pipeline doesn't depend on which model wrote it. Each shot then becomes a start
 keyframe (text to image, with the shot's characters as references), an end keyframe (an edit of
-the start), and a 2-5 s Wan 2.2 clip between the two. "Make film" joins the clips in order.
+the start), and a 2-5 s clip between the two (MiniMax H3 with sound by default, or Wan 2.2).
+"Make film" joins the clips in order, keeping their sound.
 
 Projects are output/director/<id>.json. Writers are configured in remote/config.json:
 
@@ -20,6 +21,7 @@ Without a "writers" list: Claude Code if it is installed, plus the Anthropic API
 "anthropic_api_key" is set (paid per token; opt-in, approved by the owner in Oct 2026).
 """
 
+import base64
 import json
 import os
 import shutil
@@ -34,6 +36,7 @@ import uuid
 SECONDS = (2, 3, 4, 5)
 LENGTH_FOR_SECONDS = {2: 33, 3: 49, 4: 65, 5: 81}  # Wan 2.2 frames at 16 fps
 MAX_SHOTS = 40
+VIDEO_ENGINES = ("minimax-h3", "wan22")  # the first is the default for new films
 TEXT_FIELDS = {"scene": 200, "action": 600, "start_frame": 1500, "end_change": 600, "motion": 600, "narration": 600}
 
 SCRIPT_SCHEMA = {
@@ -65,7 +68,7 @@ SYSTEM_PROMPT = """You write shot lists for short AI-animated films.
 
 The film is made shot by shot. For each shot, an image model draws the first frame from
 `start_frame`, then edits it into the last frame with `end_change`, and a video model
-(Wan 2.2) animates the 2-5 seconds between those two frames following `motion`. Shots are
+(MiniMax H3 or Wan 2.2) animates the 2-5 seconds between those two frames following `motion`. Shots are
 joined with hard cuts.
 
 For each shot, in order:
@@ -144,11 +147,11 @@ def find_claude(path=None):
     return found if os.path.exists(found) else None
 
 
-def _run(cmd, stdin, timeout, shell=False):
+def _run(cmd, stdin, timeout, shell=False, cwd=None):
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     try:
         return subprocess.run(cmd, input=stdin, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
-                              shell=shell, cwd=tempfile.gettempdir(), creationflags=flags)
+                              shell=shell, cwd=cwd or tempfile.gettempdir(), creationflags=flags)
     except subprocess.TimeoutExpired:
         raise WriterError(f"no answer after {timeout // 60} minutes") from None
     except OSError as e:
@@ -166,8 +169,28 @@ def _json_from_text(text):
         raise WriterError(f"the reply was not valid JSON ({e})") from None
 
 
+def _image_note(image):
+    """For writers that read files themselves: point them at the image."""
+    return f"\n\nThe image to look at is the file {image}: read it first." if image else ""
+
+
+def _image_b64(image):
+    with open(image, "rb") as f:
+        return base64.standard_b64encode(f.read()).decode()
+
+
+def _probe(video_path):
+    """Seconds, frame rate and whether there is a sound track."""
+    import av
+    with av.open(video_path) as container:
+        v = container.streams.video[0]
+        seconds = float(v.duration * v.time_base) if v.duration and v.time_base else float(container.duration or 0) / 1e6
+        return {"seconds": seconds, "fps": float(v.average_rate or 16), "audio": bool(container.streams.audio)}
+
+
 class ClaudeCodeWriter:
-    """Headless Claude Code (`claude -p`) on the owner's subscription: no tools, structured output."""
+    """Headless Claude Code (`claude -p`) on the owner's subscription, with structured output. No tools, except
+    Read (limited to the image's folder) when there is an image to look at."""
 
     def __init__(self, cfg):
         self.cfg = cfg
@@ -177,14 +200,16 @@ class ClaudeCodeWriter:
     def ready(self):
         return bool(self.exe)
 
-    def write(self, system, user, schema):
+    def write(self, system, user, schema, image=None):
         if not self.exe:
             raise WriterError("Claude Code isn't installed on this computer (or set \"path\" for this writer)")
-        cmd = [self.exe, "-p", "--output-format", "json", "--tools", "", "--strict-mcp-config",
+        folder = os.path.dirname(image) if image else None
+        tools = ["--tools", "Read", "--allowedTools", "Read", "--add-dir", folder] if image else ["--tools", ""]
+        cmd = [self.exe, "-p", "--output-format", "json", *tools, "--strict-mcp-config",
                "--no-session-persistence", "--json-schema", json.dumps(schema), "--system-prompt", system]
         if self.cfg.get("model"):
             cmd += ["--model", self.cfg["model"]]
-        proc = _run(cmd, user, self.cfg.get("timeout", 900))
+        proc = _run(cmd, user + _image_note(image), self.cfg.get("timeout", 900), cwd=folder)
         try:
             out = json.loads(proc.stdout)
         except ValueError:
@@ -204,7 +229,7 @@ class AnthropicWriter:
     def ready(self):
         return bool(self.cfg.get("api_key"))
 
-    def write(self, system, user, schema):
+    def write(self, system, user, schema, image=None):
         try:
             import anthropic
         except ImportError:
@@ -215,7 +240,9 @@ class AnthropicWriter:
                 model=self.cfg.get("model") or "claude-opus-5-5",
                 max_tokens=16000,
                 system=system,
-                messages=[{"role": "user", "content": user}],
+                messages=[{"role": "user", "content": ([{"type": "image", "source": {
+                    "type": "base64", "media_type": "image/png", "data": _image_b64(image)}}] if image else [])
+                    + [{"type": "text", "text": user}]}],
                 output_config={"effort": self.cfg.get("effort", "high"),
                                "format": {"type": "json_schema", "schema": schema}},
                 betas=["server-side-fallback-2026-07-01"],
@@ -232,7 +259,7 @@ class AnthropicWriter:
         if response.stop_reason == "refusal":
             raise WriterError("the model declined this request")
         if response.stop_reason == "max_tokens":
-            raise WriterError("the script was too long for one reply; ask for fewer shots")
+            raise WriterError("the reply was too long and got cut off")
         return _json_from_text(next((b.text for b in response.content if b.type == "text"), ""))
 
 
@@ -247,9 +274,11 @@ class OpenAIWriter:
     def ready(self):
         return bool(self.cfg.get("base_url") and self.cfg.get("model"))
 
-    def write(self, system, user, schema):
+    def write(self, system, user, schema, image=None):
+        content = ([{"type": "image_url", "image_url": {"url": "data:image/png;base64," + _image_b64(image)}}] if image else []) \
+            + [{"type": "text", "text": user}]
         body = {"model": self.cfg["model"],
-                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}],
                 "response_format": {"type": "json_schema", "json_schema": {"name": "script", "schema": schema, "strict": True}}}
         headers = {"Content-Type": "application/json"}
         if self.cfg.get("api_key"):
@@ -280,8 +309,8 @@ class CommandWriter:
     def ready(self):
         return bool(self.cfg.get("command"))
 
-    def write(self, system, user, schema):
-        prompt = (f"{system}\n\n{user}\n\nReply with only one JSON object that matches this JSON Schema, "
+    def write(self, system, user, schema, image=None):
+        prompt = (f"{system}\n\n{user}{_image_note(image)}\n\nReply with only one JSON object that matches this JSON Schema, "
                   f"with no other text:\n{json.dumps(schema)}")
         proc = _run(self.cfg["command"], prompt, self.cfg.get("timeout", 900), shell=True)
         if proc.returncode:
@@ -390,8 +419,8 @@ class Director:
             return None
         for shot in project["shots"]:
             job = self.jobs.jobs.get(shot.get("job_id") or "")
-            shot["render"] = ({"status": job["status"], "progress": job.get("progress"), "error": job.get("error")}
-                              if job else None)
+            shot["render"] = ({"status": job["status"], "progress": job.get("progress"), "error": job.get("error"),
+                               "review": job.get("review")} if job else None)
             shot["characters"] = [c for c in shot["characters"] if self.characters.get(c)]
         project["cast"] = [c for c in project["cast"] if self.characters.get(c)]
         film = project.get("film", {})
@@ -479,6 +508,7 @@ class Director:
         project = {"id": uuid.uuid4().hex[:12], "title": title, "created": time.time(), "logline": "",
                    "brief": self._clean_brief(raw.get("brief")), "cast": self._clean_cast(raw.get("cast")),
                    "writer": writer, "image_model": "klein4b", "fast": True, "shots": [],
+                   "engine": raw.get("engine") if raw.get("engine") in VIDEO_ENGINES else VIDEO_ENGINES[0],
                    "ai": {"status": "idle"}, "film": {"status": "idle"}}
         with self.lock:
             self._save(project)
@@ -496,6 +526,8 @@ class Director:
                 p["writer"] = raw["writer"]
             if "fast" in raw:
                 p["fast"] = bool(raw["fast"])
+            if raw.get("engine") in VIDEO_ENGINES and raw["engine"] != p.get("engine"):
+                p["engine"] = raw["engine"]
             if "shots" in raw:  # the full list in its new order: known ids are edited, new ones added, missing ones removed
                 old = {s["id"]: s for s in p["shots"]}
                 p["shots"] = [self._clean_shot(s, old.get(s.get("id"))) for s in raw["shots"][:MAX_SHOTS]]
@@ -683,10 +715,12 @@ class Director:
             if shot.get("start_image") and shot.get("end_image") else None
         if not paths or not all(os.path.exists(p) for p in paths):
             raise ValueError("make the keyframes first")
-        job = self.queue_job(paths, {"prompts": [shot["motion"] or "smooth natural motion"], "engine": "wan22",
+        engine = project.get("engine", "wan22")  # films made before H3 became the default rendered with Wan
+        job = self.queue_job(paths, {"prompts": [shot["motion"] or "smooth natural motion"], "engine": engine,
                                      "image_model": project.get("image_model", "klein4b"), "style": "photoreal",
-                                     "restyle": False, "fast": project.get("fast", True),
-                                     "length": LENGTH_FOR_SECONDS[shot["seconds"]], "size": "standard", "smooth": True})
+                                     "restyle": False, "fast": project.get("fast", True), "audio": True,
+                                     "length": LENGTH_FOR_SECONDS[shot["seconds"]], "size": "standard",
+                                     "smooth": engine == "wan22"})  # H3 already renders 24 fps
         self.update(project_id, lambda p: self._shot(p, shot_id).update(job_id=job["id"]))
         return job
 
@@ -709,27 +743,44 @@ class Director:
                 keyframes.append(self.maker.path(shot["start_image"]))
             if shot["narration"]:
                 narration.append({"start": round(start, 2), "text": shot["narration"], "shot": i + 1})
-            start += (LENGTH_FOR_SECONDS[shot["seconds"]] - 1) / 16  # a Wan clip lasts (frames - 1) / 16 s
+            start += _probe(clips[-1])["seconds"]
         if not clips:
             raise ValueError("there are no shots")
         if project.get("film", {}).get("status") == "working":
             raise ValueError("the film is already being made")
         info = {"title": project["title"], "fast": project.get("fast", True), "narration": narration,
-                "prompts": [s["action"] or s["motion"] for s in project["shots"]]}
+                "prompts": [s["action"] or s["motion"] for s in project["shots"]],
+                "engine": "minimax-h3" if any(_probe(c)["audio"] for c in clips) else "wan22"}
         self.update(project_id, lambda p: p.update(film={"status": "working", "started": time.time()}))
         self._task_started(project_id)
         threading.Thread(target=self._film, args=(project_id, clips, keyframes, info), daemon=True).start()
 
     @staticmethod
     def _join(clips, out_path):
+        """Join the clips with hard cuts, re-encoding so mixed sizes, frame rates and engines fit together.
+        Sound is kept (H3 clips have it); a silent clip gets silence of its length."""
         import imageio_ffmpeg
         ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
-        # Re-encode while joining: the clips are all Wan output, but this also copes with mixed sizes.
-        streams = "".join(f"[{i}:v]scale=trunc(iw/2)*2:trunc(ih/2)*2,setsar=1,fps=32[v{i}];" for i in range(len(clips)))
-        joined = "".join(f"[v{i}]" for i in range(len(clips)))
-        cmd = [ffmpeg, "-y", "-loglevel", "error"] + sum((["-i", c] for c in clips), []) + [
-            "-filter_complex", f"{streams}{joined}concat=n={len(clips)}:v=1:a=0[out]",
-            "-map", "[out]", "-c:v", "libx264", "-crf", "17", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out_path]
+        info = [_probe(c) for c in clips]
+        fps = max(round(i["fps"]) for i in info)  # 24 for H3 only, 32 for smoothed Wan
+        inputs = sum((["-i", c] for c in clips), [])
+        parts = [f"[{n}:v]scale=trunc(iw/2)*2:trunc(ih/2)*2,setsar=1,fps={fps}[v{n}];" for n in range(len(clips))]
+        extra = len(clips)  # index of the next generated input
+        with_audio = any(m["audio"] for m in info)
+        if with_audio:
+            for n, meta in enumerate(info):
+                if meta["audio"]:
+                    parts.append(f"[{n}:a]aresample=48000,aformat=channel_layouts=stereo[a{n}];")
+                else:  # silence as long as the clip
+                    inputs += ["-f", "lavfi", "-t", f"{meta['seconds']:.3f}", "-i", "anullsrc=r=48000:cl=stereo"]
+                    parts.append(f"[{extra}:a]anull[a{n}];")
+                    extra += 1
+        joined = "".join(f"[v{n}]" + (f"[a{n}]" if with_audio else "") for n in range(len(clips)))
+        maps = ["-map", "[out]"] + (["-map", "[aout]", "-c:a", "aac", "-b:a", "192k"] if with_audio else [])
+        outs = "[out][aout]" if with_audio else "[out]"
+        cmd = [ffmpeg, "-y", "-loglevel", "error"] + inputs + [
+            "-filter_complex", "".join(parts) + f"{joined}concat=n={len(clips)}:v=1:a={int(with_audio)}{outs}",
+            *maps, "-c:v", "libx264", "-crf", "17", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out_path]
         proc = _run(cmd, None, 1800)
         if proc.returncode:
             raise RuntimeError(proc.stderr.strip()[-600:] or "ffmpeg failed")

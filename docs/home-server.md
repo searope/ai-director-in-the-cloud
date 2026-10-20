@@ -12,7 +12,7 @@ phone / any browser ──HTTPS──▶ Windows PC (always on): Caddy :443 ─�
 - **You pay for the GPU only around jobs**, at the normal pod rate. The first job of a session waits
   2-5 minutes while the pod starts. Later jobs start at once, until the GPU has been idle for 10
   minutes. You can also start or stop it by hand in the app; it shows this month's GPU spend.
-- **Fixed costs:** the network volume, about $0.07/GB a month (about $7 for 100 GB). The PC
+- **Fixed costs:** the network volume, about $0.07/GB a month (about $10.50 for 150 GB). The PC
   costs nothing extra.
 - **Safety nets:**
   - The app removes a pod after 4 hours if nothing is running.
@@ -29,10 +29,12 @@ phone / any browser ──HTTPS──▶ Windows PC (always on): Caddy :443 ─�
 
 The app creates GPU pods by itself, but the volume they mount has to be prepared once.
 
-1. Runpod console → **Storage** → create a **network volume** of about 100 GB in a data center that
+1. Runpod console → **Storage** → create a **network volume** of about 150 GB in a data center that
    has RTX 5090s on Secure Cloud. Note its **ID** and **data center** (e.g. `US-KS-2`).
-   The default install uses about 60-65 GB (models ~50 GB, ComfyUI + PyTorch the rest); the extra
-   room is for optional models and LoRAs. A volume can be enlarged later but not shrunk.
+   The default install uses about 105 GB (models ~90 GB: MiniMax H3 ~39 GB, Wan 2.2 ~38 GB, Klein
+   ~12 GB; ComfyUI + PyTorch the rest); the extra room is for optional models and LoRAs. A volume
+   can be enlarged later (Storage → edit) but not shrunk. Pods download any missing default model
+   when they start, so after enlarging, the next render fills in what's new.
 2. Deploy a temporary RTX 5090 pod on that volume (mounted at `/workspace`) with a PyTorch Linux
    image. Note the **image name** (e.g. `runpod/pytorch:…`); the app must use the same image later,
    because the Python environment on the volume is built for it.
