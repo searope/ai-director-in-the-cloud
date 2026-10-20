@@ -855,15 +855,19 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         """The library images of a render's keyframes, for 'Edit and render again': the ones it was made from, or
         (renders from before that was recorded, uploads) its keyframes added to the library once."""
         job = get_job(request)
-        ids = [i for i in job.get("keyframe_ids") or [] if maker.exists(i)]
-        if len(ids) != len(job["inputs"]):
+        styled = bool(request.query.get("styled")) and bool(job.get("styled"))  # the redrawn keyframes instead
+        key, names = ("styled_ids", job["styled"]) if styled else ("keyframe_ids", job["inputs"])
+        folder = os.path.join(jobs.dir(job["id"]), "result_keyframes" if styled else "inputs")
+        ids = [i for i in job.get(key) or [] if maker.exists(i)]
+        if len(ids) != len(names):
             ids = []
-            for name in job["inputs"]:
+            for name in names:
                 image_id = uuid.uuid4().hex[:16]
-                await asyncio.to_thread(shutil.copyfile, os.path.join(jobs.dir(job["id"]), "inputs", name), maker.path(image_id))
-                maker.save_meta(image_id, kind="upload", prompt=f"keyframe of render {job['id']}")
+                await asyncio.to_thread(shutil.copyfile, os.path.join(folder, name), maker.path(image_id))
+                maker.save_meta(image_id, kind="style" if styled else "upload", style=job["settings"].get("style") if styled else None,
+                                prompt=f"{'redrawn ' if styled else ''}keyframe of render {job['id']}")
                 ids.append(image_id)
-            jobs.update(job, keyframe_ids=ids)
+            jobs.update(job, **{key: ids})
         return web.json_response({"ids": ids})
 
     async def job_detail(request):
