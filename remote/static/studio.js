@@ -713,13 +713,18 @@ function renderStyles() {
   // recently used first, topped up with a few basics until there are four
   let recent = [...new Set([...store.get("recent_styles", []), ...DEFAULT_RECENT])].filter(styleById).slice(0, Math.max(4, store.get("recent_styles", []).length));
   if (S.style !== "__custom" && !recent.includes(S.style)) recent = [S.style, ...recent];
-  const card = (id, inner) => `<button type="button" class="rs-card${S.style === id ? " on" : ""}" data-style="${id}">${inner}</button>`;
-  $("styleCurrent").innerHTML = recent.slice(0, 6).map((id) => card(id, `${styleThumb(styleById(id))}<span>${esc(styleLabel(id))}</span>`)).join("")
-    + (S.style === "__custom" ? card("__custom", `<span class="style-ph">✎</span><span>Custom</span>`) : "")
-    + `<button type="button" class="rs-card more" data-style-change><span class="style-ph">⋯</span><span>More styles…</span></button>`;
+  // the chosen style large enough to judge (tap it for all its examples), then recent styles as chips that wrap
+  const st = styleById(S.style), custom = S.style === "__custom";
+  const chip = (id) => `<button type="button" class="chip${S.style === id ? " on" : ""}" data-style="${id}">${esc(styleLabel(id))}</button>`;
+  $("styleCurrent").innerHTML = `<button type="button" class="sp-main" ${custom ? "data-style-change" : "data-style-open"}>
+      ${custom ? `<span class="sp-img style-ph">✎</span>` : styleThumb(st, "sp-img")}
+      <span class="sp-cap"><b>${esc(styleLabel(S.style))}</b><span>${custom ? "described below" : `${esc(st?.group || "")} · tap for examples`}</span></span></button>
+    <div class="chips sp-chips">${recent.slice(0, 6).map(chip).join("")}${custom ? chip("__custom") : ""}
+      <button type="button" class="chip more" data-style-change>More styles…</button></div>`;
 }
 $("styleCurrent").onclick = (e) => {
   if (e.target.closest("[data-style-change]")) { STY.mode = "video"; go("styles"); return; }
+  if (e.target.closest("[data-style-open]")) return openStyleSheet(S.style);
   const b = e.target.closest("[data-style]"); if (b) setVideoStyle(b.dataset.style);
 };
 $("restyle").onchange = () => { S.restyleTouched = true; $("restyleModelBox").classList.toggle("hidden", !$("restyle").checked); };
@@ -1127,7 +1132,7 @@ function jobCard(j) {
       ${j.status === "done" ? `<button type="button" class="btn small" data-job-act="sound">Sound</button>
         <a class="btn small" href="${jobVideo(j, null, true)}">Download</a>` : ""}
       ${active || j.status === "approve" ? `<button type="button" class="btn small" data-job-act="cancel">Cancel</button>` : ""}
-      ${j.status !== "running" ? `<button type="button" class="btn small ghost danger icon-only" data-job-act="delete" aria-label="Delete" title="Delete">✕</button>` : ""}
+      ${j.status !== "running" ? `<button type="button" class="btn small ghost danger icon-only" data-job-act="delete" aria-label="Delete this render" title="Delete this render"><svg><use href="#i-trash"/></svg></button>` : ""}
     </div></div>`;
 }
 function renderJobs() {
@@ -1696,7 +1701,7 @@ function renderStatus() {
   const active = S.jobs.filter((j) => ["queued", "running"].includes(j.status)).length;
   const pod = g.mode === "runpod", month = pod ? ` · $${(g.month_cost || 0).toFixed(2)} this month` : "";
   // the network volume's storage; while the GPU is off, its last reading
-  const storage = (old) => !g.disk ? "" : ` · storage ${((g.disk.total - g.disk.free) / 1e9).toFixed(0)} / ${(g.disk.total / 1e9).toFixed(0)} GB`
+  const storage = (old) => !g.disk?.used ? "" : ` · storage ${(g.disk.used / 1e9).toFixed(0)}${g.disk.total ? ` / ${(g.disk.total / 1e9).toFixed(0)}` : ""} GB`
     + (old && g.disk.seen ? ` (${ago(g.disk.seen)})` : "");
   btn.classList.toggle("hidden", !pod || g.state === "stopping");
   if (pod) {
