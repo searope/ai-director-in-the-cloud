@@ -563,3 +563,10 @@ body.no-scroll { overflow: hidden; }
 
 .job { transition: box-shadow .6s; }
 .job.flash { box-shadow: 0 0 0 3px var(--accent); }
+
+/* render status: waiting for the user stands out */
+.status.approve { position: relative; padding-left: 22px; }
+.status.approve::before { content: ""; position: absolute; left: 9px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%;
+                          background: currentColor; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+.status.cancelling { color: var(--muted); }

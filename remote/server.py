@@ -801,7 +801,8 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         if job["status"] in ("queued", "approve"):
             jobs.update(job, status="cancelled", progress="cancelled")
         elif job["status"] == "running":
-            job["cancel"] = True
+            job["cancel"] = True  # the render stops at its next check (every 2 s while the GPU works)
+            jobs.update(job, progress="cancelling…")
         return web.json_response(jobs.public(job))
 
     async def approve_keyframes(request):

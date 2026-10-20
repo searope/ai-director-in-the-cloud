@@ -369,7 +369,7 @@ function openImage(id) {
 
 const SOUND_ENGINES = ["minimax-h3", "ltx23"];  // engines that render their own soundtrack
 const modeLabel = (s) => s.engine === "ltx23" ? "Distilled, 8 steps" : !s.fast ? "Quality"
-  : s.engine === "minimax-h3" ? (s.turbo_steps === 4 ? "Fast, 4 steps" : "Balanced, 8 steps") : "Fast";
+  : s.engine === "minimax-h3" ? (s.turbo_steps === 4 ? "Fast, 4 steps" : "Balanced, 8 steps") : "Fast, 4 steps";
 function jobSummary(j) {
   const s = j.settings;
   if (j.kind === "film") return { style: "", engine: "", text: `Film · ${j.title} · ${s.prompts.length} shots` };
@@ -1116,6 +1116,8 @@ function reviewBlock(r, action, redrawn = false) {
 const detailsOpen = new Map();
 // Everything about a render: engine and its settings, size, length, seed, style with its prompts, motion prompts.
 // j.render holds what the renderer really used (set once it starts); before that, the requested settings.
+// "1 010 499 991": grouped with thin spaces, so browsers and phone add-ons don't take a seed for a phone number
+const groupDigits = (n) => n == null ? "" : String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 function renderFacts(j) {
   const s = j.settings, r = j.render || {}, sum = jobSummary(j);
   const engine = (S.info?.engines || []).find((e) => e.id === s.engine);
@@ -1124,8 +1126,8 @@ function renderFacts(j) {
     + (r.output_fps && r.output_fps !== r.fps ? `, smoothed to ${r.output_fps} fps` : "") : `${s.length} frames per gap (Wan scale)`;
   const style = s.custom_style ? `Custom: ${s.custom_style}` : (r.style || sum.style);
   const rows = [
-    ["Engine", engine?.label || s.engine], ["Mode", modeLabel(s) + (r.steps ? ` · ${r.steps} steps` : "")],
-    ["Size", size], ["Length", length], ["Seed", r.seed ?? s.seed ?? "random"],
+    ["Engine", engine?.label || s.engine], ["Mode", modeLabel(s)],
+    ["Size", size], ["Length", length], ["Seed", groupDigits(r.seed ?? s.seed) || "random"],
     ["Sound", r.audio ?? (SOUND_ENGINES.includes(s.engine) && s.audio) ? `generated${s.sound ? `: ${s.sound}` : ""}` : "none"],
     ["Style", style], ["Style look", r.look || ""],
     ["Redraw keyframes", (r.restyle ?? s.restyle) ? `yes, with ${r.image_model || s.image_model}` : "no"],
@@ -1152,14 +1154,16 @@ function jobCard(j) {
     .filter(Boolean).map((b) => `<span class="badge-s${/issues|redo|failed/.test(b) ? " warn" : / OK|good/.test(b) ? " ok" : ""}">${esc(b)}</span>`).join("");
   const open = detailsOpen.has(j.id) ? detailsOpen.get(j.id) : active;
   const flash = S.flashJob?.id === j.id && Date.now() < S.flashJob.until;
+  const cancelling = j.status === "running" && j.progress === "cancelling…";
+  const statusLabel = cancelling ? "cancelling…" : { approve: "waiting for you", running: "rendering" }[j.status] || j.status;
   return `<div class="job${flash ? " flash" : ""}" data-id="${j.id}">
-    <div class="job-head"><span class="status ${j.status}">${j.status === "approve" ? "your OK" : j.status}</span><span class="job-meta">${esc(sum.text)}</span>
+    <div class="job-head"><span class="status ${j.status}${cancelling ? " cancelling" : ""}">${statusLabel}</span><span class="job-meta">${esc(sum.text)}</span>
       <span class="job-time">${took && !active ? `${took} · ` : ""}${when}</span></div>
     ${progress ? `<div class="progress">${esc(progress)}</div><div class="bar"><span></span></div>` : ""}
     ${j.error ? `<div class="error">${esc(j.error)}</div>` : ""}
     ${j.status === "done" ? `<video controls playsinline loop preload="metadata" src="${jobVideo(j)}"></video>` : ""}
     ${j.status === "approve" ? `<div class="approve">
-      <b>The keyframes are redrawn. Check them before the video renders.</b>
+      <b>Paused: check the redrawn keyframes, then render the video or redraw them.</b>
       ${keyframeStrip(j)}
       <input type="text" data-redraw-note maxlength="600" placeholder="What to change if you redraw (optional), e.g. keep his eyes looking up">
       <div class="row"><button type="button" class="btn small primary" data-approve="render">Render with these</button>
@@ -1287,8 +1291,9 @@ $("jobList").onclick = async (e) => {
     } catch (err) { toast(err.message); restore(); }
     return;
   }
+  const restore = busyButton(e.target.closest("[data-job-act]"), "Cancelling…");
   try { await api(`/api/jobs/${id}/cancel`, { method: "POST" }); await refreshJobs(); renderJobs(); }
-  catch (err) { toast(err.message); }
+  catch (err) { toast(err.message); restore(); }
 };
 function renderVideoPage() { renderTray(); renderMotion(); renderJobs(); }
 
