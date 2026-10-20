@@ -848,7 +848,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
 
     async def voices(request):
         if not sound.enabled:
-            return web.json_response({"error": "ElevenLabs is off: set ELEVENLABS_API_KEY on the GPU machine"}, status=400)
+            return web.json_response({"error": "ElevenLabs is off: add \"elevenlabs_api_key\" to remote/config.json on the computer that runs the app, then restart it"}, status=400)
         return await sound_call(sound.voices)
 
     async def add_track(request):
