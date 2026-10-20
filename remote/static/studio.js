@@ -1016,6 +1016,8 @@ function renderCheckOption() {
     : `Check the redrawn keyframes${w.paid ? ` (${w.label}, paid per use)` : ""}`;
 }
 function renderEngines() {
+  $("negStandardLabel").title = `Wan's standard list (sent in Chinese, which Wan reads best): ${S.info.wan_negative_en || ""}. `
+    + `"style, artwork, painting" are left out for art styles.`;
   const sel = $("engine");
   sel.innerHTML = S.info.engines.map((e) =>
     `<option value="${e.id}"${e.ready ? "" : " disabled"}>${esc(e.label)}${e.ready ? "" : " (not installed)"}</option>`).join("");
@@ -1027,6 +1029,7 @@ function renderEngines() {
 $("engine").onchange = () => {
   const e = S.info.engines.find((x) => x.id === $("engine").value);
   const h3 = e.id === "minimax-h3", ltx = e.id === "ltx23";
+  $("negBox").classList.toggle("hidden", e.id !== "wan22");  // only Wan takes a negative prompt
   $("soundBox").classList.toggle("hidden", !SOUND_ENGINES.includes(e.id));
   $("smooth").checked = !SOUND_ENGINES.includes(e.id);  // H3 and LTX already render 24-25 fps
   // H3 has two turbo LoRAs (4 and 8 steps); Wan's fast mode is its 4-step LoRA; LTX-2.3 runs its distilled model.
@@ -1069,6 +1072,7 @@ async function renderVideoJob(engines = null) {
     approve_keyframes: $("restyle").checked && $("approveKeyframes").checked,
     length: +$("length").value, size: $("size").value,
     loop: $("loop").checked, smooth: $("smooth").checked, seed,
+    negative_extra: $("negExtra").value.trim(), negative_standard: $("negStandard").checked,
   };
   const btns = [$("vidGo"), $("vidGoAll")]; btns.forEach((b) => { b.disabled = true; });
   let queued = 0;
@@ -1157,11 +1161,14 @@ function renderFacts(j) {
     ["Redraw keyframes", (r.restyle ?? s.restyle) ? `yes, with ${r.image_model || s.image_model}` : "no"],
     ["Redraw prompt", r.restyle_prompt || ""], ["Your redraw note", r.restyle_note || ""],
     ["Keyframe check", s.check_keyframes ? "on" : ""], ["Approval stop", s.approve_keyframes ? "on" : ""],
-    ["Style LoRAs", (r.loras || []).join(", ")], ["Negative prompt", r.negative || ""],
+    ["Style LoRAs", (r.loras || []).join(", ")],
+    ["Negative prompt", r.negative ? (r.negative_used === false ? "not used (Fast mode ignores it; Quality mode uses it)" : r.negative_en || r.negative) : ""],
     ["Loop", s.loop ? "yes" : ""], ["Retry of", j.retry_of || ""],
   ].filter(([, v]) => v !== "" && v != null);
   const prompts = (r.prompts || s.prompts).map((p, i) => `<li><b>${j.kind === "film" ? `Shot ${i + 1}` : `${i + 1} → ${i + 2}`}</b> ${esc(p || "(smooth natural motion)")}</li>`).join("");
-  return `<dl class="facts">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(String(v))}</dd>`).join("")}</dl>
+  const tip = { "Negative prompt": r.negative && r.negative_en ? `As sent to Wan (its standard prompt is Chinese, which it reads best):
+${r.negative}` : "" };
+  return `<dl class="facts">${rows.map(([k, v]) => `<dt>${k}</dt><dd${tip[k] ? ` title="${esc(tip[k])}" class="has-tip"` : ""}>${esc(String(v))}</dd>`).join("")}</dl>
     <div class="facts-prompts"><span class="kf-label">Motion prompts${r.prompts ? " (as sent, with the style)" : ""}</span><ol>${prompts}</ol></div>`;
 }
 function jobCard(j) {
@@ -1353,6 +1360,7 @@ async function loadJobIntoPanel(j, opts = {}) {
   set("audio", s.audio); set("sound", s.sound);
   set("length", s.length); set("size", s.size); set("vseed", r.seed ?? s.seed ?? "");
   set("loop", s.loop); set("smooth", (s.interpolate || 1) > 1);
+  set("negExtra", s.negative_extra || ""); set("negStandard", s.negative_standard !== false);
   if (s.custom_style) { setVideoStyle("__custom"); set("customStyle", s.custom_style); } else setVideoStyle(s.style || "photoreal");
   S.restyleTouched = true; set("restyle", styled ? false : s.restyle); $("restyleModelBox").classList.toggle("hidden", !$("restyle").checked);
   set("restyleModel", s.image_model); set("checkKeyframes", s.check_keyframes); set("approveKeyframes", s.approve_keyframes);

@@ -207,6 +207,8 @@ class Jobs:
             "turbo_steps": s.get("turbo_steps", 8),
             "keyframe_check": self.keyframe_checker(job) if s.get("check_keyframes") else None,
             "on_render_info": lambda info: self.update(job, render=info),  # shown in the app's Details
+            "negative": animate.DEFAULT_NEGATIVE if s.get("negative_standard", True) else "",
+            "negative_extra": s.get("negative_extra") or "",
             "length": s.get("length", 81),
             "interpolate": s.get("interpolate", 2),
             "area": SIZES.get(s.get("size"), SIZES["standard"]),
@@ -599,6 +601,8 @@ def clean_settings(raw, n_keyframes, styles):
         "size": raw.get("size") if raw.get("size") in SIZES else "standard",
         "loop": loop,
         "seed": int(seed) if str(seed or "").strip().isdigit() else None,
+        "negative_extra": str(raw.get("negative_extra") or "").strip()[:600],  # Wan: more things to avoid
+        "negative_standard": raw.get("negative_standard", True) is not False,  # Wan: its standard list as well
     }
 
 
@@ -792,6 +796,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
                        for k, v in styles.items()],
             "comfy": comfy,
             "default_image_model": maker.default_model(),
+            "wan_negative_en": animate.DEFAULT_NEGATIVE_EN,
             "image_models": [{"id": k, "label": v["label"], "license": v["license"],
                               "missing": animate.missing_image_model_files(MODELS_DIR, k, have)}
                              for k, v in animate.IMAGE_MODELS.items()],
