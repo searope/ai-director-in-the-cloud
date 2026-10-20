@@ -47,6 +47,29 @@ The app creates GPU pods by itself, but the volume they mount has to be prepared
 To update the pod-side code later (e.g. the gateway), run `git pull` in that folder from any pod on the
 volume. Claude can also do steps 1-4 through the Runpod plugin.
 
+### Uploading your own files (S3, no pod needed)
+
+The volume's data center supports Runpod's S3-compatible API, so you can copy files such as your own
+LoRAs or models that aren't on Hugging Face straight to it, without starting a pod. For the default
+models, use the installer above; it downloads them from Hugging Face much faster than an upload from home.
+
+1. Runpod console → **Settings** (newer consoles: **Credentials**) → **S3 API Keys** → create a key. The access key is your Runpod user
+   ID (`user_...`); the secret (`rps_...`) is shown only once. This is not the API key in
+   `remote\config.json`.
+2. Install the AWS CLI and run `aws configure` with those two values.
+3. Copy files. The bucket is the volume ID, and paths start at the volume root (`/workspace` on a pod).
+   Each model type goes in its own folder under `ai-director-in-the-cloud/ComfyUI/models/` (`loras`,
+   `diffusion_models`, `text_encoders`, `vae`...):
+   ```powershell
+   aws s3 cp my_style.safetensors s3://<volume-id>/ai-director-in-the-cloud/ComfyUI/models/loras/ `
+       --region EU-RO-1 --endpoint-url https://s3api-eu-ro-1.runpod.io
+   ```
+   List what's there with `aws s3 ls s3://<volume-id>/ai-director-in-the-cloud/ComfyUI/models/ --recursive`,
+   plus the same `--region` and `--endpoint-url`. Other data centers have their own endpoint
+   (`https://s3api-<data-center-in-lowercase>.runpod.io`).
+
+The app sees new models the next time a pod starts.
+
 ## 2. Runpod API key for the app
 
 Runpod console → **Settings → API Keys** → create a key the app can use to create and delete pods
