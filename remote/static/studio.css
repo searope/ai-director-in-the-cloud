@@ -246,6 +246,27 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 .pick .tile { cursor: pointer; }
 .pick .tile.sel { outline: 3px solid var(--accent); outline-offset: -3px; }
 .pick .tile .num { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+#picker { z-index: 25; }  /* opens on top of the character sheet */
+
+/* ---------- characters */
+.cast-pick { display: flex; flex-wrap: wrap; gap: 7px; }
+.cast-chip { font: inherit; font-size: 13.5px; display: inline-flex; align-items: center; gap: 7px; padding: 4px 12px 4px 4px; border-radius: 99px;
+             background: var(--bg2); border: 1px solid var(--line2); color: var(--muted); cursor: pointer; }
+.cast-chip img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; }
+.cast-chip:hover { color: var(--text); }
+.cast-chip.on { border-color: var(--accent); color: var(--text); background: #8b5cf61f; }
+.char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.char-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; cursor: pointer; }
+.char-card:hover { border-color: var(--line2); }
+.char-art { position: relative; aspect-ratio: 4 / 5; background: var(--card); display: grid; place-items: center; color: var(--dim); }
+.char-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.char-art .tag { position: absolute; top: 8px; left: 8px; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 6px; background: #000a; color: #fff; }
+.char-text { padding: 12px 12px 0; display: flex; flex-direction: column; gap: 3px; }
+.char-text span { color: var(--muted); font-size: 13px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.char-card .row { display: flex; gap: 8px; padding: 12px; margin-top: auto; }
+.char-sheet { width: min(560px, 100%); }
+#charSave { margin-left: auto; }
+.char-body { padding: 0 18px; overflow: auto; flex: 1; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: 24px; z-index: 30; background: var(--text); color: var(--bg); border-radius: 12px;
          padding: 11px 16px; font-size: 14px; font-weight: 500; max-width: min(560px, calc(100vw - 32px)); box-shadow: 0 10px 30px #0008; }
 
@@ -258,6 +279,12 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 }
 @media (max-width: 760px) {
   .side { display: none; }
+  #status { cursor: pointer; }
+  /* the GPU card as a popover under the status pill */
+  body.gpu-open .side { display: block; inset: calc(58px + env(safe-area-inset-top)) 14px auto auto; width: min(300px, calc(100vw - 28px));
+                        height: auto; padding: 0; background: none; border: 0; z-index: 15; }
+  body.gpu-open .side .brand, body.gpu-open .side .nav, body.gpu-open .side .classic { display: none; }
+  body.gpu-open .gpu-card { box-shadow: 0 12px 34px #000a; border-color: var(--line2); }
   .main { margin-left: 0; padding: 0 14px calc(84px + env(safe-area-inset-bottom)); }
   .top { padding-top: calc(12px + env(safe-area-inset-top)); }
   .mobile-only { display: flex; padding: 0; }
@@ -287,4 +314,6 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
   .sound-preview { position: static; }
   .line-row { grid-template-columns: minmax(0, 1fr) auto; } .line-row textarea { grid-column: 1 / -1; grid-row: 2; }
   .soon-page { padding: 20px 18px; }
+  .char-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .char-card .row { flex-direction: column; padding: 10px; } .char-card .row .btn { width: 100%; }
 }

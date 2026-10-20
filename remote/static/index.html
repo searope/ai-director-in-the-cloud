@@ -33,7 +33,7 @@
       <a href="#/director" data-route="director"><svg><use href="#i-director"/></svg>Director<span class="soon">Soon</span></a>
       <div class="nav-label">Assets</div>
       <a href="#/library" data-route="library"><svg><use href="#i-library"/></svg>Library</a>
-      <a href="#/characters" data-route="characters"><svg><use href="#i-cast"/></svg>Characters<span class="soon">Soon</span></a>
+      <a href="#/characters" data-route="characters"><svg><use href="#i-cast"/></svg>Characters</a>
     </nav>
     <div class="side-foot">
       <div id="gpuCard" class="gpu-card"><div class="gpu-name">Connecting…</div><div class="meter"><span></span></div><div class="gpu-sub"></div>
@@ -49,7 +49,7 @@
       <div class="top-right">
         <button type="button" id="idlePill" class="pill bad hidden" title="Nothing is rendering. The GPU pod stops itself to save money unless you keep it running.">Stops soon</button>
         <span id="queuePill" class="pill hidden"></span>
-        <span id="status" class="pill">connecting…</span>
+        <button type="button" id="status" class="pill" title="GPU">connecting…</button>
       </div>
     </header>
 
@@ -80,7 +80,7 @@
         <a class="tool t-director" href="#/director"><div class="tool-art"><svg><use href="#i-director"/></svg></div>
           <div><b>Director <em class="soon">Soon</em></b><span>Brief → script → shot list → film</span></div></a>
         <a class="tool t-cast" href="#/characters"><div class="tool-art"><svg><use href="#i-cast"/></svg></div>
-          <div><b>Characters <em class="soon">Soon</em></b><span>Keep your cast consistent across shots</span></div></a>
+          <div><b>Characters</b><span>Keep your cast consistent across shots</span></div></a>
       </div>
 
       <div class="section-head"><h3>Recent creations</h3><a href="#/library">View all</a></div>
@@ -104,6 +104,11 @@
           <label class="lbl" for="imgPrompt">Prompt</label>
           <textarea id="imgPrompt" rows="5"></textarea>
           <p id="imgPromptHint" class="hint"></p>
+        </div>
+
+        <div class="field-block">
+          <label class="lbl">Characters <span class="hint">up to 3, kept as in their reference image</span></label>
+          <div id="castPick" class="cast-pick"></div>
         </div>
 
         <div class="field-block">
@@ -230,11 +235,11 @@
       </div>
     </section>
     <section class="page" data-page="characters">
-      <div class="soon-page">
-        <h2>Characters</h2>
-        <p>Named characters with reference images, tagged in shots and passed as references when making keyframes, so faces and outfits stay the same from shot to shot. Later: training one character LoRA on the GPU.</p>
-        <p class="hint">For now: make a character's first keyframe in <a href="#/image">Create image</a>, then use <b>Edit</b> on it for each new pose.</p>
+      <div class="lib-bar">
+        <p class="hint" style="margin:0">Each character's main reference image is passed to the image model whenever you tag them, so faces and outfits stay the same from shot to shot.</p>
+        <button type="button" id="charNew" class="btn primary"><svg><use href="#i-plus"/></svg>New character</button>
       </div>
+      <div id="charGrid" class="char-grid"></div>
     </section>
   </div>
 </div>
@@ -265,6 +270,34 @@
     <div class="sheet-foot">
       <label class="btn ghost"><svg><use href="#i-plus"/></svg>Upload from device<input id="pickerUpload" type="file" accept="image/*" multiple hidden></label>
       <button type="button" id="pickerDone" class="btn primary">Add</button>
+    </div>
+  </div>
+</div>
+
+<div id="charSheet" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="charTitle">
+  <div class="sheet char-sheet">
+    <div class="sheet-head">
+      <h3 id="charTitle">New character</h3>
+      <button type="button" class="lb-close" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="char-body">
+      <div class="field-block">
+        <label class="lbl" for="charName">Name</label>
+        <input id="charName" type="text" maxlength="60" placeholder="e.g. Mara">
+      </div>
+      <div class="field-block">
+        <label class="lbl" for="charDesc">Description <span class="hint">optional, added to the prompt</span></label>
+        <textarea id="charDesc" maxlength="400" placeholder="e.g. a lighthouse keeper in her sixties, grey braid, yellow oilskin coat"></textarea>
+      </div>
+      <div class="field-block">
+        <label class="lbl">Reference images <span class="hint" id="charRefCount"></span></label>
+        <div id="charRefs" class="tray"></div>
+        <p class="hint">The first image is the one the image model sees: a clear, front-facing, full or half-body shot works best. Extra images are kept for later (e.g. training a character LoRA).</p>
+      </div>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" id="charDelete" class="btn danger">Delete</button>
+      <button type="button" id="charSave" class="btn primary">Save</button>
     </div>
   </div>
 </div>

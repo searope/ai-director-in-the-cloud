@@ -60,8 +60,11 @@ const S = {
   motion: store.get("motion", []),   // one motion prompt per gap
   style: "photoreal", restyleTouched: false,
   libFilter: "all",
+  characters: [],
+  cast: store.get("cast", []),       // character ids tagged for the next images
 };
 const imageById = (id) => S.images.find((m) => m.id === id);
+const charById = (id) => S.characters.find((c) => c.id === id);
 const modelLabel = (id) => (S.info?.image_models.find((m) => m.id === id) || {}).label || id || "";
 
 // ---------------------------------------------------------------- router
@@ -206,7 +209,7 @@ async function generateImages() {
     try {
       p.task = await api("/api/keyframes/generate", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, source: edit ? S.source : null, aspect: S.aspect, model: S.imageModel,
-                               seed: seed0 ? String(+seed0 + i) : null }) });
+                               seed: seed0 ? String(+seed0 + i) : null, characters: S.cast }) });
     } catch (e) { p.error = e.message; }
     renderImagePage();
   }
@@ -237,7 +240,25 @@ async function pollTasks() {
   } finally { polling = false; }
 }
 
+// ---------------------------------------------------------------- characters on Create image
+function renderCastPick() {
+  S.cast = S.cast.filter((id) => charById(id) || !S.charactersLoaded);
+  setHtml($("castPick"), S.characters.length
+    ? S.characters.map((c) => `<button type="button" class="cast-chip${S.cast.includes(c.id) ? " on" : ""}" data-cast="${c.id}">
+        ${c.refs[0] ? `<img alt="" src="${imgUrl(c.refs[0])}">` : ""}${esc(c.name)}</button>`).join("")
+    : `<p class="hint" style="margin:0">No characters yet. <a href="#/characters">Create one</a> from a reference image to keep them consistent.</p>`);
+}
+$("castPick").onclick = (e) => {
+  const b = e.target.closest("[data-cast]"); if (!b) return;
+  const id = b.dataset.cast, i = S.cast.indexOf(id);
+  if (i >= 0) S.cast.splice(i, 1);
+  else if (S.cast.length >= 3) return toast("Up to 3 characters per image");
+  else S.cast.push(id);
+  store.set("cast", S.cast); renderCastPick();
+};
+
 function renderImagePage() {
+  renderCastPick();
   setHtml($("imgPending"), S.pending.map(pendingTile).join(""));
   const html = S.images.map((m) => imageTile(m)).join("");
   setHtml($("imgGrid"), html || (S.pending.length ? "" : emptyState("Your generated and uploaded images appear here.")));
@@ -285,7 +306,10 @@ document.addEventListener("click", (e) => {
   } else openVideo(tile.dataset.job);
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { closeOverlay("lightbox"); closeOverlay("picker"); closeOverlay("soundSheet"); }
+  if (e.key === "Escape") {  // the picker can sit on top of the character sheet: close only the top one
+    if (!$("picker").classList.contains("hidden")) return closeOverlay("picker");
+    closeOverlay("lightbox"); closeOverlay("charSheet"); closeOverlay("soundSheet");
+  }
   if (e.key === "Enter" && e.target.matches?.(".tile")) e.target.click();
 });
 
@@ -303,7 +327,8 @@ function openImage(id) {
   const m = imageById(id); if (!m) return;
   $("lbMedia").innerHTML = `<img alt="" src="${imgUrl(m.id)}">`;
   const kind = { text: "Text to image", edit: "Edit", upload: "Uploaded" }[m.kind] || "Image";
-  const rows = [["Type", kind], ["Model", modelLabel(m.model)], ["Size", m.width ? `${m.width} × ${m.height}` : ""],
+  const cast = (m.characters || []).map((c) => c.name).join(", ");
+  const rows = [["Type", kind], ["Model", modelLabel(m.model)], ["Characters", cast], ["Size", m.width ? `${m.width} × ${m.height}` : ""],
                 ["Seed", m.seed ?? ""], ["Created", ago(m.created)]].filter(([, v]) => v !== "" && v !== undefined);
   $("lbInfo").innerHTML = `<h3>${kind}</h3>
     ${m.prompt ? `<div class="prompt">${esc(m.prompt)}</div>` : ""}
@@ -312,6 +337,7 @@ function openImage(id) {
       <button type="button" class="btn" data-lb="edit">Edit</button>
       <button type="button" class="btn" data-lb="animate">Animate</button>
       ${m.prompt ? `<button type="button" class="btn" data-lb="reuse">Reuse prompt</button>` : ""}
+      <button type="button" class="btn" data-lb="character">New character</button>
       <a class="btn" href="${imgUrl(m.id)}" download="image-${m.id}.png">Download</a>
       <button type="button" class="btn danger" data-lb="delete">Delete</button>
     </div>`;
@@ -323,8 +349,10 @@ function openImage(id) {
       closeOverlay("lightbox");
       setImgMode(m.kind === "edit" && m.source ? "edit" : "text", m.kind === "edit" ? m.source : undefined);
       $("imgPrompt").value = m.prompt; if (m.model) { S.imageModel = m.model; renderImageModels(); }
+      S.cast = (m.characters || []).map((c) => c.id).filter(charById); store.set("cast", S.cast);
       go("image");
-    } else if (a === "delete" && await deleteImage(id)) closeOverlay("lightbox");
+    } else if (a === "character") { closeOverlay("lightbox"); openCharacter(null, [id]); }
+    else if (a === "delete" && await deleteImage(id)) closeOverlay("lightbox");
   };
   $("lightbox").classList.remove("hidden");
 }
@@ -506,7 +534,7 @@ $("sndDub").onclick = async () => {
 const picker = { mode: "tray", sel: [] };
 function openPicker(mode) {
   picker.mode = mode; picker.sel = [];
-  $("pickerTitle").textContent = mode === "source" ? "Choose the image to edit" : "Add keyframes, in order";
+  $("pickerTitle").textContent = { source: "Choose the image to edit", refs: "Add reference images" }[mode] || "Add keyframes, in order";
   $("pickerDone").textContent = mode === "source" ? "Use image" : "Add";
   renderPicker();
   $("picker").classList.remove("hidden");
@@ -515,7 +543,7 @@ function renderPicker() {
   $("pickerGrid").innerHTML = S.images.length ? S.images.map((m) => {
     const n = picker.sel.indexOf(m.id);
     return `<div class="tile${n >= 0 ? " sel" : ""}" data-pick="${m.id}"><img loading="lazy" alt="" src="${imgUrl(m.id)}">
-      ${n >= 0 && picker.mode === "tray" ? `<span class="num">${n + 1}</span>` : ""}</div>`;
+      ${n >= 0 && picker.mode !== "source" ? `<span class="num">${n + 1}</span>` : ""}</div>`;
   }).join("") : `<div class="empty" style="grid-column:1/-1">No images yet. Upload some, or make them in Create image.</div>`;
   $("pickerDone").disabled = !picker.sel.length;
 }
@@ -528,6 +556,7 @@ $("pickerGrid").onclick = (e) => {
 };
 $("pickerDone").onclick = () => {
   if (picker.mode === "source") { S.source = picker.sel[0]; renderSource(); }
+  else if (picker.mode === "refs") addRefs(picker.sel);
   else addToTray(picker.sel);
   closeOverlay("picker");
 };
@@ -716,6 +745,87 @@ $("jobList").onclick = async (e) => {
 };
 function renderVideoPage() { renderTray(); renderMotion(); renderJobs(); }
 
+// ---------------------------------------------------------------- characters
+function charCard(c) {
+  const more = c.refs.length > 1 ? `<span class="tag">${c.refs.length} images</span>` : "";
+  return `<div class="char-card" data-char="${c.id}">
+    <div class="char-art">${c.refs[0] ? `<img loading="lazy" alt="" src="${imgUrl(c.refs[0])}">` : `<span>No image</span>`}${more}</div>
+    <div class="char-text"><b>${esc(c.name)}</b>${c.description ? `<span>${esc(c.description)}</span>` : ""}</div>
+    <div class="row"><button type="button" class="btn small" data-char-act="use">Use in image</button>
+      <button type="button" class="btn small ghost" data-char-act="edit">Edit</button></div>
+  </div>`;
+}
+function renderCharacters() {
+  setHtml($("charGrid"), S.characters.length ? S.characters.map(charCard).join("")
+    : emptyState("No characters yet. Make or upload a clear image of each one, then create the character from it."));
+}
+$("charGrid").onclick = (e) => {
+  const card = e.target.closest("[data-char]"); if (!card) return;
+  const id = card.dataset.char;
+  if (e.target.closest("[data-char-act]")?.dataset.charAct === "use") {
+    if (!S.cast.includes(id)) { if (S.cast.length >= 3) S.cast.shift(); S.cast.push(id); store.set("cast", S.cast); }
+    setImgMode("text"); go("image");
+    toast(`${charById(id).name} will be in the next images`);
+  } else openCharacter(id);
+};
+$("charNew").onclick = () => openCharacter(null);
+
+const CH = { id: null, refs: [] };
+function openCharacter(id, refs) {
+  const c = id && charById(id);
+  CH.id = c ? c.id : null; CH.refs = c ? [...c.refs] : [...(refs || [])];
+  $("charTitle").textContent = c ? `Edit ${c.name}` : "New character";
+  $("charName").value = c ? c.name : ""; $("charDesc").value = c ? c.description : "";
+  $("charDelete").classList.toggle("hidden", !c);
+  renderRefs();
+  $("charSheet").classList.remove("hidden");
+  setTimeout(() => $("charName").focus(), 50);
+}
+function renderRefs() {
+  $("charRefs").innerHTML = CH.refs.map((id, i) => `<div class="kf"><img alt="" src="${imgUrl(id)}"><span class="n">${i ? i + 1 : "Main"}</span>
+    <div class="kt"><button type="button" data-r="left" data-i="${i}" aria-label="Move earlier">◀</button>
+    <button type="button" data-r="del" data-i="${i}" aria-label="Remove">✕</button>
+    <button type="button" data-r="right" data-i="${i}" aria-label="Move later">▶</button></div></div>`).join("")
+    + (CH.refs.length < 4 ? `<button type="button" class="add" data-r="add"><span><svg><use href="#i-plus"/></svg><br>Add</span></button>` : "");
+  $("charRefCount").textContent = `${CH.refs.length} of 4`;
+}
+function addRefs(ids) {
+  const fresh = ids.filter((id) => !CH.refs.includes(id));
+  if (CH.refs.length + fresh.length > 4) toast("Up to 4 reference images");
+  CH.refs.push(...fresh.slice(0, 4 - CH.refs.length)); renderRefs();
+}
+$("charRefs").onclick = (e) => {
+  const b = e.target.closest("[data-r]"); if (!b) return;
+  const r = b.dataset.r, i = +b.dataset.i;
+  if (r === "add") return openPicker("refs");
+  if (r === "del") CH.refs.splice(i, 1);
+  else {
+    const j = r === "left" ? i - 1 : i + 1;
+    if (j >= 0 && j < CH.refs.length) [CH.refs[i], CH.refs[j]] = [CH.refs[j], CH.refs[i]];
+  }
+  renderRefs();
+};
+$("charSave").onclick = async () => {
+  const body = { name: $("charName").value.trim(), description: $("charDesc").value.trim(), refs: CH.refs };
+  if (!body.name) return toast("Give the character a name");
+  if (!body.refs.length) return toast("Add at least one reference image");
+  const btn = $("charSave"); btn.disabled = true;
+  try {
+    await api(CH.id ? `/api/characters/${CH.id}` : "/api/characters", { method: CH.id ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    await refreshCharacters(); closeOverlay("charSheet"); renderAll();
+    toast(CH.id ? "Saved" : `${body.name} created. Tag them in Create image.`);
+  } catch (e) { toast(e.message); } finally { btn.disabled = false; }
+};
+$("charDelete").onclick = async () => {
+  if (!CH.id || !confirm(`Delete ${charById(CH.id)?.name || "this character"}? Their images stay in the library.`)) return;
+  try {
+    await api(`/api/characters/${CH.id}`, { method: "DELETE" });
+    S.cast = S.cast.filter((x) => x !== CH.id); store.set("cast", S.cast);
+    await refreshCharacters(); closeOverlay("charSheet"); renderAll();
+  } catch (e) { toast(e.message); }
+};
+
 // ---------------------------------------------------------------- library
 function renderLibrary() {
   const f = S.libFilter;
@@ -784,6 +894,11 @@ $("gpuBtn").onclick = async () => {
   if (act === "stop" && !confirm("Stop the GPU now? It starts again by itself when you render.")) return;
   try { await api(`/api/gpu/${act}`, { method: "POST" }); await refreshInfo(); } catch (e) { toast(e.message); }
 };
+// Phones have no sidebar: the status pill opens the GPU card (start/stop, spend) as a popover.
+$("status").onclick = (e) => { e.stopPropagation(); document.body.classList.toggle("gpu-open"); };
+document.addEventListener("click", (e) => {
+  if (document.body.classList.contains("gpu-open") && !e.target.closest("#gpuCard")) document.body.classList.remove("gpu-open");
+});
 $("idlePill").onclick = async () => {
   try { await api("/api/keepalive", { method: "POST" }); await refreshInfo(); toast("The pod keeps running."); } catch (e) { toast(e.message); }
 };
@@ -796,6 +911,7 @@ async function refreshInfo() {
 }
 async function refreshImages() { S.images = await api("/api/images"); S.imagesLoaded = true; }
 async function refreshJobs() { S.jobs = await api("/api/jobs"); }
+async function refreshCharacters() { S.characters = await api("/api/characters"); S.charactersLoaded = true; }
 
 function renderAll() {
   if (!S.info) return;
@@ -804,6 +920,7 @@ function renderAll() {
   if (S.page === "image") { renderImagePage(); renderSource(); }
   if (S.page === "video") renderVideoPage();
   if (S.page === "library") renderLibrary();
+  if (S.page === "characters") renderCharacters();
   if (!$("soundSheet").classList.contains("hidden")) renderSound();
 }
 
@@ -815,7 +932,8 @@ else {
   let n = 0;
   const tick = async () => {
     try {
-      await Promise.all([refreshInfo(), refreshJobs(), n++ % 5 === 0 ? refreshImages() : null]);
+      const slow = n++ % 5 === 0;
+      await Promise.all([refreshInfo(), refreshJobs(), slow ? refreshImages() : null, slow ? refreshCharacters() : null]);
       renderAll();
     } catch (e) {}
   };
