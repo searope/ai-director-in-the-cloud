@@ -73,5 +73,7 @@ run in US/EU datacenters, so a license must cover both.
 - **Planned:** LTX-2.x is free for commercial use under $10M annual revenue (LoRAs trained on it
   carry the same terms); acceptable, but label it.
 - Every model added to `setup/models.json` needs a `license` note, and every engine or image model
-  in `animate.py` needs an entry in `LICENSES` (shown in the app). These notes summarize secondary
+  in `animate.py` needs an entry in `LICENSES`. The owner chose (Oct 2026) not to show video engine
+  license text in Create video: it is only a hover tooltip there. Restricted image models (non-commercial
+  or revenue-capped) keep their visible warning. These notes summarize secondary
   sources (Oct 2026); verify the LICENSE file on the official model card before relying on them.

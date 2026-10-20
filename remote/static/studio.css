@@ -392,3 +392,19 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
   .shot-tools { grid-column: 1 / -1; justify-content: flex-end; }
   .char-card .row { flex-direction: column; padding: 10px; } .char-card .row .btn { width: 100%; }
 }
+.kf-check { font-size: 12.5px; padding-left: 70px; } .kf-check.ok { color: var(--ok); } .kf-check.warn { color: var(--warn); }
+/* compact render cards: details folded into one row */
+.job-details { margin-top: 10px; }
+.job-details > summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 600; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; list-style: none; }
+.job-details > summary::-webkit-details-marker { display: none; }
+.job-details > summary::before { content: "▸"; font-size: 11px; }
+.job-details[open] > summary::before { content: "▾"; }
+.badge-s { font-size: 11.5px; font-weight: 600; padding: 2px 7px; border-radius: 99px; background: var(--raise); color: var(--muted); }
+.badge-s.ok { color: var(--ok); } .badge-s.warn { color: var(--warn); }
+.btn.icon-only { padding: 6px 9px; margin-left: auto; }
+/* a render waiting for the user's OK on its redrawn keyframes */
+.status.approve { color: var(--warn); }
+.approve { margin-top: 10px; padding: 10px 12px; border: 1px solid #fbbf2466; background: #fbbf2410; border-radius: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; }
+.approve .kf-strip { margin-top: 0; }
+.approve .kf-thumb img { height: 96px; }
+.approve input { padding: 8px 10px; font-size: 13.5px; }

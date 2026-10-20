@@ -375,8 +375,12 @@ function keyframeStrip(j) {
     ${names.map((n, i) => `<button type="button" class="kf-thumb" data-kf="${kind}/${n}" data-kf-job="${j.id}" aria-label="${label} ${i + 1}">
       <img loading="lazy" alt="" src="${jobImg(j, kind, n)}"><span>${film ? "Shot " : ""}${i + 1}</span></button>`).join("")}</div>`;
   const redrawing = j.status === "running" && j.settings.restyle && !redrawn;
+  const checks = j.keyframe_checks || [], last = checks[checks.length - 1];
+  const checkLine = !last ? "" : last.ok
+    ? `<div class="kf-check ok">Keyframes checked: OK${checks.length > 1 ? ` after ${checks.length} tries` : ""}</div>`
+    : `<div class="kf-check warn" title="${esc((last.problems || []).join(" | "))}">Keyframe check: ${esc((last.problems || [])[0] || "problems")}${checks.length > 1 ? ` (best of ${checks.length} tries used)` : ""}</div>`;
   return `<div class="kf-strip">${row("input", j.inputs, film ? "Shots" : redrawn || j.settings.restyle ? "Original" : "Keyframes")}
-    ${row("styled", j.styled, "Redrawn")}${redrawing ? `<div class="kf-row"><span class="kf-label">Redrawn</span><span class="hint" style="margin:0">being redrawn in the style…</span></div>` : ""}</div>`;
+    ${row("styled", j.styled, "Redrawn")}${checkLine}${redrawing ? `<div class="kf-row"><span class="kf-label">Redrawn</span><span class="hint" style="margin:0">being redrawn in the style…</span></div>` : ""}</div>`;
 }
 function openKeyframe(jobId, ref, back) {
   const j = jobById(jobId); if (!j) return;
@@ -692,6 +696,12 @@ $("styles").onclick = (e) => {
 };
 $("restyle").onchange = () => { S.restyleTouched = true; $("restyleModelBox").classList.toggle("hidden", !$("restyle").checked); };
 
+function renderCheckOption() {
+  const w = reviewWriter();
+  $("checkKeyframes").disabled = !w;
+  $("checkKeyframesLabel").textContent = !w ? "Check the redrawn keyframes (set up an AI model first)"
+    : `Check the redrawn keyframes${w.paid ? ` (${w.label}, paid per use)` : ""}`;
+}
 function renderEngines() {
   const sel = $("engine");
   sel.innerHTML = S.info.engines.map((e) =>
@@ -719,10 +729,11 @@ $("engine").onchange = () => {
 $("engine").addEventListener("change", () => { $("engine").dataset.chosen = $("engine").value; });
 $("vmode").onchange = () => {
   const e = S.info.engines.find((x) => x.id === $("engine").value), h3 = e.id === "minimax-h3";
+  // What the engine gives; its license notes only on hover (owner's choice, Oct 2026; details in the README).
   const el = $("engineLicense"), turbo = h3 && $("vmode").value !== "quality";
-  el.className = "license " + (turbo ? "warn" : licenseClass(e.license));
-  el.textContent = (h3 ? "24 fps with generated sound. " : "16 fps, silent. ") + "License: " + e.license
-    + (turbo ? `. ${e.turbo_license}; Quality mode doesn't use it.` : "");
+  el.className = "hint";
+  el.textContent = h3 ? "24 fps with generated sound" : "16 fps, silent";
+  el.title = "License: " + e.license + (turbo ? `. ${e.turbo_license}; Quality mode doesn't use it.` : "");
 };
 
 async function renderVideoJob() {
@@ -736,6 +747,8 @@ async function renderVideoJob() {
     audio: $("audio").checked, sound: $("sound").value,
     style: S.style === "__custom" ? "photoreal" : S.style, custom_style: custom,
     restyle: $("restyle").checked, fast: $("vmode").value !== "quality", turbo_steps: $("vmode").value === "fast4" ? 4 : 8,
+    check_keyframes: $("restyle").checked && $("checkKeyframes").checked && !!reviewWriter(), writer: reviewWriter()?.id || "",
+    approve_keyframes: $("restyle").checked && $("approveKeyframes").checked,
     length: +$("length").value, size: $("size").value,
     loop: $("loop").checked, smooth: $("smooth").checked, seed: $("vseed").value,
   };
@@ -789,27 +802,45 @@ function reviewBlock(r, action, redrawn = false) {
   </div>`;
 }
 
+// Which cards' Details are open (by job id): kept across the regular re-renders. Unset = the default
+// (open while queued or rendering, so the keyframes show during the render; closed once done).
+const detailsOpen = new Map();
 function jobCard(j) {
   const sum = jobSummary(j);
   const end = j.finished || Date.now() / 1000, took = j.started ? fmtTime(end - j.started) : "";
-  const progress = j.status === "queued" ? `Waiting · position ${j.queue_position || "?"}` :
-                   j.status === "running" ? `${j.progress} · ${took}` : (took ? `Took ${took}` : "");
   const active = ["queued", "running"].includes(j.status);
+  const when = new Date(j.created * 1000).toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+  const progress = j.status === "queued" ? `Waiting · position ${j.queue_position || "?"}` : j.status === "running" ? `${j.progress} · ${took}` : "";
+  // badges for the collapsed Details row
+  const checks = j.keyframe_checks || [], kc = checks[checks.length - 1], r = j.review;
+  const badges = [j.styled.length ? "redrawn" : j.settings.restyle && active ? "redrawing" : "",
+    kc ? (kc.ok ? "keyframes OK" : "keyframe issues") : "",
+    r?.status === "working" ? "checking clip…" : r?.status === "done" ? `clip: ${(VERDICTS[r.verdict] || ["checked"])[0].toLowerCase()}` : r?.status === "failed" ? "check failed" : ""]
+    .filter(Boolean).map((b) => `<span class="badge-s${/issues|redo|failed/.test(b) ? " warn" : / OK|good/.test(b) ? " ok" : ""}">${esc(b)}</span>`).join("");
+  const open = detailsOpen.has(j.id) ? detailsOpen.get(j.id) : active;
   return `<div class="job" data-id="${j.id}">
-    <div class="job-head"><span class="status ${j.status}">${j.status}</span><span class="job-meta">${esc(sum.text)}</span>
-      <span class="job-time">${new Date(j.created * 1000).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</span></div>
-    ${progress ? `<div class="progress">${esc(progress)}</div>` : ""}
-    ${active ? `<div class="bar"><span></span></div>` : ""}
+    <div class="job-head"><span class="status ${j.status}">${j.status === "approve" ? "your OK" : j.status}</span><span class="job-meta">${esc(sum.text)}</span>
+      <span class="job-time">${took && !active ? `${took} · ` : ""}${when}</span></div>
+    ${progress ? `<div class="progress">${esc(progress)}</div><div class="bar"><span></span></div>` : ""}
     ${j.error ? `<div class="error">${esc(j.error)}</div>` : ""}
     ${j.status === "done" ? `<video controls playsinline loop preload="metadata" src="${jobVideo(j)}"></video>` : ""}
-    ${keyframeStrip(j)}
-    ${reviewBlock(j.review, ["rerender", "Render again with this prompt"], j.styled.length > 0)}
+    ${j.status === "approve" ? `<div class="approve">
+      <b>The keyframes are redrawn. Check them before the video renders.</b>
+      ${keyframeStrip(j)}
+      <input type="text" data-redraw-note maxlength="600" placeholder="What to change if you redraw (optional), e.g. keep his eyes looking up">
+      <div class="row"><button type="button" class="btn small primary" data-approve="render">Render with these</button>
+        <button type="button" class="btn small" data-approve="redraw">Redraw again</button></div>
+    </div>` : ""}
+    <details class="job-details"${open ? " open" : ""}><summary>Details ${badges}</summary>
+      ${keyframeStrip(j)}
+      ${reviewBlock(r, ["rerender", "Render again with this prompt"], j.styled.length > 0)}
+    </details>
     <div class="row">
-      ${j.status === "done" && j.kind !== "film" && j.review?.status !== "working" ? `<button type="button" class="btn small" data-job-act="check">${j.review ? "Check again" : "Check clip"}</button>` : ""}
+      ${j.status === "done" && j.kind !== "film" && r?.status !== "working" ? `<button type="button" class="btn small" data-job-act="check">${r ? "Check again" : "Check clip"}</button>` : ""}
       ${j.status === "done" ? `<button type="button" class="btn small" data-job-act="sound">Sound</button>
         <a class="btn small" href="${jobVideo(j, null, true)}">Download</a>` : ""}
-      ${active ? `<button type="button" class="btn small" data-job-act="cancel">Cancel</button>` : ""}
-      ${j.status !== "running" ? `<button type="button" class="btn small danger" data-job-act="delete">Delete</button>` : ""}
+      ${active || j.status === "approve" ? `<button type="button" class="btn small" data-job-act="cancel">Cancel</button>` : ""}
+      ${j.status !== "running" ? `<button type="button" class="btn small ghost danger icon-only" data-job-act="delete" aria-label="Delete" title="Delete">✕</button>` : ""}
     </div></div>`;
 }
 function renderJobs() {
@@ -842,10 +873,26 @@ async function deleteJob(id) {
   try { await api(`/api/jobs/${id}`, { method: "DELETE" }); await refreshJobs(); renderAll(); return true; }
   catch (e) { toast(e.message); return false; }
 }
+// Remember a Details row the user opened or closed (a click on its summary; "toggle" also fires on re-renders).
+$("jobList").addEventListener("click", (e) => {
+  const summary = e.target.closest(".job-details > summary"); if (!summary) return;
+  detailsOpen.set(summary.closest(".job").dataset.id, !summary.parentElement.open);
+}, true);
 $("jobList").onclick = async (e) => {
   const card = e.target.closest(".job"); if (!card) return;
   const kf = e.target.closest("[data-kf]");
   if (kf) return openKeyframe(card.dataset.id, kf.dataset.kf, false);
+  const ap = e.target.closest("[data-approve]");
+  if (ap) {
+    const note = card.querySelector("[data-redraw-note]")?.value || "";
+    try {
+      await api(`/api/jobs/${card.dataset.id}/approve`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: ap.dataset.approve, note }) });
+      toast(ap.dataset.approve === "render" ? "Rendering the video from these keyframes" : "Redrawing the keyframes again");
+      detailsOpen.delete(card.dataset.id); await refreshJobs(); renderJobs();
+    } catch (err) { toast(err.message); }
+    return;
+  }
   if (e.target.closest('[data-fix="rerender"]')) {
     const prompt = card.querySelector("[data-fix-prompt]").value.trim();
     try {
@@ -856,7 +903,7 @@ $("jobList").onclick = async (e) => {
   }
   const act = e.target.closest("[data-job-act]")?.dataset.jobAct; if (!act) return;
   const id = card.dataset.id;
-  if (act === "check") { if (await checkClip(id)) renderJobs(); return; }
+  if (act === "check") { detailsOpen.set(id, true); if (await checkClip(id)) renderJobs(); return; }
   if (act === "delete") return deleteJob(id);
   if (act === "sound") return openSound(id);
   try { await api(`/api/jobs/${id}/cancel`, { method: "POST" }); await refreshJobs(); renderJobs(); }
@@ -1279,9 +1326,11 @@ function renderStatus() {
   const idle = info.idle_stop || (g.seconds_left != null ? { seconds_left: g.seconds_left } : null), ip = $("idlePill");
   ip.classList.toggle("hidden", !idle || idle.seconds_left > 600);
   if (idle) ip.innerHTML = `Stops in ${Math.max(1, Math.ceil(idle.seconds_left / 60))} min<span class="wide-only"> · keep running</span>`;
+  const waiting = S.jobs.filter((j) => j.status === "approve").length;  // redrawn keyframes waiting for an OK
   const q = $("queuePill");
-  q.classList.toggle("hidden", !active); q.textContent = `${active} in queue`;
-  const badge = $("tabBadge"); badge.classList.toggle("hidden", !active); badge.textContent = active;
+  q.classList.toggle("hidden", !active && !waiting);
+  q.textContent = [active ? `${active} in queue` : "", waiting ? `${waiting} waiting for you` : ""].filter(Boolean).join(" · ");
+  const badge = $("tabBadge"); badge.classList.toggle("hidden", !active && !waiting); badge.textContent = active + waiting;
 }
 
 $("gpuBtn").onclick = async () => {
@@ -1301,7 +1350,7 @@ $("idlePill").onclick = async () => {
 async function refreshInfo() {
   const first = !S.info;
   S.info = await api("/api/info");
-  if (first) renderStyles();
+  if (first) { renderStyles(); renderCheckOption(); }
   // Which models are installed is known only once a GPU pod has run: refresh the menus when that changes.
   const models = JSON.stringify([S.info.image_models.map((m) => m.missing), S.info.engines.map((e) => e.ready)]);
   if (models !== S.modelsSig) {

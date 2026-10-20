@@ -151,7 +151,7 @@
         <div class="field-block">
           <label class="lbl">Keyframes <span class="hint" id="trayCount"></span></label>
           <div id="tray" class="tray"></div>
-          <p class="hint">2–12 images in order. Same aspect ratio works best. Each gap becomes 2–5 s of motion.</p>
+          <p class="hint">2–12 images, in order; each gap becomes 2–5 s of motion.</p>
         </div>
 
         <div class="field-block">
@@ -160,8 +160,10 @@
         </div>
 
         <div class="field-block">
-          <label class="lbl" for="engine">Video model</label>
-          <select id="engine"></select>
+          <div class="field-row">
+            <div><label class="lbl" for="engine">Video model</label><select id="engine"></select></div>
+            <div><label class="lbl" for="vmode">Mode</label><select id="vmode"></select></div>
+          </div>
           <div id="engineLicense" class="license"></div>
           <div id="soundBox" class="hidden">
             <label class="toggle"><input id="audio" type="checkbox" checked><span>Generate sound</span></label>
@@ -176,6 +178,8 @@
           <label class="toggle"><input id="restyle" type="checkbox"><span>Redraw keyframes in this style first</span></label>
           <div id="restyleModelBox" class="hidden">
             <select id="restyleModel" class="imageModel" aria-label="Redraw with"></select>
+            <label class="toggle"><input id="checkKeyframes" type="checkbox" checked><span id="checkKeyframesLabel">Check the redrawn keyframes</span></label>
+            <label class="toggle"><input id="approveKeyframes" type="checkbox" checked><span>Stop so I can approve them before the video renders</span></label>
           </div>
         </div>
 
@@ -186,8 +190,6 @@
               <select id="length"><option value="33">2 s</option><option value="49">3 s</option><option value="65">4 s</option><option value="81" selected>5 s</option></select></div>
             <div><label class="lbl" for="size">Resolution</label>
               <select id="size"><option value="preview">Preview (fast)</option><option value="standard" selected>Standard ~480p</option></select></div>
-            <div><label class="lbl" for="vmode">Mode</label>
-              <select id="vmode"></select></div>
             <div><label class="lbl" for="vseed">Seed</label>
               <input id="vseed" type="number" inputmode="numeric" placeholder="random"></div>
           </div>

@@ -63,6 +63,7 @@ LENGTHS = {33, 49, 65, 81}
 class Jobs:
     def __init__(self, gpu):
         self.gpu = gpu
+        self.keyframe_checker = lambda job: None  # set in main(): job -> check(originals, redrawn) or None
         self.lock = threading.Lock()
         self.jobs = {}
         self.pending = queue.Queue()
@@ -150,13 +151,25 @@ class Jobs:
             "restyle": s.get("restyle"),
             "fast": s.get("fast", True),
             "turbo_steps": s.get("turbo_steps", 8),
+            "keyframe_check": self.keyframe_checker(job) if s.get("check_keyframes") else None,
             "length": s.get("length", 81),
             "interpolate": s.get("interpolate", 2),
             "area": SIZES.get(s.get("size"), SIZES["standard"]),
             "loop": s.get("loop", False),
             "seed": s.get("seed"),
             "output": os.path.join(out_dir, "result.mp4"),
+            "restyle_note": s.get("restyle_note") or None,
         }
+        # With "approve_keyframes", a restyling render runs in two steps: redraw (and check) the keyframes, stop
+        # with status "approve" for the user to look at them, then render the video from them once approved.
+        style = animate.resolve_style({"style": s.get("style"), "custom_style": s.get("custom_style")})
+        restyles = s.get("restyle") if s.get("restyle") is not None else bool(style.get("restyle_prompt"))
+        if restyles and s.get("approve_keyframes"):
+            if job.get("approved") and job.get("styled"):
+                overrides["keyframes"] = [os.path.join(out_dir, "result_keyframes", n) for n in job["styled"]]
+                overrides["restyle"] = False
+            else:
+                overrides["stop_after_restyle"] = True
 
         def report(text, final=False):
             with self.lock:
@@ -170,10 +183,13 @@ class Jobs:
         try:
             overrides["server"] = self.gpu.ensure(report, lambda: job.get("cancel", False))
             cfg = animate.make_config(overrides, out_dir)
-            animate.run(cfg, report, lambda: job.get("cancel", False))
+            step = animate.run(cfg, report, lambda: job.get("cancel", False))
             styled_dir = os.path.join(out_dir, "result_keyframes")
-            styled = sorted(os.listdir(styled_dir)) if os.path.isdir(styled_dir) else []
-            self.update(job, status="done", finished=time.time(), progress="done", styled=styled)
+            styled = sorted(n for n in os.listdir(styled_dir) if len(n) == 6 and n.endswith(".png")) if os.path.isdir(styled_dir) else []
+            if step == "restyled":
+                self.update(job, status="approve", progress="waiting for your OK on the redrawn keyframes", styled=styled)
+            else:
+                self.update(job, status="done", finished=time.time(), progress="done", styled=styled)
         except animate.Cancelled:
             self.update(job, status="cancelled", finished=time.time(), progress="cancelled")
         except Exception as e:  # report any failure to the phone
@@ -473,6 +489,9 @@ def clean_settings(raw, n_keyframes, styles):
         "restyle": None if restyle is None else bool(restyle),
         "fast": bool(raw.get("fast", True)),
         "turbo_steps": 4 if str(raw.get("turbo_steps")) == "4" else 8,
+        "check_keyframes": bool(raw.get("check_keyframes")),
+        "approve_keyframes": bool(raw.get("approve_keyframes")),  # stop for the user's OK after the redraw
+        "writer": str(raw.get("writer") or "")[:40],  # the AI model that checks redrawn keyframes
         "length": int(raw.get("length", 81)) if int(raw.get("length", 81)) in LENGTHS else 81,
         "interpolate": 2 if raw.get("smooth", True) else 1,
         "size": raw.get("size") if raw.get("size") in SIZES else "standard",
@@ -503,6 +522,26 @@ def queue_job(jobs, files, raw, extra=None):
            "settings": settings, "inputs": names, "styled": [], "log": [], **(extra or {})}
     jobs.add(job)
     return job
+
+
+def keyframe_checker(jobs, writers):
+    """job -> a check for animate.run's keyframe redraw, using the job's chosen AI model (or the first one that is
+    set up); each result is recorded in job["keyframe_checks"] for the app."""
+    def for_job(job):
+        writer = writers.get(job["settings"].get("writer")) or next((w for w in writers.values() if w.ready), None)
+        if not writer or not writer.ready:
+            return None
+        s = job["settings"]
+        style = animate.resolve_style({"style": s.get("style"), "custom_style": s.get("custom_style")})
+
+        def check(originals, redrawn):
+            result = clipreview.check_keyframes(writer, originals, redrawn,
+                                                {"label": style.get("label", "?"), "description": style.get("video_prompt", "")})
+            result = {**result, "writer": writer.id, "time": time.time()}
+            jobs.update(job, keyframe_checks=(job.get("keyframe_checks") or []) + [result])
+            return result
+        return check
+    return for_job
 
 
 def job_keyframes(jobs, job):
@@ -692,10 +731,25 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
 
     async def cancel_job(request):
         job = get_job(request)
-        if job["status"] == "queued":
+        if job["status"] in ("queued", "approve"):
             jobs.update(job, status="cancelled", progress="cancelled")
         elif job["status"] == "running":
             job["cancel"] = True
+        return web.json_response(jobs.public(job))
+
+    async def approve_keyframes(request):
+        """A render waiting for the user's OK on its redrawn keyframes: render the video, or redraw them again."""
+        job, raw = get_job(request), await request.json()
+        if job["status"] != "approve":
+            return web.json_response({"error": "this render isn't waiting for an OK"}, status=400)
+        if raw.get("action") == "redraw":
+            shutil.rmtree(os.path.join(jobs.dir(job["id"]), "result_keyframes"), ignore_errors=True)
+            note = str(raw.get("note") or "").strip()[:600]
+            jobs.update(job, status="queued", progress="queued", styled=[], keyframe_checks=[], approved=False,
+                        settings=dict(job["settings"], restyle_note=note))
+        else:
+            jobs.update(job, status="queued", progress="queued", approved=True)
+        jobs.pending.put(job["id"])
         return web.json_response(jobs.public(job))
 
     async def check_clip(request):
@@ -947,6 +1001,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         web.post("/api/jobs/{id}/cancel", cancel_job),
         web.delete("/api/jobs/{id}", delete_job),
         web.post("/api/jobs/{id}/review", check_clip),
+        web.post("/api/jobs/{id}/approve", approve_keyframes),
         web.post("/api/jobs/{id}/rerender", rerender),
         web.get("/api/jobs/{id}/video", video),
         web.get("/api/voices", voices),
@@ -1118,6 +1173,7 @@ def main():
           "off. Set ELEVENLABS_API_KEY to turn it on.\n"))
     characters = Characters(maker)
     writers = directors.load_writers(config)
+    jobs.keyframe_checker = keyframe_checker(jobs, writers)
     director = directors.Director(ROOT, writers, maker, characters, lambda files, raw: queue_job(jobs, files, raw), jobs,
                                   lambda make_video, keyframes, info: add_film_job(jobs, make_video, keyframes, info))
     print("Director AI: " + (", ".join(f"{w.label}{' (paid)' if w.paid else ''}{'' if w.ready else ' [not set up]'}"
