@@ -23,6 +23,11 @@ use needs a paid ElevenLabs plan; **the owner has one** (free-plan dubs are wate
 secondary sources say free-plan output is non-commercial and needs attribution). Check ElevenLabs'
 terms before using generated music commercially.
 
+**Creating Runpod pods** (Claude, via the Runpod plugin or API): always add the environment
+variable `ELEVENLABS_API_KEY={{ RUNPOD_SECRET_elevenlabs_api_key }}` (the owner stores the key as the
+Runpod secret `elevenlabs_api_key`). Expose only HTTP port 8700. Confirm GPU type, cloud and
+expected hourly cost with the owner before creating a pod, since it bills from the moment it starts.
+
 **Consequences for the code:**
 
 - Every engine must run on the rented GPU from downloadable weights (e.g. Wan 2.2, LTX-2.5,
