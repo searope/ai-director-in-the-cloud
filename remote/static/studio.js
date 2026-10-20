@@ -378,8 +378,7 @@ function keyframeStrip(j) {
   const checks = j.keyframe_checks || [], last = checks[checks.length - 1];
   const checkLine = !last ? "" : last.ok
     ? `<div class="kf-check ok">Keyframes checked: OK${checks.length > 1 ? ` after ${checks.length} tries` : ""}</div>`
-    : `<div class="kf-check warn" title="${esc((last.problems || []).join("
-"))}">Keyframe check: ${esc((last.problems || [])[0] || "problems")}${checks.length > 1 ? ` (best of ${checks.length} tries used)` : ""}</div>`;
+    : `<div class="kf-check warn" title="${esc((last.problems || []).join(" | "))}">Keyframe check: ${esc((last.problems || [])[0] || "problems")}${checks.length > 1 ? ` (best of ${checks.length} tries used)` : ""}</div>`;
   return `<div class="kf-strip">${row("input", j.inputs, film ? "Shots" : redrawn || j.settings.restyle ? "Original" : "Keyframes")}
     ${row("styled", j.styled, "Redrawn")}${checkLine}${redrawing ? `<div class="kf-row"><span class="kf-label">Redrawn</span><span class="hint" style="margin:0">being redrawn in the style…</span></div>` : ""}</div>`;
 }
