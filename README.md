@@ -9,8 +9,11 @@ brief → script & storyboard → consistent keyframes (cast) → shots (open mo
 
 Inspired by the "director" workflow of hosted studios such as OpenArt, but self-hosted: open models
 on a GPU you rent by the hour (roughly 10–50× cheaper per take than closed-model APIs, with full
-control over styles, LoRAs and seeds), with closed models such as Kling as an optional, paid engine
-for hero shots.
+control over styles, LoRAs and seeds).
+
+**Policy:** spending is limited to a **rented cloud GPU** (open-weight models only) and an **AI
+subscription** (Claude or similar) for the story and scripting work. No pay-per-clip generation
+APIs or credits. See [CLAUDE.md](CLAUDE.md).
 
 > **Status: early.** What works today is the engine inherited from
 > [searope/32gb-rtx-5050-8gb](https://github.com/searope/32gb-rtx-5050-8gb): keyframe maker,
@@ -22,7 +25,6 @@ for hero shots.
 ```
 any device (browser) ──HTTPS──▶ rented GPU: web app (port 8700, token-protected)
                                               └──▶ ComfyUI (127.0.0.1:8188, never exposed)
-                                              └──▶ (optional) closed-model APIs via ComfyUI partner nodes
 ```
 
 Everything (models, jobs, keyframes, projects) lives on the cloud machine's persistent volume, so
@@ -45,10 +47,10 @@ any device sees the same state.
    shots without re-rendering the rest.
 2. **Cast:** named characters with reference images, tagged in shots, used as multi-reference input
    when making keyframes. Later: one combined multi-character LoRA.
-3. **Story planner:** brief → script → shot list with a language model (local via ComfyUI, or the
-   Claude API), editable before rendering.
-4. **More engines:** LTX-2.5 first/last frame, H3 multi-keyframe, Kling start/end frame (paid, via
-   ComfyUI partner nodes).
+3. **Story planner:** brief → script → shot list, written by the AI subscription (e.g. Claude Code
+   editing the project's storyboard file) or a local model on the GPU; editable before rendering.
+4. **More engines (open weights, on the GPU):** LTX-2.5 first/last frame, H3 multi-keyframe,
+   H3 "max quality" preset (20 steps, higher resolution, longer clips).
 5. **Finishing:** 1080p upscaling of chosen shots, voice-over and music tracks, continuity check.
 6. **Cloud ops:** one-command session start, idle auto-stop, cost tracking per project.
 
