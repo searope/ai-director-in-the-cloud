@@ -73,9 +73,10 @@ before commercial use. Details per download profile are in `setup/models.json` (
 | FLUX.2 Klein 4B (+ Qwen3 4B) | Apache 2.0 | ✅ free (default image model) |
 | FILM interpolation | Apache 2.0 | ✅ free |
 | Lightx2v Wan 2.2 4-step LoRAs (fast mode) | not yet verified | ❓ quality mode doesn't use them |
+| Lightx2v MiniMax H3 turbo LoRAs (8-step v1.0, 4-step v1.3; Balanced and Fast modes) | none on the repo; Apache 2.0 per other uploaders | ❓ quality mode doesn't use them |
 | FLUX 3 Klein | FLUX Kommunity License | ⚠️ free only under $5M annual revenue |
 | FLUX.2 Klein 9B | FLUX non-commercial | ❌ needs a paid Black Forest Labs license |
-| MiniMax H3 (+ turbo LoRA) | The owner's written license from MiniMax (Oct 2026); public: MiniMax H3 Community License | ✅ for the owner (all use, no attribution). ❌ for anyone else in the US, EU, UK or South Korea without their own license: use Wan 2.2 |
+| MiniMax H3 | The owner's written license from MiniMax (Oct 2026); public: MiniMax H3 Community License | ✅ for the owner (all use, no attribution). ❌ for anyone else in the US, EU, UK or South Korea without their own license: use Wan 2.2 |
 | ElevenLabs (sound, opt-in API, not a model) | ElevenLabs terms; paid per use | ⚠️ needs a paid ElevenLabs plan (free-plan dubs are watermarked); check the terms for music |
 
 ## Getting started

@@ -70,8 +70,8 @@
       ]
     },
     "minimax-h3": {
-      "description": "Default video engine: MiniMax H3 first/last-frame video with generated sound (24 fps), plus its 8-step turbo LoRA. ~39 GB. See 'license'.",
-      "license": "The project owner holds a written license from MiniMax (Oct 2026) covering all use, including commercial, with no attribution requirement. Anyone else needs their own: the public MiniMax H3 Community License excludes the US, EU, UK and South Korea (including local self-hosting) and elsewhere allows royalty-free commercial use under $20M annual revenue with 'MiniMax H3' shown in the product UI. The lightx2v turbo LoRA is a derivative under the same terms.",
+      "description": "Default video engine: MiniMax H3 first/last-frame video with generated sound (24 fps), plus its 8-step and 4-step turbo LoRAs. ~41 GB. See 'license'.",
+      "license": "The project owner holds a written license from MiniMax (Oct 2026) covering all use, including commercial, with no attribution requirement. Anyone else needs their own: the public MiniMax H3 Community License excludes the US, EU, UK and South Korea (including local self-hosting) and elsewhere allows royalty-free commercial use under $20M annual revenue with 'MiniMax H3' shown in the product UI. The lightx2v turbo LoRAs (8-step v1.0, 4-step v1.3) have no license on their Hugging Face repo (lightx2v/Minimax-h3-Turbo); other uploaders call them Apache 2.0. License not verified: check before relying on them commercially; Quality mode (20 steps) doesn't use them.",
       "files": [
         {
           "dir": "diffusion_models",
@@ -97,6 +97,11 @@
           "dir": "loras",
           "name": "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
           "url": "https://huggingface.co/lightx2v/Minimax-h3-Turbo/resolve/main/minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
+        },
+        {
+          "dir": "loras",
+          "name": "minimax_h3_fl2v_turbo_4step_v1.3_768p_comfyui_bf16.safetensors",
+          "url": "https://huggingface.co/lightx2v/Minimax-h3-Turbo/resolve/main/minimax_h3_fl2v_turbo_4step_v1.3_768p_comfyui_bf16.safetensors"
         }
       ]
     },

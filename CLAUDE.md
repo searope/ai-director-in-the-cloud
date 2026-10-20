@@ -56,8 +56,8 @@ port 8700. If the app itself runs on a pod (the older setup), add
 reasonable price that the owner has approved. The owner is in the **USA**, and rented pods usually
 run in US/EU datacenters, so a license must cover both.
 
-- **Commercial-safe default set:** **MiniMax H3** (+ its turbo LoRA; the default video engine, under
-  the owner's license below), **Wan 2.2 14B** (+ umt5 text encoder, Wan VAE; Apache 2.0),
+- **Commercial-safe default set:** **MiniMax H3** (the default video engine, under the owner's
+  license below), **Wan 2.2 14B** (+ umt5 text encoder, Wan VAE; Apache 2.0),
   **FLUX.2 Klein 4B** (+ Qwen3 4B text encoder; Apache 2.0), **FILM** interpolation (Apache 2.0).
   Defaults in code (engine, image model, download profiles) must come only from this set.
 - **MiniMax H3: licensed to the owner (Oct 2026).** The owner holds a written license from MiniMax
@@ -67,8 +67,9 @@ run in US/EU datacenters, so a license must cover both.
 - **Opt-in only, clearly labelled** in the app and docs:
   - FLUX.2 Klein 9B: non-commercial (commercial use needs a paid Black Forest Labs license).
   - FLUX 3 Klein: FLUX Kommunity License, free commercial use only under $5M annual revenue.
-- **Unverified:** Lightx2v Wan 2.2 4-step speed LoRAs. Check the model card before commercial use;
-  Wan's quality mode works without them.
+- **Unverified:** the lightx2v speed LoRAs: Wan 2.2 4-step, and MiniMax H3 turbo 8-step v1.0 and
+  4-step v1.3 (lightx2v/Minimax-h3-Turbo has no license on its repo; other uploaders call it Apache
+  2.0). They power the fast modes; check before commercial use. Quality modes work without them.
 - **Planned:** LTX-2.x is free for commercial use under $10M annual revenue (LoRAs trained on it
   carry the same terms); acceptable, but label it.
 - Every model added to `setup/models.json` needs a `license` note, and every engine or image model

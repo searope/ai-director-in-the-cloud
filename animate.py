@@ -55,6 +55,7 @@ ENGINES = ("wan22", "minimax-h3")
 LICENSES = {
     "wan22": "Apache 2.0, commercial OK",
     "minimax-h3": "commercial OK under the owner's written MiniMax license (Oct 2026)",
+    "h3-turbo": "lightx2v turbo LoRA: license not verified (no license on the repo)",
     "klein4b": "Apache 2.0, commercial OK",
     "klein9b": "non-commercial",
     "flux3klein": "commercial only under $5M revenue",
@@ -97,6 +98,7 @@ DEFAULTS = {
     "length": 81,             # frames per segment at 16 fps (4n+1); 81 = ~5 s. H3 uses the same duration at 24 fps
     "fps": 16,                # Wan's frame rate (H3 always renders 24 fps)
     "interpolate": None,      # FILM frame multiplier (1 = off); None = 2 for Wan (-> 32 fps), 1 for H3
+    "turbo_steps": 8,         # H3 fast mode: 8 (turbo LoRA v1.0) or 4 (4-step turbo v1.3, about twice as fast)
     "audio": True,            # H3 only: keep the generated soundtrack
     "sound": None,            # H3 only: describe the sound, e.g. "rain on a tin roof, distant thunder"
     "fast": True,             # 4-step Lightx2v LoRAs; False = 20-step full quality (~5x slower)
@@ -122,6 +124,7 @@ DEFAULTS = {
         "h3_vae": "minimax_h3_video_vae_int8_convrot.safetensors",
         "h3_audio_vae": "minimax_h3_audio_vae_fp32.safetensors",
         "h3_lora": "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
+        "h3_lora_4step": "minimax_h3_fl2v_turbo_4step_v1.3_768p_comfyui_bf16.safetensors",
     },
 }
 
@@ -295,12 +298,15 @@ def build_h3_segment_graph(cfg, start_name, end_name, prompt, seed, width, heigh
             "length": h3_length(cfg["length"]), "first_frame": ["start", 0], "last_frame": ["end", 0]}},
     }
     model = ["unet", 0]
-    if fast:
-        g["lora"] = {"class_type": "LoraLoaderModelOnly", "inputs": {"model": model, "lora_name": m["h3_lora"], "strength_model": 1.0}}
+    steps = 20
+    if fast:  # a lightx2v turbo LoRA: 8 steps, or 4 with the 4-step version
+        steps = 4 if cfg.get("turbo_steps") == 4 else 8
+        lora = m["h3_lora_4step"] if steps == 4 else m["h3_lora"]
+        g["lora"] = {"class_type": "LoraLoaderModelOnly", "inputs": {"model": model, "lora_name": lora, "strength_model": 1.0}}
         model = ["lora", 0]
     g.update({
         "guider": {"class_type": "BasicGuider", "inputs": {"model": model, "conditioning": ["i2v", 0]}},
-        "sigmas": {"class_type": "BasicScheduler", "inputs": {"model": model, "scheduler": "simple", "steps": 8 if fast else 20, "denoise": 1.0}},
+        "sigmas": {"class_type": "BasicScheduler", "inputs": {"model": model, "scheduler": "simple", "steps": steps, "denoise": 1.0}},
         "sampler": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "res_multistep"}},
         "noise": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}},
         "sample": {"class_type": "SamplerCustomAdvanced", "inputs": {
@@ -520,6 +526,8 @@ def make_config(overrides, base_dir=None):
     image_model(cfg)  # validate image_model
     if cfg["interpolate"] is None:
         cfg["interpolate"] = 2 if cfg["engine"] == "wan22" else 1
+    if cfg["turbo_steps"] not in (4, 8):
+        raise ValueError("turbo_steps must be 4 or 8.")
 
     n_segments = len(cfg["keyframes"]) - (0 if cfg["loop"] else 1)
     prompts = cfg.get("prompts") or ["smooth natural motion, consistent subject"]
@@ -710,6 +718,7 @@ def main():
     ap.add_argument("--engine", choices=ENGINES, help="video model (default minimax-h3)")
     ap.add_argument("--image-model", choices=list(IMAGE_MODELS), help="model for --restyle (default klein4b)")
     ap.add_argument("--sound", help="MiniMax H3: describe the soundtrack")
+    ap.add_argument("--turbo-steps", type=int, choices=(4, 8), help="MiniMax H3 fast mode: 8 (default) or 4 steps")
     ap.add_argument("--no-audio", dest="audio", action="store_false", default=None, help="MiniMax H3: drop the soundtrack")
     ap.add_argument("--server")
     ap.add_argument("--width", type=int)
@@ -743,7 +752,7 @@ def main():
     if args.quality:
         overrides["fast"] = False
     for key in ("server", "width", "height", "length", "fps", "interpolate", "seed", "loop", "output",
-                "style", "custom_style", "restyle", "engine", "sound", "audio", "image_model"):
+                "style", "custom_style", "restyle", "engine", "sound", "audio", "image_model", "turbo_steps"):
         if getattr(args, key) is not None:
             overrides[key] = getattr(args, key)
 

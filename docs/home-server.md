@@ -114,6 +114,8 @@ Optional `gpu` settings, shown with their defaults:
 | `disk_gb` | `30` | Container disk |
 | `min_cuda` | `"13.0"` | Minimum host CUDA version |
 | `pod_safety_minutes` | `30` | The pod stops itself after this long without requests |
+| `extra_models` | `[]` | Optional model profiles from `setup/models.json` that pods download after the defaults, e.g. `["flux3-klein"]` |
+| `env` | `{}` | Extra environment variables for pods, e.g. `{"HF_TOKEN": "hf_..."}` for gated models like FLUX 3 Klein |
 
 `elevenlabs_api_key` is optional (the paid Sound feature). It now lives on the PC because sound is
 mixed there. The Runpod secret isn't needed for this setup.
