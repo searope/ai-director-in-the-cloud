@@ -136,7 +136,7 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 .empty .btn { margin-top: 12px; }
 
 /* ---------- workspace (create pages) */
-.workspace { display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start; }
+.workspace { display: grid; grid-template-columns: 440px 1fr; gap: 24px; align-items: start; }
 .panel { position: sticky; top: 64px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px;
          max-height: calc(var(--vh) - 80px); overflow: auto; }
 .field-block { margin-bottom: 16px; }
@@ -162,7 +162,7 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 #soundBox input[type=text] { margin-top: 8px; }
 #restyleModelBox { margin-top: 8px; }
 
-.tray { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.tray { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .tray .kf { position: relative; aspect-ratio: 1; border-radius: 9px; overflow: hidden; background: var(--card); border: 1px solid var(--line); }
 .tray .kf img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .tray .kf .n { position: absolute; top: 4px; left: 4px; font-size: 11px; font-weight: 700; background: #000b; border-radius: 5px; padding: 0 5px; }
@@ -171,9 +171,10 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 .tray .add { aspect-ratio: 1; border-radius: 9px; border: 1.5px dashed var(--line2); background: none; color: var(--muted); cursor: pointer;
              display: grid; place-items: center; font: inherit; font-size: 12px; }
 .tray .add:hover { border-color: var(--accent); color: var(--text); }
-.gap { display: grid; grid-template-columns: 52px 1fr; gap: 9px; margin-bottom: 9px; }
-.gap .pair { display: flex; flex-direction: column; gap: 3px; align-items: center; font-size: 11px; color: var(--dim); }
-.gap .pair img { width: 52px; height: 30px; object-fit: cover; border-radius: 5px; }
+.gap { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.gap .pair { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); font-weight: 600; }
+.gap .pair img { height: 110px; max-width: 42%; width: auto; object-fit: contain; border-radius: 8px; background: var(--bg2);
+                 border: 1px solid var(--line); cursor: zoom-in; }
 .gap textarea { min-height: 64px; font-size: 14px; }
 
 .jobs { display: flex; flex-direction: column; gap: 14px; }
@@ -570,3 +571,22 @@ body.no-scroll { overflow: hidden; }
                           background: currentColor; animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
 .status.cancelling { color: var(--muted); }
+
+/* Create video panel: folded sections with a one-line summary */
+.video-panel .field-block { margin-bottom: 18px; }
+.sec { border-top: 1px solid var(--line); padding: 12px 0 2px; }
+.sec > summary { list-style: none; display: flex; align-items: baseline; gap: 10px; cursor: pointer; padding: 2px 0 10px; }
+.sec > summary::-webkit-details-marker { display: none; }
+.sec > summary::after { content: "▸"; margin-left: auto; color: var(--muted); transition: transform .15s; }
+.sec[open] > summary::after { transform: rotate(90deg); }
+.sec-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); flex: none; }
+.sec-sum { font-size: 13.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.sec[open] .sec-sum { color: var(--muted); }
+.sec-body { display: flex; flex-direction: column; gap: 10px; padding-bottom: 12px; }
+.sec-body .field-row { margin: 0; }
+.field-row.three { grid-template-columns: 1fr 1fr 1fr; }
+.sub-opts { display: flex; flex-direction: column; gap: 8px; padding-left: 26px; }
+.foot-sum { text-align: center; margin: 0 0 8px; font-size: 12.5px; }
+/* bigger keyframe pairs in Motion; smaller once there are many gaps */
+.gap .pair img { height: 130px; }
+#motion:has(.gap:nth-child(3)) .gap .pair img { height: 90px; }

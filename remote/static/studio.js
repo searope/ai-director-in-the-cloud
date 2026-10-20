@@ -675,7 +675,8 @@ function renderTray() {
     <button type="button" data-k="del" data-i="${i}" aria-label="Remove">✕</button>
     <button type="button" data-k="right" data-i="${i}" aria-label="Move later">▶</button></div></div>`).join("");
   setHtml($("tray"), tiles + (S.tray.length < 12 ? `<button type="button" class="add" data-k="add"><span><svg><use href="#i-plus"/></svg><br>Add</span></button>` : ""));
-  $("trayCount").textContent = S.tray.length ? `${S.tray.length} of 12` : "";
+  $("trayCount").textContent = S.tray.length ? `${S.tray.length} of 12` : "2–12 images, in order";
+  renderPanelSummary();
 }
 $("tray").onclick = (e) => {
   const b = e.target.closest("[data-k]"); if (!b) return;
@@ -697,10 +698,13 @@ function renderMotion() {
   if (!n) { box.innerHTML = `<p class="hint" style="margin:0">Add at least two keyframes.</p>`; return; }
   box.innerHTML = Array.from({ length: n }, (_, i) => {
     const a = S.tray[i], b = S.tray[(i + 1) % S.tray.length];
-    return `<div class="gap"><div class="pair"><img alt="" src="${imgUrl(a)}">${i + 1} → ${(i + 1) % S.tray.length + 1}<img alt="" src="${imgUrl(b)}"></div>
+    return `<div class="gap"><div class="pair"><img alt="Keyframe ${i + 1}" src="${imgUrl(a)}" data-open-img="${a}"><span>${i + 1} → ${(i + 1) % S.tray.length + 1}</span><img alt="Keyframe ${(i + 1) % S.tray.length + 1}" src="${imgUrl(b)}" data-open-img="${b}"></div>
       <textarea data-gap="${i}" placeholder="${i ? "Same as above" : "What moves, and the camera, e.g. she turns and smiles, slow push-in"}">${esc(S.motion[i] || "")}</textarea></div>`;
   }).join("");
 }
+$("motion").onclick = async (e) => {  // a keyframe full size
+  const img = e.target.closest("[data-open-img]"); if (img) { await refreshImages(); openImage(img.dataset.openImg); }
+};
 $("motion").oninput = (e) => {
   const t = e.target.closest("[data-gap]"); if (!t) return;
   S.motion[+t.dataset.gap] = t.value; store.set("motion", S.motion);
@@ -722,7 +726,7 @@ function setVideoStyle(id) {
   $("customStyle").classList.toggle("hidden", id !== "__custom");
   if (!S.restyleTouched) $("restyle").checked = id === "__custom" || !!st?.restyle;
   $("restyleModelBox").classList.toggle("hidden", !$("restyle").checked);
-  renderStyles();
+  renderStyles(); renderPanelSummary();
 }
 // Create video shows only recently used styles (the current one highlighted) and "More styles…" (the Styles page).
 const DEFAULT_RECENT = ["photoreal", "anime", "watercolor", "oil-painting"];
@@ -1032,7 +1036,7 @@ $("engine").onchange = () => {
     : [["fast", "Fast (4 steps)"], ["quality", "Quality (20 steps)"]])
     .map(([v, label, off]) => `<option value="${v}"${off ? " disabled" : ""}>${label}</option>`).join("");
   $("vmode").value = [...$("vmode").options].some((o) => o.value === keep && !o.disabled) ? keep : "fast";
-  $("vmode").onchange();
+  $("vmode").onchange(); renderPanelSummary();
 };
 // Remember only the user's own choice (renderEngines calls onchange itself when it picks a default).
 $("engine").addEventListener("change", () => { $("engine").dataset.chosen = $("engine").value; });
@@ -1295,7 +1299,26 @@ $("jobList").onclick = async (e) => {
   try { await api(`/api/jobs/${id}/cancel`, { method: "POST" }); await refreshJobs(); renderJobs(); }
   catch (err) { toast(err.message); restore(); }
 };
-function renderVideoPage() { renderTray(); renderMotion(); renderJobs(); }
+function renderVideoPage() { renderTray(); renderMotion(); renderJobs(); renderPanelSummary(); }
+
+// Create video's folded sections show a one-line summary; the footer, what the render will make.
+function renderPanelSummary() {
+  if (!S.info) return;
+  const opt = (id) => $(id).selectedOptions?.[0]?.textContent?.replace(/\s*\(.*\)$/, "") || "";
+  const restyle = $("restyle").checked;
+  $("sumLook").textContent = [styleLabel(S.style), restyle ? `redraw on${$("approveKeyframes").checked ? ", approval stop" : ""}` : ""].filter(Boolean).join(" · ");
+  const sound = !$("soundBox").classList.contains("hidden") && $("audio").checked;
+  $("sumVideo").textContent = [opt("engine").replace(/ \+ sound$/, ""), opt("vmode"), `${opt("length")} per gap`,
+    $("size").value === "preview" ? "preview" : "480p", sound ? "sound" : "", $("loop").checked ? "loop" : ""].filter(Boolean).join(" · ");
+  const gaps = Math.max(0, S.tray.length - ($("loop").checked ? 0 : 1));
+  $("sumRender").textContent = gaps ? `${S.tray.length} keyframes → about ${gaps * ((+$("length").value - 1) / 16)} s of video` : "Add at least two keyframes";
+}
+document.querySelector(".video-panel").addEventListener("change", renderPanelSummary);
+document.querySelector(".video-panel").addEventListener("input", renderPanelSummary);
+document.querySelectorAll(".video-panel details.sec").forEach((d) => {  // remember which sections are open
+  try { d.open = store.get(`sec_${d.dataset.sec}`, false); } catch { /* no storage */ }
+  d.addEventListener("toggle", () => store.set(`sec_${d.dataset.sec}`, d.open));
+});
 
 // ---------------------------------------------------------------- characters
 function charCard(c) {
