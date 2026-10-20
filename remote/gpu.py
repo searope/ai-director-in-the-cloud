@@ -112,7 +112,7 @@ class RunpodGPU:
         return {"mode": "runpod", "state": self.state, "error": self.error, "since": self.since,
                 "gpu": (self.pod or {}).get("gpu_id"), "cost_per_hour": (self.pod or {}).get("cost"),
                 "idle_minutes": self.cfg["idle_minutes"], "seconds_left": None if left is None else round(left),
-                "month_cost": round(self.month_cost(), 2)}
+                "month_cost": round(self.month_cost(), 2), "disk": getattr(self, "cached_disk", None)}
 
     def models(self):
         return self.cached_models
@@ -202,6 +202,7 @@ class RunpodGPU:
                 data = json.loads(resp.read())
             if data.get("comfy"):
                 self.cached_models = data.get("models")
+                self.cached_disk = data.get("disk")  # {"total", "free"} bytes of the network volume
                 return True
         except Exception:
             pass

@@ -1718,7 +1718,8 @@ function renderStatus() {
     card.querySelector(".gpu-name").textContent = gpu;
     card.querySelector(".meter span").style.width = total ? `${Math.round(100 * used / total)}%` : "0";
     card.querySelector(".gpu-sub").textContent = (total ? `${used.toFixed(1)} / ${total.toFixed(0)} GB VRAM` : "") +
-      (pod && g.cost_per_hour ? ` · $${g.cost_per_hour}/h` : "") + month;
+      (pod && g.cost_per_hour ? ` · $${g.cost_per_hour}/h` : "") + month +
+      (g.disk ? ` · storage ${((g.disk.total - g.disk.free) / 1e9).toFixed(0)} / ${(g.disk.total / 1e9).toFixed(0)} GB` : "");
   } else {
     st.textContent = "GPU offline"; st.className = "pill bad";
     card.querySelector(".gpu-name").textContent = "ComfyUI offline";

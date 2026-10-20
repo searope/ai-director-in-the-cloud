@@ -14,6 +14,7 @@ import asyncio
 import hmac
 import json
 import os
+import shutil
 import threading
 import time
 import urllib.request
@@ -60,7 +61,13 @@ def make_app(token, activity):
                 comfy = r.status == 200
         except Exception:
             comfy = False
-        return web.json_response({"comfy": comfy, "models": await asyncio.to_thread(list_models) if comfy else None})
+        try:  # the network volume's space, so the app can warn before a big model download
+            du = shutil.disk_usage(MODELS)
+            disk = {"total": du.total, "free": du.free}
+        except OSError:
+            disk = None
+        return web.json_response({"comfy": comfy, "models": await asyncio.to_thread(list_models) if comfy else None,
+                                  "disk": disk})
 
     async def proxy(request):
         headers = {k: v for k, v in request.headers.items() if k.lower() not in HOP}
