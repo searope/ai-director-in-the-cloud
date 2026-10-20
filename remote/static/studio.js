@@ -768,7 +768,7 @@ function renderStatus() {
   } else {
     st.textContent = "GPU offline"; st.className = "pill bad";
     card.querySelector(".gpu-name").textContent = "ComfyUI offline";
-    card.querySelector(".gpu-sub").textContent = "Start it with start_all.sh";
+    card.querySelector(".gpu-sub").textContent = "Start it with start_all.sh, or add a \"gpu\" section to remote/config.json";
     card.querySelector(".meter span").style.width = "0";
   }
   const idle = info.idle_stop || (g.seconds_left != null ? { seconds_left: g.seconds_left } : null), ip = $("idlePill");
