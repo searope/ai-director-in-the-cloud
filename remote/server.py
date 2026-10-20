@@ -206,7 +206,7 @@ class Jobs:
             "fast": s.get("fast", True),
             "turbo_steps": s.get("turbo_steps", 8),
             "keyframe_check": self.keyframe_checker(job) if s.get("check_keyframes") else None,
-            "on_render_info": lambda info: self.update(job, render=info),  # shown in the app's Details
+            "on_render_info": lambda info: self.update(job, render=merge_render_info(job, info)),  # the app's Details
             "negative": animate.DEFAULT_NEGATIVE if s.get("negative_standard", True) else "",
             "negative_extra": s.get("negative_extra") or "",
             "length": s.get("length", 81),
@@ -253,6 +253,15 @@ class Jobs:
             self.update(job, status="failed", finished=time.time(), error=str(e)[-2000:])
         finally:
             keep_awake(False)
+
+
+def merge_render_info(job, info):
+    """The renderer's facts for the Details. After the user approves redrawn keyframes, the video runs as a second
+    pass that doesn't redraw: keep the first pass's redraw facts then."""
+    old = job.get("render") or {}
+    if job.get("styled") and not info.get("restyle") and old.get("restyle"):
+        info = dict(info, **{k: old.get(k) for k in ("restyle", "restyle_prompt", "restyle_note", "image_model")})
+    return info
 
 
 def save_example_jpg(png_path, jpg_path, width=640):

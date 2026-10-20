@@ -601,3 +601,32 @@ body.no-scroll { overflow: hidden; }
 #vidGoAll { margin-top: 6px; }
 
 .facts dd.has-tip { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; cursor: help; }
+
+/* keyframe viewer: a fixed size (originals and redrawn keyframes differ in resolution), current thumbnail marked */
+.lb.kf-view { height: calc(var(--vh) - 40px); width: min(1400px, 100%); grid-template-columns: 1fr 380px; }
+.lb.kf-view .lb-media { height: 100%; min-height: 0; }
+.lb.kf-view .lb-media img { width: 100%; height: 100%; max-height: none; object-fit: contain; }
+.lb-info .kf-thumb img { height: 130px; }
+.kf-thumb.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+@media (max-width: 760px) {
+  .lb.kf-view { height: auto; grid-template-columns: 1fr; }
+  .lb.kf-view .lb-media { height: 60vh; }
+  .lb-info .kf-thumb img { height: 96px; }
+}
+
+/* original | redrawn pairs: thumbnails and the viewer */
+.kf-pairs-head { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-width: 360px; }
+.kf-pairs { display: flex; flex-direction: column; gap: 8px; }
+.kf-pair { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-width: 360px; padding: 4px; border: 1px solid var(--line2);
+           border-radius: 9px; background: var(--card); cursor: zoom-in; }
+.kf-pair img { display: block; width: 100%; height: 110px; object-fit: contain; background: #000; border-radius: 6px; }
+.kf-pair span { position: absolute; left: 8px; bottom: 8px; font-size: 11px; font-weight: 700; background: #000b; color: #fff; border-radius: 4px; padding: 0 5px; }
+.kf-pair:hover { border-color: var(--accent); }
+.kf-pair.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.lb-info .kf-pairs-head, .lb-info .kf-pair { max-width: none; }
+.lb-info .kf-pair img { height: 130px; }
+.lb-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; height: 100%; }
+.lb-pair figure { margin: 0; position: relative; min-height: 0; display: flex; }
+.lb-pair img { width: 100%; height: 100%; object-fit: contain; }
+.lb-pair figcaption { position: absolute; top: 8px; left: 8px; background: #000a; color: #fff; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+@media (max-width: 760px) { .lb-pair { height: 60vh; } }
