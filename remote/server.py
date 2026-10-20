@@ -494,6 +494,32 @@ def queue_job(jobs, files, raw):
     return job
 
 
+def add_film_job(jobs, make_video, keyframes, info):
+    """Record a finished film as a done job, so it shows in the library with Sound and Download.
+    make_video(path) writes the video; keyframes are image paths (shown as the job's inputs);
+    info: title, prompts (one line per shot) and narration ([{start, text}])."""
+    job_id = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
+    in_dir = os.path.join(jobs.dir(job_id), "inputs")
+    os.makedirs(in_dir)
+    try:
+        names = []
+        for i, path in enumerate(keyframes):
+            names.append(f"{i + 1:02d}.png")
+            shutil.copyfile(path, os.path.join(in_dir, names[-1]))
+        make_video(os.path.join(jobs.dir(job_id), "result.mp4"))
+    except Exception:
+        shutil.rmtree(jobs.dir(job_id), ignore_errors=True)
+        raise
+    now = time.time()
+    job = {"id": job_id, "kind": "film", "title": info["title"], "narration": info.get("narration", []),
+           "created": now, "started": now, "finished": now, "status": "done", "progress": "done",
+           "settings": {"prompts": info["prompts"], "engine": "wan22", "style": "photoreal", "custom_style": "",
+                        "fast": info.get("fast", True), "loop": False, "seed": None},
+           "inputs": names, "styled": [], "log": []}
+    jobs.add(job)  # the worker skips jobs that aren't queued
+    return job
+
+
 # ---------------------------------------------------------------- web app
 
 def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
@@ -810,8 +836,8 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         return await director_call(lambda: director.make_film(pid) or director.get(pid))
 
     async def film(request):
-        path = director.film_path(project_id(request))
-        if not os.path.exists(path):
+        path = director.film_path(director.get(project_id(request)))
+        if not path:
             raise web.HTTPNotFound()
         headers = {"Content-Disposition": 'attachment; filename="film.mp4"'} if request.query.get("download") else {}
         return web.FileResponse(path, headers=headers)
@@ -1008,7 +1034,8 @@ def main():
           "off. Set ELEVENLABS_API_KEY to turn it on.\n"))
     characters = Characters(maker)
     writers = directors.load_writers(config)
-    director = directors.Director(ROOT, writers, maker, characters, lambda files, raw: queue_job(jobs, files, raw), jobs)
+    director = directors.Director(ROOT, writers, maker, characters, lambda files, raw: queue_job(jobs, files, raw), jobs,
+                                  lambda make_video, keyframes, info: add_film_job(jobs, make_video, keyframes, info))
     print("Director AI: " + (", ".join(f"{w.label}{' (paid)' if w.paid else ''}{'' if w.ready else ' [not set up]'}"
                                          for w in writers.values()) or "none set up (see docs/director.md)") + "\n")
     web.run_app(make_app(jobs, token, maker, idle, sound, gpu, characters, director),

@@ -240,6 +240,11 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 .snd-track audio { width: 100%; height: 34px; }
 .snd-track .error { color: var(--bad); }
 .snd-empty { color: var(--muted); font-size: 13.5px; }
+.snd-narration { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; font-size: 13px; }
+.snd-narration b { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+.snd-narration button { font: inherit; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; color: var(--text); cursor: pointer; }
+.snd-narration button:hover { border-color: var(--accent); }
+.snd-narration button span { display: block; color: var(--muted); font-size: 11.5px; }
 .dub-row, .line-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .line-row { grid-template-columns: 150px minmax(0, 1fr) auto; margin-bottom: 8px; }
 .line-row textarea { min-height: 42px; }

@@ -287,11 +287,12 @@ def _clean_text(value, limit):
 
 
 class Director:
-    def __init__(self, root, writers, maker, characters, queue_job, jobs):
-        """queue_job(image_paths, raw_settings) -> job; jobs: the server's job store (for status and files)."""
+    def __init__(self, root, writers, maker, characters, queue_job, jobs, add_film):
+        """queue_job(image_paths, raw_settings) -> job; jobs: the server's job store (for status and files);
+        add_film(make_video, keyframe_paths, info) -> job: records a finished film in the library."""
         self.dir = os.path.join(root, "output", "director")
         self.writers, self.maker, self.characters = writers, maker, characters
-        self.queue_job, self.jobs = queue_job, jobs
+        self.queue_job, self.jobs, self.add_film = queue_job, jobs, add_film
         self.lock = threading.RLock()
         self.busy_ids = set()  # projects with an AI request, keyframes or a film in progress
         os.makedirs(self.dir, exist_ok=True)
@@ -357,6 +358,8 @@ class Director:
             shot["render"] = ({"status": job["status"], "progress": job.get("progress"), "error": job.get("error")}
                               if job else None)
         project["cast"] = [c for c in project["cast"] if self.characters.get(c)]
+        if project.get("film", {}).get("status") == "done" and not self.film_path(project):
+            project["film"] = {"status": "idle"}  # its video was deleted from the library
         return project
 
     def list(self):
@@ -615,42 +618,55 @@ class Director:
         self.update(project_id, lambda p: self._shot(p, shot_id).update(job_id=job["id"]))
         return job
 
-    def film_path(self, project_id):
-        return os.path.join(self.dir, project_id + ".mp4")
+    def film_path(self, project):
+        """The latest film's video (a job in the library), or None."""
+        job_id = (project or {}).get("film", {}).get("job_id")
+        path = os.path.join(self.jobs.dir(job_id), "result.mp4") if job_id and job_id in self.jobs.jobs else None
+        return path if path and os.path.exists(path) else None
 
     def make_film(self, project_id):
         project = self.get(project_id)
         if not project:
             raise KeyError("no such project")
-        clips = []
+        clips, keyframes, narration, start = [], [], [], 0.0
         for i, shot in enumerate(project["shots"]):
             if not shot["render"] or shot["render"]["status"] != "done":
                 raise ValueError(f"shot {i + 1} isn't rendered yet")
             clips.append(os.path.join(self.jobs.dir(shot["job_id"]), "result.mp4"))
+            if self._have_image(shot.get("start_image") or ""):
+                keyframes.append(self.maker.path(shot["start_image"]))
+            if shot["narration"]:
+                narration.append({"start": round(start, 2), "text": shot["narration"], "shot": i + 1})
+            start += (LENGTH_FOR_SECONDS[shot["seconds"]] - 1) / 16  # a Wan clip lasts (frames - 1) / 16 s
         if not clips:
             raise ValueError("there are no shots")
         if project.get("film", {}).get("status") == "working":
             raise ValueError("the film is already being made")
+        info = {"title": project["title"], "fast": project.get("fast", True), "narration": narration,
+                "prompts": [s["action"] or s["motion"] for s in project["shots"]]}
         self.update(project_id, lambda p: p.update(film={"status": "working", "started": time.time()}))
         self.busy_ids.add(project_id)
-        threading.Thread(target=self._film, args=(project_id, clips), daemon=True).start()
+        threading.Thread(target=self._film, args=(project_id, clips, keyframes, info), daemon=True).start()
 
-    def _film(self, project_id, clips):
+    @staticmethod
+    def _join(clips, out_path):
+        import imageio_ffmpeg
+        ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+        # Re-encode while joining: the clips are all Wan output, but this also copes with mixed sizes.
+        streams = "".join(f"[{i}:v]scale=trunc(iw/2)*2:trunc(ih/2)*2,setsar=1,fps=32[v{i}];" for i in range(len(clips)))
+        joined = "".join(f"[v{i}]" for i in range(len(clips)))
+        cmd = [ffmpeg, "-y", "-loglevel", "error"] + sum((["-i", c] for c in clips), []) + [
+            "-filter_complex", f"{streams}{joined}concat=n={len(clips)}:v=1:a=0[out]",
+            "-map", "[out]", "-c:v", "libx264", "-crf", "17", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out_path]
+        proc = _run(cmd, None, 1800)
+        if proc.returncode:
+            raise RuntimeError(proc.stderr.strip()[-600:] or "ffmpeg failed")
+
+    def _film(self, project_id, clips, keyframes, info):
         try:
-            import imageio_ffmpeg
-            ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
-            tmp = self.film_path(project_id) + ".tmp.mp4"
-            # Re-encode while joining: the clips are all Wan output, but this also copes with mixed sizes.
-            streams = "".join(f"[{i}:v]scale=trunc(iw/2)*2:trunc(ih/2)*2,setsar=1,fps=32[v{i}];" for i in range(len(clips)))
-            joined = "".join(f"[v{i}]" for i in range(len(clips)))
-            cmd = [ffmpeg, "-y", "-loglevel", "error"] + sum((["-i", c] for c in clips), []) + [
-                "-filter_complex", f"{streams}{joined}concat=n={len(clips)}:v=1:a=0[out]",
-                "-map", "[out]", "-c:v", "libx264", "-crf", "17", "-pix_fmt", "yuv420p", "-movflags", "+faststart", tmp]
-            proc = _run(cmd, None, 1800)
-            if proc.returncode:
-                raise RuntimeError(proc.stderr.strip()[-600:] or "ffmpeg failed")
-            os.replace(tmp, self.film_path(project_id))
-            self.update(project_id, lambda p: p.update(film={"status": "done", "finished": time.time(), "shots": len(clips)}))
+            job = self.add_film(lambda path: self._join(clips, path), keyframes, info)
+            self.update(project_id, lambda p: p.update(film={"status": "done", "finished": time.time(),
+                                                              "shots": len(clips), "job_id": job["id"]}))
         except Exception as e:
             self.update(project_id, lambda p: p.update(film={"status": "failed", "error": str(e)[-600:]}))
         finally:

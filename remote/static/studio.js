@@ -98,7 +98,7 @@ function videoTile(j) {
   const poster = j.styled.length ? jobImg(j, "styled", j.styled[0]) : jobImg(j, "input", j.inputs[0]);
   return `<div class="tile" data-job="${j.id}" tabindex="0">
     <video muted loop playsinline preload="none" poster="${poster}" src="${jobVideo(j)}"></video>
-    <span class="tag"><svg><use href="#i-video"/></svg>Video</span>
+    <span class="tag"><svg><use href="#i-${j.kind === "film" ? "director" : "video"}"/></svg>${j.kind === "film" ? "Film" : "Video"}</span>
   </div>`;
 }
 function pendingTile(p) {
@@ -360,6 +360,7 @@ function openImage(id) {
 
 function jobSummary(j) {
   const s = j.settings;
+  if (j.kind === "film") return { style: "", engine: "Wan 2.2", text: `Film · ${j.title} · ${s.prompts.length} shots` };
   const style = s.custom_style || (S.info?.styles.find((x) => x.id === s.style) || {}).label || s.style;
   const engine = (S.info?.engines.find((e) => e.id === s.engine) || {}).label || s.engine;
   return { style, engine, text: `${engine} · ${style} · ${j.inputs.length} keyframes${s.loop ? " · loop" : ""} · ${s.fast ? "fast" : "quality"}` };
@@ -371,8 +372,8 @@ function openVideo(id) {
   const rows = [["Engine", sum.engine], ["Style", sum.style], ["Keyframes", j.inputs.length], ["Mode", s.fast ? "Fast" : "Quality"],
                 ["Seed", s.seed ?? "random"], ["Render time", j.started && j.finished ? fmtTime(j.finished - j.started) : ""], ["Created", ago(j.created)]]
     .filter(([, v]) => v !== "");
-  $("lbInfo").innerHTML = `<h3>Video</h3>
-    <div class="prompt">${s.prompts.map((p, i) => `${i + 1} → ${i + 2}: ${esc(p)}`).join("\n")}</div>
+  $("lbInfo").innerHTML = `<h3>${j.kind === "film" ? esc(j.title) : "Video"}</h3>
+    <div class="prompt">${s.prompts.map((p, i) => j.kind === "film" ? `Shot ${i + 1}: ${esc(p)}` : `${i + 1} → ${i + 2}: ${esc(p)}`).join("\n")}</div>
     <dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
     <div class="acts">
       <button type="button" class="btn" data-lb="sound">Sound</button>
@@ -417,7 +418,18 @@ async function openSound(id) {
   $("sndVoice").innerHTML = voiceOptions(store.get("voice"));
   if (!SND.lines.length) SND.lines = [{ voice_id: store.get("voice"), text: "" }, { voice_id: "", text: "" }];
   renderLines();
+  // A Director film carries its script's narration with each shot's start time: one tap fills the form.
+  const lines = j.narration || [];
+  $("sndNarration").classList.toggle("hidden", !lines.length);
+  $("sndNarration").innerHTML = lines.length ? `<b>From the script</b>` + lines.map((n, i) =>
+    `<button type="button" data-narr="${i}"><span>Shot ${n.shot} · ${n.start.toFixed(1)} s</span>${esc(n.text)}</button>`).join("") : "";
 }
+$("sndNarration").onclick = (e) => {
+  const b = e.target.closest("[data-narr]"); if (!b) return;
+  const n = (sndJob()?.narration || [])[+b.dataset.narr]; if (!n) return;
+  $("sndVoiceText").value = n.text; $("sndStart").value = n.start;
+  toast("Filled in: choose a voice and generate the layer");
+};
 
 function renderLines() {
   $("sndLines").innerHTML = SND.lines.map((l, i) => `<div class="line-row" data-line="${i}">
@@ -968,10 +980,11 @@ function renderShots(p) {
   list.dataset.sig = "";
 }
 function renderFilm(p) {
-  const f = p.film || {};
-  setHtml($("dirFilmBox"), f.status === "done" ? `<div class="film"><video controls playsinline preload="metadata" src="${withToken(`/api/director/${p.id}/film`)}&v=${Math.round(f.finished)}"></video>
-      <div class="row"><b>Film</b><span class="hint" style="margin:0">${f.shots} shots · made ${ago(f.finished)}</span>
-      <a class="btn small" href="${withToken(`/api/director/${p.id}/film`)}&download=1">Download</a></div></div>`
+  const f = p.film || {}, job = f.job_id && S.jobs.find((j) => j.id === f.job_id);
+  setHtml($("dirFilmBox"), f.status === "done" && job ? `<div class="film"><video controls playsinline preload="metadata" src="${jobVideo(job)}"></video>
+      <div class="row"><b>Film</b><span class="hint" style="margin:0">${f.shots} shots · made ${ago(f.finished)}${job.audio?.mixed ? " · with sound" : ""}</span>
+      <button type="button" class="btn small" data-film-sound="${job.id}">Sound</button>
+      <a class="btn small" href="${jobVideo(job, null, true)}">Download</a></div></div>`
     : f.status === "working" ? `<div class="ai-status"><div class="spinner"></div>Joining the shots into one film…</div>`
     : f.status === "failed" ? `<div class="ai-status bad"><b>The film wasn't made.</b> ${esc(f.error || "")}</div>` : "");
 }
@@ -1057,7 +1070,8 @@ $("dirAllRender").onclick = async () => {
   for (const s of todo) if (!await shotAction(`shots/${s.id}/render`)) break;
   await refreshJobs(); toast(`${todo.length} shot${todo.length === 1 ? "" : "s"} queued on the GPU`);
 };
-$("dirFilm").onclick = () => shotAction("film");
+$("dirFilm").onclick = async () => { if (await shotAction("film")) refreshJobs(); };
+$("dirFilmBox").onclick = (e) => { const b = e.target.closest("[data-film-sound]"); if (b) openSound(b.dataset.filmSound); };
 $("dirDelete").onclick = async () => {
   if (!D.project || !confirm(`Delete "${D.project.title}"? Its images and renders stay in the library.`)) return;
   try { await api(`/api/director/${D.project.id}`, { method: "DELETE" }); D.project = null; location.hash = "#/director"; } catch (e) { toast(e.message); }
