@@ -187,8 +187,8 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 .job .error { color: var(--bad); font-size: 13px; white-space: pre-wrap; word-break: break-word; max-height: 140px; overflow: auto; margin-top: 8px; }
 .job video { width: 100%; border-radius: 11px; background: #000; margin-top: 12px; display: block; max-height: 70vh; }
 .kf-strip { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
-.kf-row { display: flex; align-items: center; gap: 6px; overflow-x: auto; }
-.kf-label { flex: none; width: 64px; font-size: 11.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.kf-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.kf-label { flex: 0 0 100%; font-size: 11.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .kf-thumb { position: relative; flex: none; padding: 0; border: 1px solid var(--line2); border-radius: 7px; overflow: hidden; background: var(--card); cursor: zoom-in; }
 .kf-thumb img { display: block; height: 64px; width: auto; }
 .kf-thumb span { position: absolute; left: 3px; bottom: 3px; font-size: 10.5px; font-weight: 700; background: #000b; color: #fff; border-radius: 4px; padding: 0 4px; }
