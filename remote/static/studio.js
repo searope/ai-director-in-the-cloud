@@ -1130,7 +1130,8 @@ function reviewBlock(r, action, redrawn = false) {
     ${r.keyframe_advice ? `<div class="note">${esc(r.keyframe_advice)}</div>` : ""}
     ${r.verdict !== "good" && r.motion_prompt ? `<label class="sf">Suggested prompt<textarea data-fix-prompt rows="3">${esc(r.motion_prompt)}</textarea></label>
       ${redrawn ? `<label class="toggle"><input type="checkbox" data-keep-styled><span>Keep the redrawn keyframes (otherwise your original keyframes are redrawn again)</span></label>` : ""}
-      <button type="button" class="btn small" data-fix="${action[0]}">${action[1]}</button>` : ""}
+      <button type="button" class="btn small" data-fix="${action[0]}">${action[1]}</button>
+      ${action[0] === "rerender" ? `<button type="button" class="btn small ghost" data-fix="edit" title="Load the render into the panel with this prompt, to change other settings too">Edit in panel</button>` : ""}` : ""}
   </div>`;
 }
 
@@ -1288,6 +1289,14 @@ $("jobList").onclick = async (e) => {
     } catch (err) { toast(err.message); restore(); }
     return;
   }
+  if (e.target.closest('[data-fix="edit"]')) {  // the suggested (and edited) prompt plus every setting, into the panel
+    const prompt = card.querySelector("[data-fix-prompt]").value.trim();
+    const restore = busyButton(e.target.closest('[data-fix="edit"]'), "Loading…");
+    try { await loadJobIntoPanel(jobById(card.dataset.id), { prompt, styled: !!card.querySelector("[data-keep-styled]")?.checked }); }
+    catch (err) { toast(err.message); }
+    restore();
+    return;
+  }
   if (e.target.closest('[data-fix="rerender"]')) {
     const prompt = card.querySelector("[data-fix-prompt]").value.trim();
     const restore = busyButton(e.target.closest('[data-fix="rerender"]'), "Queueing the new render…");
@@ -1330,12 +1339,14 @@ $("jobList").onclick = async (e) => {
   catch (err) { toast(err.message); restore(); }
 };
 // "Edit and render again": a render's keyframes and every setting back in the panel, to change and render anew.
-async function loadJobIntoPanel(j) {
-  const s = j.settings, r = j.render || {};
-  const { ids } = await api(`/api/jobs/${j.id}/keyframe-ids`, { method: "POST" });
+// opts.prompt: a new prompt for the first gap (e.g. the clip check's suggestion); opts.styled: start from the
+// render's redrawn keyframes (and don't redraw them again).
+async function loadJobIntoPanel(j, opts = {}) {
+  const s = j.settings, r = j.render || {}, styled = !!opts.styled && j.styled.length > 0;
+  const { ids } = await api(`/api/jobs/${j.id}/keyframe-ids${styled ? "?styled=1" : ""}`, { method: "POST" });
   await refreshImages();
   S.tray = ids; store.set("tray", S.tray);
-  S.motion = [...s.prompts]; store.set("motion", S.motion);
+  S.motion = [...s.prompts]; if (opts.prompt) S.motion[0] = opts.prompt; store.set("motion", S.motion);
   const set = (id, v) => { const el = $(id); if (!el || v == null) return; if (el.type === "checkbox") el.checked = !!v; else el.value = v; };
   $("engine").dataset.chosen = s.engine; renderEngines();  // picks the engine (if installed) and fills its modes
   set("vmode", !s.fast ? "quality" : s.engine === "minimax-h3" && s.turbo_steps === 4 ? "fast4" : "fast"); $("vmode").onchange?.();
@@ -1343,7 +1354,7 @@ async function loadJobIntoPanel(j) {
   set("length", s.length); set("size", s.size); set("vseed", r.seed ?? s.seed ?? "");
   set("loop", s.loop); set("smooth", (s.interpolate || 1) > 1);
   if (s.custom_style) { setVideoStyle("__custom"); set("customStyle", s.custom_style); } else setVideoStyle(s.style || "photoreal");
-  S.restyleTouched = true; set("restyle", s.restyle); $("restyleModelBox").classList.toggle("hidden", !$("restyle").checked);
+  S.restyleTouched = true; set("restyle", styled ? false : s.restyle); $("restyleModelBox").classList.toggle("hidden", !$("restyle").checked);
   set("restyleModel", s.image_model); set("checkKeyframes", s.check_keyframes); set("approveKeyframes", s.approve_keyframes);
   $("motion").dataset.sig = ""; renderTray(); renderMotion(); renderPanelSummary();
   $("secLook").open = $("secVideo").open = true;
