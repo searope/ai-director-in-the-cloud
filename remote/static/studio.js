@@ -375,8 +375,13 @@ function keyframeStrip(j) {
     ${names.map((n, i) => `<button type="button" class="kf-thumb" data-kf="${kind}/${n}" data-kf-job="${j.id}" aria-label="${label} ${i + 1}">
       <img loading="lazy" alt="" src="${jobImg(j, kind, n)}"><span>${film ? "Shot " : ""}${i + 1}</span></button>`).join("")}</div>`;
   const redrawing = j.status === "running" && j.settings.restyle && !redrawn;
+  const checks = j.keyframe_checks || [], last = checks[checks.length - 1];
+  const checkLine = !last ? "" : last.ok
+    ? `<div class="kf-check ok">Keyframes checked: OK${checks.length > 1 ? ` after ${checks.length} tries` : ""}</div>`
+    : `<div class="kf-check warn" title="${esc((last.problems || []).join("
+"))}">Keyframe check: ${esc((last.problems || [])[0] || "problems")}${checks.length > 1 ? ` (best of ${checks.length} tries used)` : ""}</div>`;
   return `<div class="kf-strip">${row("input", j.inputs, film ? "Shots" : redrawn || j.settings.restyle ? "Original" : "Keyframes")}
-    ${row("styled", j.styled, "Redrawn")}${redrawing ? `<div class="kf-row"><span class="kf-label">Redrawn</span><span class="hint" style="margin:0">being redrawn in the style…</span></div>` : ""}</div>`;
+    ${row("styled", j.styled, "Redrawn")}${checkLine}${redrawing ? `<div class="kf-row"><span class="kf-label">Redrawn</span><span class="hint" style="margin:0">being redrawn in the style…</span></div>` : ""}</div>`;
 }
 function openKeyframe(jobId, ref, back) {
   const j = jobById(jobId); if (!j) return;
@@ -692,6 +697,12 @@ $("styles").onclick = (e) => {
 };
 $("restyle").onchange = () => { S.restyleTouched = true; $("restyleModelBox").classList.toggle("hidden", !$("restyle").checked); };
 
+function renderCheckOption() {
+  const w = reviewWriter();
+  $("checkKeyframes").disabled = !w;
+  $("checkKeyframesLabel").textContent = !w ? "Check the redrawn keyframes (set up an AI model first)"
+    : `Check the redrawn keyframes with ${w.label}${w.paid ? " (paid per use)" : ""}, redraw again if needed`;
+}
 function renderEngines() {
   const sel = $("engine");
   sel.innerHTML = S.info.engines.map((e) =>
@@ -736,6 +747,7 @@ async function renderVideoJob() {
     audio: $("audio").checked, sound: $("sound").value,
     style: S.style === "__custom" ? "photoreal" : S.style, custom_style: custom,
     restyle: $("restyle").checked, fast: $("vmode").value !== "quality", turbo_steps: $("vmode").value === "fast4" ? 4 : 8,
+    check_keyframes: $("restyle").checked && $("checkKeyframes").checked && !!reviewWriter(), writer: reviewWriter()?.id || "",
     length: +$("length").value, size: $("size").value,
     loop: $("loop").checked, smooth: $("smooth").checked, seed: $("vseed").value,
   };
@@ -1301,7 +1313,7 @@ $("idlePill").onclick = async () => {
 async function refreshInfo() {
   const first = !S.info;
   S.info = await api("/api/info");
-  if (first) renderStyles();
+  if (first) { renderStyles(); renderCheckOption(); }
   // Which models are installed is known only once a GPU pod has run: refresh the menus when that changes.
   const models = JSON.stringify([S.info.image_models.map((m) => m.missing), S.info.engines.map((e) => e.ready)]);
   if (models !== S.modelsSig) {

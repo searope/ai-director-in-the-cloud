@@ -392,3 +392,4 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
   .shot-tools { grid-column: 1 / -1; justify-content: flex-end; }
   .char-card .row { flex-direction: column; padding: 10px; } .char-card .row .btn { width: 100%; }
 }
+.kf-check { font-size: 12.5px; padding-left: 70px; } .kf-check.ok { color: var(--ok); } .kf-check.warn { color: var(--warn); }

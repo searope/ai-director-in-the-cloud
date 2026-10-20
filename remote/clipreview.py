@@ -164,3 +164,72 @@ def review(writer, video_path, keyframe_paths, motion_prompt, style=None, origin
         sheet = make_sheet(video_path, keyframe_paths, os.path.join(tmp, "sheet.png"), original_paths=original_paths)
         prompt = user_prompt(motion_prompt, duration(video_path), style, bool(original_paths))
         return writer.write(SYSTEM_PROMPT, prompt, REVIEW_SCHEMA, image=sheet)
+
+
+# ---------------------------------------------------------------- checking redrawn keyframes before a render
+
+KEYFRAME_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["ok", "score", "problems", "advice"],
+    "properties": {
+        "ok": {"type": "boolean"},
+        "score": {"type": "integer", "enum": list(range(1, 11))},
+        "problems": {"type": "array", "items": {"type": "string"}},
+        "advice": {"type": "string"},
+    },
+}
+
+KEYFRAME_PROMPT = """You check keyframes that were redrawn in a visual style before a video is rendered from them.
+
+The sheet shows each ORIGINAL keyframe (top row) above its REDRAWN version (bottom row), in order.
+A video model will animate from redrawn keyframe 1 to 2 (and so on), so anything that differs between
+the redrawn keyframes but not between the originals will turn into a morph in the video.
+
+Check:
+- the same people look the same in every redrawn keyframe: hairstyle, hair length and colour, face,
+  skin, clothes and their colours and logos. Compare the redrawn keyframes with each other, and each
+  with its original: a different camera angle in the originals is fine, a redesigned person is not;
+- each redrawn keyframe keeps its original's pose, composition, camera framing and objects (nothing
+  added, removed or duplicated, e.g. a second copy of an object);
+- the requested style is applied, and equally, to every redrawn keyframe;
+- no artifacts: borders or white strips at the edges, cut-off parts, smeared or melted areas.
+
+ok: true only if the keyframes can be animated without visible morphing of people or objects.
+score: 1-10 for how well they meet all of the above (10 = perfect).
+problems: short, concrete descriptions, e.g. "keyframe 2: hair is long and golden, keyframe 1: short
+and ash-blond". Empty when ok.
+advice: one or two sentences to add to the redraw instruction to fix the problems, naming the exact
+look to keep, e.g. "Draw the boy with short, messy, light-blond hair and the same round face in both
+pictures." Empty when ok."""
+
+
+def keyframe_sheet(original_paths, redrawn_paths, out_path, cell_w=300):
+    from PIL import Image, ImageDraw, ImageFont
+    rows = [("ORIGINAL", original_paths), ("REDRAWN", redrawn_paths)]
+    ims = [[Image.open(p).convert("RGB") for p in paths] for _, paths in rows]
+    h = round(cell_w * ims[0][0].height / ims[0][0].width)
+    label_h, gap, n = 26, 8, max(len(r) for r in ims)
+    sheet = Image.new("RGB", (n * (cell_w + gap) + gap, 2 * (label_h + h + gap) + gap), (18, 18, 22))
+    draw = ImageDraw.Draw(sheet)
+    try:
+        font = ImageFont.truetype("arial.ttf", 18)
+    except OSError:
+        font = ImageFont.load_default()
+    for r, ((label, _), row) in enumerate(zip(rows, ims)):
+        y = gap + r * (label_h + h + gap)
+        for i, im in enumerate(row):
+            x = gap + i * (cell_w + gap)
+            draw.text((x + 2, y + 3), f"{label} {i + 1}", fill=(250, 204, 21) if r else (235, 235, 240), font=font)
+            sheet.paste(im.resize((cell_w, h)), (x, y + label_h))
+    sheet.save(out_path, "PNG")
+    return out_path
+
+
+def check_keyframes(writer, original_paths, redrawn_paths, style=None):
+    """Ask a writer whether redrawn keyframes are consistent enough to animate. Returns ok/score/problems/advice."""
+    with tempfile.TemporaryDirectory(prefix="kfcheck_") as tmp:
+        sheet = keyframe_sheet(original_paths, redrawn_paths, os.path.join(tmp, "keyframes.png"))
+        prompt = (f"Requested style: {style['label']}: {style['description']}\n" if style else "") + \
+            f"There are {len(redrawn_paths)} keyframes. Check the redrawn keyframes."
+        return writer.write(KEYFRAME_PROMPT, prompt, KEYFRAME_SCHEMA, image=sheet)

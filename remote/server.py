@@ -63,6 +63,7 @@ LENGTHS = {33, 49, 65, 81}
 class Jobs:
     def __init__(self, gpu):
         self.gpu = gpu
+        self.keyframe_checker = lambda job: None  # set in main(): job -> check(originals, redrawn) or None
         self.lock = threading.Lock()
         self.jobs = {}
         self.pending = queue.Queue()
@@ -150,6 +151,7 @@ class Jobs:
             "restyle": s.get("restyle"),
             "fast": s.get("fast", True),
             "turbo_steps": s.get("turbo_steps", 8),
+            "keyframe_check": self.keyframe_checker(job) if s.get("check_keyframes") else None,
             "length": s.get("length", 81),
             "interpolate": s.get("interpolate", 2),
             "area": SIZES.get(s.get("size"), SIZES["standard"]),
@@ -473,6 +475,8 @@ def clean_settings(raw, n_keyframes, styles):
         "restyle": None if restyle is None else bool(restyle),
         "fast": bool(raw.get("fast", True)),
         "turbo_steps": 4 if str(raw.get("turbo_steps")) == "4" else 8,
+        "check_keyframes": bool(raw.get("check_keyframes")),
+        "writer": str(raw.get("writer") or "")[:40],  # the AI model that checks redrawn keyframes
         "length": int(raw.get("length", 81)) if int(raw.get("length", 81)) in LENGTHS else 81,
         "interpolate": 2 if raw.get("smooth", True) else 1,
         "size": raw.get("size") if raw.get("size") in SIZES else "standard",
@@ -503,6 +507,26 @@ def queue_job(jobs, files, raw, extra=None):
            "settings": settings, "inputs": names, "styled": [], "log": [], **(extra or {})}
     jobs.add(job)
     return job
+
+
+def keyframe_checker(jobs, writers):
+    """job -> a check for animate.run's keyframe redraw, using the job's chosen AI model (or the first one that is
+    set up); each result is recorded in job["keyframe_checks"] for the app."""
+    def for_job(job):
+        writer = writers.get(job["settings"].get("writer")) or next((w for w in writers.values() if w.ready), None)
+        if not writer or not writer.ready:
+            return None
+        s = job["settings"]
+        style = animate.resolve_style({"style": s.get("style"), "custom_style": s.get("custom_style")})
+
+        def check(originals, redrawn):
+            result = clipreview.check_keyframes(writer, originals, redrawn,
+                                                {"label": style.get("label", "?"), "description": style.get("video_prompt", "")})
+            result = {**result, "writer": writer.id, "time": time.time()}
+            jobs.update(job, keyframe_checks=(job.get("keyframe_checks") or []) + [result])
+            return result
+        return check
+    return for_job
 
 
 def job_keyframes(jobs, job):
@@ -1118,6 +1142,7 @@ def main():
           "off. Set ELEVENLABS_API_KEY to turn it on.\n"))
     characters = Characters(maker)
     writers = directors.load_writers(config)
+    jobs.keyframe_checker = keyframe_checker(jobs, writers)
     director = directors.Director(ROOT, writers, maker, characters, lambda files, raw: queue_job(jobs, files, raw), jobs,
                                   lambda make_video, keyframes, info: add_film_job(jobs, make_video, keyframes, info))
     print("Director AI: " + (", ".join(f"{w.label}{' (paid)' if w.paid else ''}{'' if w.ready else ' [not set up]'}"
