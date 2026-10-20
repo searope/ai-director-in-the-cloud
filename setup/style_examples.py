@@ -144,8 +144,8 @@ def main():
                     out = comfy.wait(comfy.queue(graph), k, quiet, lambda: False)
                     save_jpg(comfy.fetch(out["save"]["images"][0]), path, shape)
                     break
-                except OSError as e:
-                    if attempt == 3:
+                except (OSError, RuntimeError) as e:  # dropped connections, the proxy's 502 "waiting for service"
+                    if attempt == 3 or (isinstance(e, RuntimeError) and "502" not in str(e) and "503" not in str(e)):
                         raise
                     print(f"scene {n} {k}: retrying after {e}", flush=True)
                     time.sleep(10 * (attempt + 1))
