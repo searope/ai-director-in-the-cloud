@@ -390,17 +390,33 @@ function keyframeStrip(j) {
   const checkLine = !last ? "" : last.ok
     ? `<div class="kf-check ok">Keyframes checked: OK${checks.length > 1 ? ` after ${checks.length} tries` : ""}</div>`
     : `<div class="kf-check warn" title="${esc((last.problems || []).join(" | "))}">Keyframe check: ${esc((last.problems || [])[0] || "problems")}${checks.length > 1 ? ` (best of ${checks.length} tries used)` : ""}</div>`;
+  if (redrawn && !film) {  // original and redrawn side by side, one pair per keyframe
+    const pairs = j.inputs.map((n, i) => `<button type="button" class="kf-pair" data-kf="input/${n}" data-kf-job="${j.id}" aria-label="Keyframe ${i + 1}">
+        <img loading="lazy" alt="Original" src="${jobImg(j, "input", n)}">${j.styled[i] ? `<img loading="lazy" alt="Redrawn" src="${jobImg(j, "styled", j.styled[i])}">` : ""}
+        <span>${i + 1}</span></button>`).join("");
+    return `<div class="kf-strip"><div class="kf-pairs-head"><span class="kf-label">Original</span><span class="kf-label">Redrawn</span></div>
+      <div class="kf-pairs">${pairs}</div>${checkLine}</div>`;
+  }
   return `<div class="kf-strip">${row("input", j.inputs, film ? "Shots" : redrawn || j.settings.restyle ? "Original" : "Keyframes")}
     ${row("styled", j.styled, "Redrawn")}${checkLine}${redrawing ? `<div class="kf-row"><span class="kf-label">Redrawn</span><span class="hint" style="margin:0">being redrawn in the style…</span></div>` : ""}</div>`;
 }
 function openKeyframe(jobId, ref, back) {
   const j = jobById(jobId); if (!j) return;
-  const [kind, name] = ref.split("/"), n = parseInt(name, 10);
-  const label = j.kind === "film" ? `Shot ${n}, start frame` : `Keyframe ${n}${kind === "styled" ? ", redrawn" : j.styled.length ? ", original" : ""}`;
-  // every keyframe of the render in strip order (originals, then redrawn), for the ‹ › paddles and the mouse wheel
-  const all = [...j.inputs.map((x) => `input/${x}`), ...j.styled.map((x) => `styled/${x}`)], at = all.indexOf(ref);
+  let [kind, name] = ref.split("/");
+  const paired = j.styled.length > 0 && j.kind !== "film";  // original and redrawn side by side
+  if (paired && kind === "styled") { name = j.inputs[j.styled.indexOf(name)] || j.inputs[0]; kind = "input"; ref = `input/${name}`; }
+  const n = parseInt(name, 10), idx = j.inputs.indexOf(name);
+  const label = j.kind === "film" ? `Shot ${n}, start frame` : paired ? `Keyframe ${n}: original and redrawn`
+    : `Keyframe ${n}${kind === "styled" ? ", redrawn" : ""}`;
+  // what the ‹ › paddles and the mouse wheel step through: the pairs, or every keyframe (originals, then redrawn)
+  const all = paired ? j.inputs.map((x) => `input/${x}`) : [...j.inputs.map((x) => `input/${x}`), ...j.styled.map((x) => `styled/${x}`)];
+  const at = all.indexOf(ref);
   const step = (d) => all.length > 1 && openKeyframe(jobId, all[(at + d + all.length) % all.length], back);
-  $("lbMedia").innerHTML = `<img alt="" src="${jobImg(j, kind, name)}">` + (all.length > 1
+  const media = paired && j.styled[idx]
+    ? `<div class="lb-pair"><figure><img alt="Original" src="${jobImg(j, "input", name)}"><figcaption>Original</figcaption></figure>
+       <figure><img alt="Redrawn" src="${jobImg(j, "styled", j.styled[idx])}"><figcaption>Redrawn</figcaption></figure></div>`
+    : `<img alt="" src="${jobImg(j, kind, name)}">`;
+  $("lbMedia").innerHTML = media + (all.length > 1
     ? `<button type="button" class="lb-paddle prev" data-step="-1" aria-label="Previous keyframe">‹</button>
        <button type="button" class="lb-paddle next" data-step="1" aria-label="Next keyframe">›</button>
        <span class="lb-count">${at + 1} / ${all.length}</span>` : "");
@@ -416,7 +432,8 @@ function openKeyframe(jobId, ref, back) {
     ${keyframeStrip(j)}
     <div class="acts">
       ${back ? `<button type="button" class="btn" data-lb="video">Back to the video</button>` : ""}
-      <a class="btn" href="${jobImg(j, kind, name)}" download="keyframe-${j.id}-${kind}-${name}">Download</a>
+      <a class="btn" href="${jobImg(j, kind, name)}" download="keyframe-${j.id}-${kind}-${name}">Download${paired ? " original" : ""}</a>
+      ${paired && j.styled[idx] ? `<a class="btn" href="${jobImg(j, "styled", j.styled[idx])}" download="keyframe-${j.id}-styled-${j.styled[idx]}">Download redrawn</a>` : ""}
     </div>`;
   $("lbInfo").onclick = (e) => {
     const kf = e.target.closest("[data-kf]");
@@ -1156,7 +1173,7 @@ function renderFacts(j) {
     ["Size", size], ["Length", length], ["Seed", groupDigits(r.seed ?? s.seed) || "random"],
     ["Sound", r.audio ?? (SOUND_ENGINES.includes(s.engine) && s.audio) ? `generated${s.sound ? `: ${s.sound}` : ""}` : "none"],
     ["Style", style], ["Style look", r.look || ""],
-    ["Redraw keyframes", (r.restyle ?? s.restyle) ? `yes, with ${r.image_model || s.image_model}` : "no"],
+    ["Redraw keyframes", (r.restyle ?? s.restyle) || j.styled.length ? `yes, with ${r.image_model || S.info?.image_models.find((m) => m.id === s.image_model)?.label || s.image_model}${s.approve_keyframes && j.styled.length ? " (approved)" : ""}` : "no"],
     ["Redraw prompt", r.restyle_prompt || ""], ["Your redraw note", r.restyle_note || ""],
     ["Keyframe check", s.check_keyframes ? "on" : ""], ["Approval stop", s.approve_keyframes ? "on" : ""],
     ["Style LoRAs", (r.loras || []).join(", ")], ["Negative prompt", r.negative || ""],
