@@ -90,6 +90,41 @@ Make the seconds add up to roughly the requested length. Prefer several short, s
 to one long complicated move. Give the film a title and a one-sentence logline."""
 
 
+REVIEW_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["summary", "notes"],
+    "properties": {
+        "summary": {"type": "string"},
+        "notes": {"type": "array", "items": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["shot", "note"],
+            "properties": {"shot": {"type": "integer"}, "note": {"type": "string"}},
+        }},
+    },
+}
+
+REVIEW_PROMPT = """You check shot lists for short AI-animated films before they are rendered.
+
+Each shot's first frame is drawn from `start_frame` alone (plus the reference images of its
+`characters`), its last frame is an edit of the first one by `end_change`, and a video model
+animates 2-5 seconds between them. Look for real problems only:
+- continuity between shots: a character's looks or outfit, props, time of day, weather,
+  location, screen direction;
+- a start_frame that refers to other shots ("same as before") or leaves out what the image model
+  needs (who, where, framing, light, style), or contradicts the characters' descriptions;
+- an end_change or motion too big to happen in the shot's seconds;
+- a character named in start_frame but missing from `characters`, or the other way round;
+- the story not making sense in this order.
+
+Each note names one problem and how to fix it, e.g. "Mara wears a red coat here but a yellow
+one in shot 2: make it yellow." Never restate or summarise a shot: a note that doesn't name a
+problem is wrong. Most good shot lists have few notes or none; return an empty list when
+nothing needs fixing. The summary is one sentence on the shot list's overall state, e.g.
+"Consistent, except Mara's coat in shot 3." """
+
+
 # ---------------------------------------------------------------- writers
 
 class WriterError(RuntimeError):
@@ -469,26 +504,32 @@ class Director:
                 lines.append(f"- {c['name']}" + (f": {c['description']}" if c["description"] else ""))
         return "\n".join(lines) or "(no cast: invent the people or creatures the story needs, described in each prompt)"
 
-    def _prompt(self, project, instruction):
+    def _current_script(self, project):
+        return {"title": project["title"], "logline": project.get("logline", ""), "shots": [
+            {k: s[k] for k in ("scene", "action", "start_frame", "end_change", "motion", "seconds", "narration")}
+            | {"characters": [c["name"] for c in map(self.characters.get, s["characters"]) if c]}
+            for s in project["shots"]]}
+
+    def _prompt(self, project, instruction, task="write"):
         b = project["brief"]
         text = (f"Title: {project['title']}\nIdea: {b['idea'] or '(none: invent one)'}\n"
                 f"Visual style: {b['style'] or '(choose one that suits the idea)'}\nTarget length: about {b['seconds']} seconds\n"
                 f"Aspect ratio: {b['aspect']}\n" + (f"Notes: {b['notes']}\n" if b["notes"] else "")
                 + f"\nCast (reference images are passed to the image model for these characters):\n{self._cast_text(project)}\n")
+        if task == "check":
+            return text + (f"\nShot list to check:\n{json.dumps(self._current_script(project), indent=1)}\n\n"
+                           "List only the problems that need fixing, each with its fix.")
         if instruction and project["shots"]:
-            current = {"title": project["title"], "logline": project.get("logline", ""), "shots": [
-                {k: s[k] for k in ("scene", "action", "start_frame", "end_change", "motion", "seconds", "narration")}
-                | {"characters": [c["name"] for c in map(self.characters.get, s["characters"]) if c]}
-                for s in project["shots"]]}
-            text += (f"\nCurrent shot list:\n{json.dumps(current, indent=1)}\n\nRevise it: {instruction}\n"
+            text += (f"\nCurrent shot list:\n{json.dumps(self._current_script(project), indent=1)}\n\nRevise it: {instruction}\n"
                      "Return the whole revised shot list. Keep shots you don't need to change exactly as they are.")
         else:
             text += "\nWrite the shot list." + (f" {instruction}" if instruction else "")
         return text
 
-    def write(self, project_id, instruction="", writer_id=None):
+    def write(self, project_id, instruction="", writer_id=None, task="write"):
         """Start the writer in the background; the project's "ai" status shows progress.
-        writer_id switches the project to another writer first (any model can revise any script)."""
+        writer_id switches the project to another writer first (any model can revise any script).
+        task "check" asks for continuity notes on the current shot list instead of a new one."""
         instruction = _clean_text(instruction, 2000)
         project = self._load(project_id)
         if not project:
@@ -502,19 +543,25 @@ class Director:
             raise ValueError("no AI writer is set up: see docs/director.md")
         if not writer.ready:
             raise ValueError(f"{writer.label} isn't set up on this computer")
+        if task == "check" and not project["shots"]:
+            raise ValueError("write the script first")
         with self.lock:
-            if project_id in self.busy_ids and project.get("ai", {}).get("status") == "working":
-                raise ValueError("the script is already being written")
+            if project.get("ai", {}).get("status") == "working":
+                raise ValueError("the AI model is already working on this film")
             self.busy_ids.add(project_id)
-        self.update(project_id, lambda p: p.update(ai={"status": "working", "writer": writer.id, "started": time.time(),
-                                                       "instruction": instruction}))
-        threading.Thread(target=self._write, args=(project_id, writer, instruction), daemon=True).start()
+        self.update(project_id, lambda p: p.update(ai={"status": "working", "task": task, "writer": writer.id,
+                                                       "started": time.time(), "instruction": instruction}))
+        threading.Thread(target=self._write, args=(project_id, writer, instruction, task), daemon=True).start()
 
-    def _write(self, project_id, writer, instruction):
+    def _write(self, project_id, writer, instruction, task="write"):
         try:
-            prompt = self._prompt(self._load(project_id), instruction)
-            script = writer.write(SYSTEM_PROMPT, prompt, SCRIPT_SCHEMA)
-            self.update(project_id, lambda p: self._apply_script(p, script, writer))
+            prompt = self._prompt(self._load(project_id), instruction, task)
+            if task == "check":
+                review = writer.write(REVIEW_PROMPT, prompt, REVIEW_SCHEMA)
+                self.update(project_id, lambda p: self._apply_review(p, review, writer))
+            else:
+                script = writer.write(SYSTEM_PROMPT, prompt, SCRIPT_SCHEMA)
+                self.update(project_id, lambda p: self._apply_script(p, script, writer))
         except Exception as e:  # report any failure in the app
             msg = str(e) if isinstance(e, WriterError) else f"{type(e).__name__}: {e}"
             self.update(project_id, lambda p: p["ai"].update(status="failed", error=msg[-800:], finished=time.time()))
@@ -545,6 +592,18 @@ class Director:
         project["shots"] = shots
         project["title"] = _clean_text(script.get("title"), 120) or project["title"]
         project["logline"] = _clean_text(script.get("logline"), 400)
+        project["ai"].update(status="done", error=None, finished=time.time(), writer=writer.id)
+        project["review"] = None  # notes were about the old shot list
+
+    def _apply_review(self, project, review, writer):
+        if not isinstance(review, dict) or not isinstance(review.get("notes"), list):
+            raise WriterError("the reply had no notes")
+        notes = []
+        for n in review["notes"][:100]:
+            if isinstance(n, dict) and isinstance(n.get("shot"), int) and 1 <= n["shot"] <= len(project["shots"]):
+                notes.append({"shot_id": project["shots"][n["shot"] - 1]["id"], "note": _clean_text(n.get("note"), 600)})
+        project["review"] = {"summary": _clean_text(review.get("summary"), 600), "notes": notes,
+                             "writer": writer.id, "finished": time.time()}
         project["ai"].update(status="done", error=None, finished=time.time(), writer=writer.id)
 
     # ---- keyframes, clips and the film

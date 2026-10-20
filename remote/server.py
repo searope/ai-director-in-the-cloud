@@ -820,7 +820,9 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
 
     async def write_script(request):
         pid, raw = project_id(request), await request.json()
-        return await director_call(lambda: director.write(pid, raw.get("instruction") or "", raw.get("writer")) or director.get(pid))
+        task = "check" if raw.get("task") == "check" else "write"
+        return await director_call(lambda: director.write(pid, raw.get("instruction") or "", raw.get("writer"), task)
+                                   or director.get(pid))
 
     async def shot_keyframes(request):
         pid, sid = project_id(request), request.match_info["shot"]

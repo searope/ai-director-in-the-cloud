@@ -311,6 +311,12 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
 .sf textarea { min-height: 0; font-size: 13.5px; padding: 7px 10px; text-transform: none; letter-spacing: 0; font-weight: 400; }
 .cast-pick.small .cast-chip { font-size: 12.5px; padding: 3px 10px 3px 3px; }
 .cast-pick.small .cast-chip img { width: 20px; height: 20px; }
+.note { font-size: 13px; background: #fbbf2414; border: 1px solid #fbbf2455; color: #fde68a; border-radius: 9px; padding: 7px 10px; }
+.note::before { content: "Note: "; font-weight: 700; }
+.review { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 13.5px; margin-bottom: 12px; }
+.review p { margin: 6px 0 0; }
+.review .btn { margin-top: 8px; }
+#dirCheck { margin-bottom: 8px; padding: 10px; font-size: 14px; }
 .shot-foot { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
 .shot-status { flex: 1; min-width: 0; color: var(--muted); font-size: 13px; word-break: break-word; }
 .shot-status.bad { color: var(--bad); }

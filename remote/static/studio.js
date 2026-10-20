@@ -907,11 +907,21 @@ function renderDirPanel(p) {
   const ai = p.ai || {}, box = $("dirAi"), working = ai.status === "working";
   box.classList.toggle("hidden", !working && ai.status !== "failed");
   box.className = "ai-status" + (working ? "" : ai.status === "failed" ? " bad" : " hidden");
-  box.innerHTML = working ? `<div class="spinner"></div>Writing with ${esc(writerById(ai.writer)?.label || ai.writer)} · ${fmtTime(Date.now() / 1000 - ai.started)}`
-    : ai.status === "failed" ? `<b>The script wasn't written.</b> ${esc(ai.error || "")}` : "";
+  const checking = ai.task === "check";
+  box.innerHTML = working ? `<div class="spinner"></div>${checking ? "Checking" : "Writing"} with ${esc(writerById(ai.writer)?.label || ai.writer)} · ${fmtTime(Date.now() / 1000 - ai.started)}`
+    : ai.status === "failed" ? `<b>${checking ? "The check didn't finish." : "The script wasn't written."}</b> ${esc(ai.error || "")}` : "";
   const btn = $("dirWrite");
   btn.disabled = working || !w?.ready;
-  btn.innerHTML = `<svg><use href="#i-spark"/></svg>` + (working ? "Writing…" : p.shots.length ? "Revise script" : "Write script");
+  btn.innerHTML = `<svg><use href="#i-spark"/></svg>` + (working && !checking ? "Writing…" : p.shots.length ? "Revise script" : "Write script");
+  const check = $("dirCheck");
+  check.classList.toggle("hidden", !p.shots.length);
+  check.disabled = working || !w?.ready;
+  check.textContent = working && checking ? "Checking…" : "Check continuity";
+  const r = p.review;
+  setHtml($("dirReview"), r ? `<b>Continuity check</b> <span class="hint">${esc(writerById(r.writer)?.label || r.writer)} · ${ago(r.finished)}</span>
+    <p>${esc(r.summary || "")}</p>${r.notes.length ? `<p class="hint">${r.notes.length} note${r.notes.length === 1 ? "" : "s"} on the shots below.</p>
+    <button type="button" class="btn small" id="dirFixNotes"${working ? " disabled" : ""}>Fix these with the AI</button>` : `<p class="hint">No problems found.</p>`}` : "");
+  $("dirReview").classList.toggle("hidden", !r);
 }
 
 function frame(id, label, busy) {
@@ -946,6 +956,7 @@ function shotCard(p, s, i) {
         ${ta("end_change", "End change", 2, "One change that makes the last frame, e.g. she turns and smiles")}
         ${ta("motion", "Motion", 2, "Movement and camera, e.g. slow push-in")}
         ${ta("narration", "Narration", 1, "Voice-over or dialogue (optional)")}
+        ${(p.review?.notes || []).filter((n) => n.shot_id === s.id).map((n) => `<div class="note">${esc(n.note)}</div>`).join("")}
         ${cast.length ? `<div class="cast-pick small">${cast.map((c) => `<button type="button" class="cast-chip${s.characters.includes(c.id) ? " on" : ""}" data-sc="${c.id}">
           ${c.refs[0] ? `<img alt="" src="${imgUrl(c.refs[0])}">` : ""}${esc(c.name)}</button>`).join("")}</div>` : ""}
       </div>
@@ -1018,6 +1029,24 @@ $("dirWrite").onclick = async () => {
     D.project = await api(`/api/director/${p.id}/write`, { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ instruction: $("dirInstruction").value, writer: $("dirWriter").value }) });
     $("dirInstruction").value = "";
+  } catch (e) { toast(e.message); }
+  renderDirector();
+};
+
+$("dirReview").onclick = (e) => {
+  if (!e.target.closest("#dirFixNotes") || !D.project?.review) return;
+  const ids = D.project.shots.map((s) => s.id);
+  $("dirInstruction").value = "Fix these continuity notes:\n" + D.project.review.notes
+    .map((n) => `- Shot ${ids.indexOf(n.shot_id) + 1}: ${n.note}`).join("\n");
+  $("dirWrite").click();
+};
+$("dirCheck").onclick = async () => {
+  const p = D.project; if (!p) return;
+  const w = writerById($("dirWriter").value);
+  if (w?.paid && !confirm(`${w.label} is billed per use. Check the shot list with it?`)) return;
+  try {
+    D.project = await api(`/api/director/${p.id}/write`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task: "check", writer: $("dirWriter").value }) });
   } catch (e) { toast(e.message); }
   renderDirector();
 };
