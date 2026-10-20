@@ -150,57 +150,58 @@
 
     <!-- ===================================================== video -->
     <section class="page workspace" data-page="video">
-      <div class="panel">
+      <div class="panel video-panel">
         <div class="field-block">
           <label class="lbl">Keyframes <span class="hint" id="trayCount"></span></label>
           <div id="tray" class="tray"></div>
-          <p class="hint">2–12 images, in order; each gap becomes 2–5 s of motion.</p>
         </div>
 
         <div class="field-block">
-          <label class="lbl">Motion</label>
+          <label class="lbl">Motion <span class="hint">one prompt per gap</span></label>
           <div id="motion"></div>
         </div>
 
-        <div class="field-block">
-          <div class="field-row">
-            <div><label class="lbl" for="engine">Video model</label><select id="engine"></select></div>
-            <div><label class="lbl" for="vmode">Mode</label><select id="vmode"></select></div>
+        <details class="sec" id="secLook" data-sec="look">
+          <summary><span class="sec-title">Look</span><span class="sec-sum" id="sumLook"></span></summary>
+          <div class="sec-body">
+            <div id="styleCurrent" class="style-pick"></div>
+            <input id="customStyle" class="hidden" type="text" placeholder="Describe the style, e.g. paper cut-out stop motion">
+            <label class="toggle"><input id="restyle" type="checkbox"><span>Redraw keyframes in this style first</span></label>
+            <div id="restyleModelBox" class="hidden sub-opts">
+              <select id="restyleModel" class="imageModel" aria-label="Redraw with"></select>
+              <label class="toggle"><input id="checkKeyframes" type="checkbox" checked><span id="checkKeyframesLabel">Check the redrawn keyframes</span></label>
+              <label class="toggle"><input id="approveKeyframes" type="checkbox" checked><span>Stop so I can approve them before the video renders</span></label>
+            </div>
           </div>
-          <div id="engineLicense" class="license"></div>
-          <div id="soundBox" class="hidden">
-            <label class="toggle"><input id="audio" type="checkbox" checked><span>Generate sound</span></label>
-            <input id="sound" type="text" placeholder="Describe the sound, e.g. soft wind, distant birds">
-          </div>
-        </div>
+        </details>
 
-        <div class="field-block">
-          <label class="lbl">Style</label>
-          <div id="styleCurrent" class="style-pick"></div>
-          <input id="customStyle" class="hidden" type="text" placeholder="Describe the style, e.g. paper cut-out stop motion">
-          <label class="toggle"><input id="restyle" type="checkbox"><span>Redraw keyframes in this style first</span></label>
-          <div id="restyleModelBox" class="hidden">
-            <select id="restyleModel" class="imageModel" aria-label="Redraw with"></select>
-            <label class="toggle"><input id="checkKeyframes" type="checkbox" checked><span id="checkKeyframesLabel">Check the redrawn keyframes</span></label>
-            <label class="toggle"><input id="approveKeyframes" type="checkbox" checked><span>Stop so I can approve them before the video renders</span></label>
+        <details class="sec" id="secVideo" data-sec="video">
+          <summary><span class="sec-title">Video</span><span class="sec-sum" id="sumVideo"></span></summary>
+          <div class="sec-body">
+            <div class="field-row">
+              <div><label class="lbl" for="engine">Model</label><select id="engine"></select></div>
+              <div><label class="lbl" for="vmode">Mode</label><select id="vmode"></select></div>
+            </div>
+            <div id="engineLicense" class="license"></div>
+            <div id="soundBox" class="hidden">
+              <label class="toggle"><input id="audio" type="checkbox" checked><span>Generate sound</span></label>
+              <input id="sound" type="text" placeholder="Describe the sound, e.g. soft wind, distant birds">
+            </div>
+            <div class="field-row three">
+              <div><label class="lbl" for="length">Length per gap</label>
+                <select id="length"><option value="33">2 s</option><option value="49">3 s</option><option value="65">4 s</option><option value="81" selected>5 s</option></select></div>
+              <div><label class="lbl" for="size">Resolution</label>
+                <select id="size"><option value="preview">Preview (fast)</option><option value="standard" selected>Standard ~480p</option></select></div>
+              <div><label class="lbl" for="vseed">Seed</label>
+                <input id="vseed" type="number" inputmode="numeric" placeholder="random"></div>
+            </div>
+            <label class="toggle"><input id="loop" type="checkbox"><span>Loop back to the first keyframe</span></label>
+            <label class="toggle"><input id="smooth" type="checkbox" checked><span>Smooth motion (double the frame rate)</span></label>
           </div>
-        </div>
-
-        <details class="field-block adv">
-          <summary>Advanced</summary>
-          <div class="field-row">
-            <div><label class="lbl" for="length">Length per gap</label>
-              <select id="length"><option value="33">2 s</option><option value="49">3 s</option><option value="65">4 s</option><option value="81" selected>5 s</option></select></div>
-            <div><label class="lbl" for="size">Resolution</label>
-              <select id="size"><option value="preview">Preview (fast)</option><option value="standard" selected>Standard ~480p</option></select></div>
-            <div><label class="lbl" for="vseed">Seed</label>
-              <input id="vseed" type="number" inputmode="numeric" placeholder="random"></div>
-          </div>
-          <label class="toggle"><input id="loop" type="checkbox"><span>Loop back to the first keyframe</span></label>
-          <label class="toggle"><input id="smooth" type="checkbox" checked><span>Smooth motion (double the frame rate)</span></label>
         </details>
 
         <div class="panel-foot">
+          <div class="foot-sum hint" id="sumRender"></div>
           <button id="vidGo" type="button" class="btn primary wide"><svg><use href="#i-video"/></svg>Render video</button>
         </div>
       </div>
