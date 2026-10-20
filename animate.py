@@ -524,7 +524,7 @@ EDIT_SUFFIX = (" Keep the same characters, art style, lighting, colors, backgrou
 
 
 def make_keyframe(server, prompt, out_path, seed=None, aspect="16:9", source=None,
-                  report=lambda text, final=False: None, model="klein4b", references=()):
+                  report=lambda text, final=False: None, model="klein4b", references=(), keep_look=True):
     """Create one keyframe image with an IMAGE_MODELS model and save it to out_path.
 
     Without source: text-to-image at the given aspect. With source (an image path):
@@ -546,7 +546,9 @@ def make_keyframe(server, prompt, out_path, seed=None, aspect="16:9", source=Non
         with Image.open(source) as im:
             megapixels = min(1.0, im.width * im.height / (1024 * 1024))
         name = comfy.upload_image(source, f"kfm_{uuid.uuid4().hex[:8]}.png")
-        graph = build_restyle_graph(cfg, name, prompt.strip().rstrip(".") + "." + EDIT_SUFFIX, seed, prefix,
+        # keep_look=False for a restyle: the usual "keep the same art style" suffix would fight it
+        text = prompt.strip().rstrip(".") + "." + (EDIT_SUFFIX if keep_look else "")
+        graph = build_restyle_graph(cfg, name, text, seed, prefix,
                                     megapixels=megapixels, references=refs)
     elif refs:
         graph = build_restyle_graph(cfg, None, prompt, seed, prefix, references=refs, size=KEYFRAME_SIZES[aspect])

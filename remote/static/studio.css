@@ -408,3 +408,37 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
 .approve .kf-strip { margin-top: 0; }
 .approve .kf-thumb img { height: 96px; }
 .approve input { padding: 8px 10px; font-size: 13.5px; }
+
+/* ---------- styles: recent row in Create video, and the Styles page */
+.style-ph { display: grid; place-items: center; background: linear-gradient(135deg, var(--raise), var(--card)); color: var(--muted); font-weight: 700; }
+.recent-styles { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.rs-card { flex: none; width: 84px; padding: 0; border: 1px solid var(--line2); border-radius: 10px; overflow: hidden; background: var(--bg2); color: var(--muted);
+           cursor: pointer; font: inherit; font-size: 11.5px; text-align: center; }
+.rs-card img, .rs-card .style-ph { display: block; width: 100%; height: 56px; object-fit: cover; }
+.rs-card span:last-child { display: block; padding: 4px 3px 5px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rs-card.on { border-color: var(--accent); color: var(--text); box-shadow: 0 0 0 2px #8b5cf640; }
+.rs-card.more { border-style: dashed; }
+.styles-bar { position: sticky; top: 56px; z-index: 3; background: var(--bg); padding: 4px 0 10px; display: flex; flex-direction: column; gap: 8px; }
+.scroll-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; } .scroll-chips .chip { flex: none; }
+.style-tool { position: sticky; top: 150px; z-index: 3; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; margin-bottom: 10px;
+              background: var(--panel); border: 1px solid var(--line2); border-radius: 12px; font-size: 13.5px; }
+.style-tool img { width: 40px; height: 40px; object-fit: cover; border-radius: 7px; }
+.style-tool span { flex: 1; min-width: 120px; color: var(--muted); }
+.style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.style-card { position: relative; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--card); cursor: pointer; }
+.style-card:hover { border-color: var(--line2); }
+.style-card .sc-img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
+.style-card .sc-label { display: flex; align-items: center; gap: 6px; padding: 7px 9px; font-size: 13px; }
+.style-card .sc-label b { font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.style-card .in-use { font-size: 10.5px; font-weight: 700; color: var(--accent); text-transform: uppercase; }
+.style-card .sc-note { position: absolute; top: 6px; left: 6px; font-size: 10.5px; background: #000a; color: #fff; padding: 1px 6px; border-radius: 5px; }
+.style-card.sel { outline: 3px solid var(--accent); outline-offset: -3px; }
+.style-card.current { border-color: var(--accent); }
+.style-card .num { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff;
+                   font-size: 13px; font-weight: 700; display: grid; place-items: center; }
+@media (max-width: 760px) {
+  .style-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .style-card .sc-label { padding: 5px 6px; font-size: 11.5px; }
+  .styles-bar { top: calc(50px + env(safe-area-inset-top)); }
+  .style-tool { top: calc(140px + env(safe-area-inset-top)); }
+}
