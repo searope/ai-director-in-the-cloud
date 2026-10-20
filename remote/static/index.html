@@ -195,6 +195,11 @@
               <div><label class="lbl" for="vseed">Seed</label>
                 <input id="vseed" type="number" inputmode="numeric" placeholder="random"></div>
             </div>
+            <div id="negBox" class="hidden">
+              <label class="lbl" for="negExtra">Avoid <span class="hint">Wan only, used in Quality mode</span></label>
+              <textarea id="negExtra" rows="2" maxlength="600" placeholder="e.g. text, logos, extra people, camera shake"></textarea>
+              <label class="toggle"><input id="negStandard" type="checkbox" checked><span id="negStandardLabel">Also use Wan's standard list</span></label>
+            </div>
             <label class="toggle"><input id="loop" type="checkbox"><span>Loop back to the first keyframe</span></label>
             <label class="toggle"><input id="smooth" type="checkbox" checked><span>Smooth motion (double the frame rate)</span></label>
           </div>

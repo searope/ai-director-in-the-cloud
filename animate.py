@@ -53,6 +53,26 @@ DEFAULT_NEGATIVE = (
     "JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，"
     "手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走"
 )
+# What it says (shown in the app; Wan's own default is Chinese, which its umT5 text encoder reads best).
+DEFAULT_NEGATIVE_EN = (
+    "garish colours, overexposed, static, blurry details, subtitles, style, artwork, painting, picture, still, "
+    "greyish overall, worst quality, low quality, JPEG artifacts, ugly, mutilated, extra fingers, badly drawn hands, "
+    "badly drawn face, deformed, disfigured, malformed limbs, fused fingers, motionless picture, cluttered background, "
+    "three legs, many people in the background, walking backwards"
+)
+# "style, artwork, painting": these work against an art style, so they're left out unless the style is a photo look.
+ART_STYLE_NEGATIVE_WORDS = ("风格", "作品", "画作")
+ART_STYLE_NEGATIVE_WORDS_EN = ("style", "artwork", "painting")
+
+
+def wan_negative(cfg, style):
+    """Wan's negative prompt for this style, and its English reading (the style's own negative is English)."""
+    zh, en = cfg["negative"], DEFAULT_NEGATIVE_EN if cfg["negative"] == DEFAULT_NEGATIVE else cfg["negative"]
+    if style.get("restyle_prompt") or style.get("custom"):  # an art style (photo styles keep images as they are)
+        zh = "，".join(w for w in zh.split("，") if w not in ART_STYLE_NEGATIVE_WORDS)
+        en = ", ".join(w for w in en.split(", ") if w not in ART_STYLE_NEGATIVE_WORDS_EN)
+    extra = ", ".join(x for x in (cfg.get("negative_extra"), style.get("negative")) if x)  # the user's words, the style's
+    return ", ".join(x for x in (zh, extra) if x), ", ".join(x for x in (en, extra) if x)
 
 ENGINES = ("wan22", "minimax-h3", "ltx23")
 SOUND_ENGINES = ("minimax-h3", "ltx23")  # engines that render a soundtrack with the video
@@ -238,7 +258,7 @@ def build_segment_graph(cfg, style, start_name, end_name, prompt, seed, width, h
     m = cfg["models"]
     fast = cfg["fast"]
     steps, split, cfg_scale, shift = (4, 2, 1.0, 5.0) if fast else (20, 10, 3.5, 8.0)
-    negative = ", ".join(x for x in (cfg["negative"], style.get("negative")) if x)
+    negative = wan_negative(cfg, style)[0]
 
     g = {
         "unet_high": {"class_type": "UNETLoader", "inputs": {"unet_name": m["high"], "weight_dtype": "default"}},
@@ -894,7 +914,10 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
             "style": style.get("label", "?"), "look": style.get("video_prompt", ""),
             "restyle": bool(cfg["restyle"]), "restyle_prompt": style.get("restyle_prompt") if cfg["restyle"] else None,
             "restyle_note": cfg.get("restyle_note") or "", "image_model": IMAGE_MODELS[cfg["image_model"] or DEFAULT_IMAGE_MODEL]["label"],
-            "negative": cfg.get("negative") if not sound else "",
+            # Wan only, and only in Quality mode: Fast mode samples at guidance 1, which ignores the negative prompt
+            "negative": wan_negative(cfg, style)[0] if not sound else "",
+            "negative_en": wan_negative(cfg, style)[1] if not sound else "",
+            "negative_used": not sound and not cfg["fast"],
             "loras": [] if sound else [l.get("high") or l.get("name") or str(l) for l in style.get("loras") or []],
             "prompts": [", ".join(x for x in (p, style.get("video_prompt")) if x) for p in cfg["prompts"]],
         })

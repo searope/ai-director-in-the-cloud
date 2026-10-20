@@ -599,3 +599,5 @@ body.no-scroll { overflow: hidden; }
 #motion:has(.gap:nth-child(3)) .gap .pair img { height: 90px; }
 
 #vidGoAll { margin-top: 6px; }
+
+.facts dd.has-tip { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; cursor: help; }
