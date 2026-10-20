@@ -13,7 +13,9 @@ import io
 import json
 import os
 import sys
+import threading
 import time
+import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -33,16 +35,34 @@ def save_jpg(png_bytes, path):
     im.save(path, "JPEG", quality=82, optimize=True)
 
 
+def keep_app_awake(url, token):
+    """These requests go to ComfyUI directly, which the app doesn't see as work: tell it every minute
+    that the GPU is in use, so it doesn't remove the pod after its idle minutes."""
+    def ping():
+        while True:
+            try:
+                req = urllib.request.Request(url + "/api/keepalive", data=b"{}", method="POST",
+                                             headers={"X-Token": token, "Content-Type": "application/json"})
+                urllib.request.urlopen(req, timeout=20).close()
+            except OSError as e:
+                print("keepalive failed:", e)
+            time.sleep(60)
+    threading.Thread(target=ping, daemon=True).start()
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--server", help="ComfyUI address")
     ap.add_argument("--pod", action="store_true", help="use the app's running Runpod pod")
     ap.add_argument("--only", nargs="*", help="style ids to (re)make; default: all")
+    ap.add_argument("--app-dir", default=ROOT, help="the running app's folder (output/gpu_pod.json, remote/config.json)")
+    ap.add_argument("--app-url", default="http://127.0.0.1:8700", help="the running app, kept from removing the pod")
     args = ap.parse_args()
     if args.pod:
-        state = json.load(open(os.path.join(ROOT, "output", "gpu_pod.json")))
+        state = json.load(open(os.path.join(args.app_dir, "output", "gpu_pod.json")))
         if not state.get("pod"):
             raise SystemExit("No pod is running: start the GPU in the app first.")
+        keep_app_awake(args.app_url, json.load(open(os.path.join(args.app_dir, "remote", "config.json")))["token"])
         animate.Comfy.headers = {"X-Gateway-Token": state["gateway_token"], "User-Agent": "ai-director/1.0"}
         server = f"https://{state['pod']['id']}-8700.proxy.runpod.net"
     else:
