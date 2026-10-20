@@ -314,9 +314,14 @@ document.addEventListener("keydown", (e) => {
     closeOverlay("lightbox"); closeOverlay("charSheet"); closeOverlay("soundSheet"); closeOverlay("styleSheet");
   }
   if (e.key === "Enter" && e.target.matches?.(".tile")) e.target.click();
+  if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !$("lightbox").classList.contains("hidden") && $("lbMedia").querySelector(".lb-paddle")
+      && !e.target.matches?.("input, textarea")) S.lbStep?.(e.key === "ArrowLeft" ? -1 : 1);
 });
 
 // ---------------------------------------------------------------- lightbox
+// the page behind an open overlay doesn't scroll
+new MutationObserver(() => document.body.classList.toggle("no-scroll", !!document.querySelector(".overlay:not(.hidden)")))
+  .observe(document.body, { subtree: true, attributes: true, attributeFilter: ["class"] });
 function closeOverlay(id) {
   const o = $(id); if (o.classList.contains("hidden")) return;
   o.classList.add("hidden"); o.querySelectorAll("video").forEach((v) => v.pause());
@@ -392,7 +397,20 @@ function openKeyframe(jobId, ref, back) {
   const j = jobById(jobId); if (!j) return;
   const [kind, name] = ref.split("/"), n = parseInt(name, 10);
   const label = j.kind === "film" ? `Shot ${n}, start frame` : `Keyframe ${n}${kind === "styled" ? ", redrawn" : j.styled.length ? ", original" : ""}`;
-  $("lbMedia").innerHTML = `<img alt="" src="${jobImg(j, kind, name)}">`;
+  // every keyframe of the render in strip order (originals, then redrawn), for the ‹ › paddles and the mouse wheel
+  const all = [...j.inputs.map((x) => `input/${x}`), ...j.styled.map((x) => `styled/${x}`)], at = all.indexOf(ref);
+  const step = (d) => all.length > 1 && openKeyframe(jobId, all[(at + d + all.length) % all.length], back);
+  $("lbMedia").innerHTML = `<img alt="" src="${jobImg(j, kind, name)}">` + (all.length > 1
+    ? `<button type="button" class="lb-paddle prev" data-step="-1" aria-label="Previous keyframe">‹</button>
+       <button type="button" class="lb-paddle next" data-step="1" aria-label="Next keyframe">›</button>
+       <span class="lb-count">${at + 1} / ${all.length}</span>` : "");
+  $("lbMedia").onclick = (e) => { const b = e.target.closest("[data-step]"); if (b) step(+b.dataset.step); };
+  $("lbMedia").onwheel = (e) => {  // the wheel moves through the keyframes, not the page behind
+    e.preventDefault();
+    if (Date.now() - (S.wheelAt || 0) < 250 || Math.abs(e.deltaY) + Math.abs(e.deltaX) < 4) return;
+    S.wheelAt = Date.now(); step((e.deltaY || e.deltaX) > 0 ? 1 : -1);
+  };
+  S.lbStep = step;
   $("lbInfo").innerHTML = `<h3>${label}</h3>
     <p class="hint" style="margin:0">${esc(jobSummary(j).text)}</p>
     ${keyframeStrip(j)}
@@ -1132,6 +1150,7 @@ function jobCard(j) {
       ${j.status === "done" ? `<button type="button" class="btn small" data-job-act="sound">Sound</button>
         <a class="btn small" href="${jobVideo(j, null, true)}">Download</a>` : ""}
       ${active || j.status === "approve" ? `<button type="button" class="btn small" data-job-act="cancel">Cancel</button>` : ""}
+      ${["failed", "cancelled"].includes(j.status) && j.kind !== "film" ? `<button type="button" class="btn small primary" data-job-act="retry">Try again</button>` : ""}
       ${j.status !== "running" ? `<button type="button" class="btn small ghost danger icon-only" data-job-act="delete" aria-label="Delete this render" title="Delete this render"><svg><use href="#i-trash"/></svg></button>` : ""}
     </div></div>`;
 }
@@ -1198,6 +1217,15 @@ $("jobList").onclick = async (e) => {
   if (act === "check") { detailsOpen.set(id, true); if (await checkClip(id)) renderJobs(); return; }
   if (act === "delete") return deleteJob(id);
   if (act === "sound") return openSound(id);
+  if (act === "retry") {  // the same render again: same keyframes, settings and prompts (redrawn keyframes are reused)
+    const j = jobById(id);
+    try {
+      await api(`/api/jobs/${id}/rerender`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompts: j.settings.prompts.map((p) => p || "smooth natural motion"), keep_styled: j.styled.length > 0 }) });
+      toast("Queued again"); await refreshJobs(); renderJobs();
+    } catch (err) { toast(err.message); }
+    return;
+  }
   try { await api(`/api/jobs/${id}/cancel`, { method: "POST" }); await refreshJobs(); renderJobs(); }
   catch (err) { toast(err.message); }
 };

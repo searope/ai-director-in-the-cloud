@@ -539,3 +539,14 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
 .sp-cap b { font-size: 14px; } .sp-cap span { opacity: .8; font-size: 12px; }
 .sp-chips { flex-wrap: wrap; }
 .sp-chips .chip.more { border-style: dashed; }
+
+/* keyframe viewer: bigger thumbnails, paddles, counter */
+.lb-info .kf-thumb img { height: 96px; }
+.lb-media { position: relative; }
+.lb-paddle { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 64px; border: 0; border-radius: 10px;
+             background: #0008; color: #fff; font-size: 30px; line-height: 1; cursor: pointer; }
+.lb-paddle:hover { background: #000c; }
+.lb-paddle.prev { left: 10px; } .lb-paddle.next { right: 10px; }
+.lb-count { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: #0009; color: #fff;
+            font-size: 12px; padding: 2px 8px; border-radius: 6px; }
+body.no-scroll { overflow: hidden; }
