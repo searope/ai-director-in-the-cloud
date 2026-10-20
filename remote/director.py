@@ -718,6 +718,8 @@ class Director:
         engine = project.get("engine", "wan22")  # films made before H3 became the default rendered with Wan
         job = self.queue_job(paths, {"prompts": [shot["motion"] or "smooth natural motion"], "engine": engine,
                                      "image_model": project.get("image_model", "klein4b"), "style": "photoreal",
+                                     # the film's style keeps the clip in it (and tells Check clip what to judge)
+                                     "custom_style": project["brief"].get("style", ""),
                                      "restyle": False, "fast": project.get("fast", True), "audio": True,
                                      "length": LENGTH_FOR_SECONDS[shot["seconds"]], "size": "standard",
                                      "smooth": engine == "wan22"})  # H3 already renders 24 fps

@@ -16,7 +16,7 @@ CELL_W = 360        # width of one frame on the sheet, px
 REVIEW_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["verdict", "summary", "issues", "motion_prompt", "keyframe_advice"],
+    "required": ["verdict", "summary", "issues", "style_rating", "style_notes", "motion_prompt", "keyframe_advice"],
     "properties": {
         "verdict": {"type": "string", "enum": ["good", "minor", "redo"]},
         "summary": {"type": "string"},
@@ -30,6 +30,8 @@ REVIEW_SCHEMA = {
                 "severity": {"type": "string", "enum": ["minor", "major"]},
             },
         }},
+        "style_rating": {"type": "string", "enum": ["strong", "good", "weak", "lost"]},
+        "style_notes": {"type": "string"},
         "motion_prompt": {"type": "string"},
         "keyframe_advice": {"type": "string"},
     },
@@ -65,6 +67,19 @@ both keyframes, so the options are: remake END as a small edit of START (say exa
 edit should change and keep), use START as both keyframes (a clip that returns to its start), or
 split the move into two shots with a middle keyframe.
 
+Judge the visual style too (the requested style is given in the message):
+- do the keyframes really look like that style, or only partly (e.g. a photo with a filter)?
+- when ORIGINAL keyframes are shown, the START and END keyframes were redrawn from them in the style:
+  each redrawn keyframe should keep its original's pose, layout and objects, and both should share
+  the same style;
+- does the clip keep the style from start to end, or drift toward a photo or 3D look, or flicker
+  between looks?
+style_rating: "strong" (unmistakably that style throughout), "good" (clearly the style, small lapses),
+"weak" (only partly, or inconsistent), or "lost" (the clip leaves the style). style_notes: one or two
+sentences on what works and what doesn't. If the style is weak or lost, put style words into
+motion_prompt (e.g. "watercolor painting, visible paper texture, soft bleeding pigments, the whole
+clip stays a painting") and say in keyframe_advice if the redraw itself is the problem.
+
 verdict: "good" (nothing a viewer would notice), "minor" (small flaws, usable), or "redo".
 summary: one or two sentences."""
 
@@ -83,8 +98,9 @@ def _frames(video_path, count):
     return [(frames[i], i / fps) for i in picks]
 
 
-def make_sheet(video_path, keyframe_paths, out_path, count=SHEET_FRAMES):
-    """Write the contact sheet (PNG) and return its path."""
+def make_sheet(video_path, keyframe_paths, out_path, count=SHEET_FRAMES, original_paths=()):
+    """Write the contact sheet (PNG) and return its path. original_paths: the keyframes before a style
+    redraw, shown next to the redrawn START and END."""
     from PIL import Image, ImageDraw, ImageFont
     frames = _frames(video_path, count)
     w = CELL_W
@@ -93,6 +109,7 @@ def make_sheet(video_path, keyframe_paths, out_path, count=SHEET_FRAMES):
     rows = (len(frames) + cols - 1) // cols
     label_h, gap = 26, 8
     keys = [Image.open(p).convert("RGB") for p in keyframe_paths[:2]]
+    keys += [Image.open(p).convert("RGB") for p in list(original_paths)[:2]]
     top = (label_h + h + gap) if keys else 0
     sheet = Image.new("RGB", (cols * w + (cols + 1) * gap, top + rows * (label_h + h + gap) + gap), (18, 18, 22))
     draw = ImageDraw.Draw(sheet)
@@ -105,7 +122,7 @@ def make_sheet(video_path, keyframe_paths, out_path, count=SHEET_FRAMES):
         draw.text((x + 2, y + 3), label, fill=color, font=font)
         sheet.paste(img.resize((w, h)), (x, y + label_h))
 
-    for i, (img, label) in enumerate(zip(keys, ("START keyframe", "END keyframe"))):
+    for i, (img, label) in enumerate(zip(keys, ("START keyframe", "END keyframe", "ORIGINAL of START", "ORIGINAL of END"))):
         cell(img, gap + i * (w + gap), gap, label, (250, 204, 21))
     for i, (img, t) in enumerate(frames):
         r, c = divmod(i, cols)
@@ -114,9 +131,13 @@ def make_sheet(video_path, keyframe_paths, out_path, count=SHEET_FRAMES):
     return out_path
 
 
-def user_prompt(motion_prompt, seconds):
-    return (f"The motion prompt used was: \"{motion_prompt}\"\nThe clip is {seconds:.1f} seconds long.\n\n"
-            "Review the clip on the contact sheet and write the improved motion prompt.")
+def user_prompt(motion_prompt, seconds, style=None, redrawn=False):
+    text = f"The motion prompt used was: \"{motion_prompt}\"\nThe clip is {seconds:.1f} seconds long.\n"
+    if style:
+        text += f"Requested style: {style['label']}: {style['description']}\n"
+        text += ("The START and END keyframes were redrawn in this style from the ORIGINAL keyframes shown next to them.\n"
+                 if redrawn else "The keyframes were not redrawn: they were used as they are.\n")
+    return text + "\nReview the clip on the contact sheet and write the improved motion prompt."
 
 
 def duration(video_path):
@@ -128,8 +149,10 @@ def duration(video_path):
         return float(container.duration or 0) / 1_000_000
 
 
-def review(writer, video_path, keyframe_paths, motion_prompt):
-    """Ask a writer (from director.load_writers) to review a clip. Returns the parsed review."""
+def review(writer, video_path, keyframe_paths, motion_prompt, style=None, original_paths=()):
+    """Ask a writer (from director.load_writers) to review a clip. Returns the parsed review.
+    style: {"label", "description"} of the requested style; original_paths: the keyframes before a redraw."""
     with tempfile.TemporaryDirectory(prefix="clipreview_") as tmp:
-        sheet = make_sheet(video_path, keyframe_paths, os.path.join(tmp, "sheet.png"))
-        return writer.write(SYSTEM_PROMPT, user_prompt(motion_prompt, duration(video_path)), REVIEW_SCHEMA, image=sheet)
+        sheet = make_sheet(video_path, keyframe_paths, os.path.join(tmp, "sheet.png"), original_paths=original_paths)
+        prompt = user_prompt(motion_prompt, duration(video_path), style, bool(original_paths))
+        return writer.write(SYSTEM_PROMPT, prompt, REVIEW_SCHEMA, image=sheet)

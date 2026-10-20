@@ -321,7 +321,8 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
 .clip-review { display: flex; flex-direction: column; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-top: 10px; font-size: 13.5px; }
 .clip-review p { margin: 0; }
 .cr-head { display: flex; gap: 8px; align-items: center; }
-.cr-head .pill.warn { color: var(--warn); }
+.cr-head .pill.warn, .cr-style .pill.warn { color: var(--warn); }
+.cr-style { font-size: 13px; color: var(--muted); } .cr-style .pill { margin-right: 4px; }
 .clip-review summary { cursor: pointer; color: var(--muted); font-weight: 600; }
 .clip-review ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
 .clip-review li.major b { color: var(--bad); } .clip-review li.minor b { color: var(--warn); }

@@ -754,6 +754,7 @@ async function renderVideoJob() {
 $("vidGo").onclick = renderVideoJob;
 
 // ---------------------------------------------------------------- clip check (an AI model reviews a render)
+const STYLE_RATINGS = { strong: ["strong", "ok"], good: ["good", "ok"], weak: ["weak", "warn"], lost: ["lost", "bad"] };
 const VERDICTS = { good: ["Looks good", "ok"], minor: ["Small flaws", "warn"], redo: ["Needs a redo", "bad"] };
 function reviewWriter() {
   const ws = (S.info?.writers || []).filter((w) => w.ready);
@@ -778,6 +779,7 @@ function reviewBlock(r, action, redrawn = false) {
   return `<div class="clip-review">
     <div class="cr-head"><span class="pill ${cls}">${label}</span><span class="hint">${who}</span></div>
     <p>${esc(r.summary)}</p>
+    ${r.style_rating ? `<div class="cr-style"><span class="pill ${STYLE_RATINGS[r.style_rating]?.[1] || ""}">Style: ${STYLE_RATINGS[r.style_rating]?.[0] || r.style_rating}</span> ${esc(r.style_notes || "")}</div>` : ""}
     ${r.issues?.length ? `<details><summary>${r.issues.length} problem${r.issues.length === 1 ? "" : "s"}</summary><ul>${r.issues.map((i) =>
       `<li class="${i.severity}"><b>${esc(i.when)}</b> ${esc(i.what)}</li>`).join("")}</ul></details>` : ""}
     ${r.keyframe_advice ? `<div class="note">${esc(r.keyframe_advice)}</div>` : ""}
