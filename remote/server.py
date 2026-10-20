@@ -47,6 +47,7 @@ CONFIG = os.path.join(HERE, "config.json")
 JOBS_DIR = os.path.join(ROOT, "output", "remote_jobs")
 KEYFRAMES_DIR = os.path.join(ROOT, "output", "keyframe_maker")
 CHARACTERS_DIR = os.path.join(ROOT, "output", "characters")
+MODELS_DIR = os.path.join(ROOT, "ComfyUI", "models")  # when ComfyUI runs on this machine
 MAX_KEYFRAMES = 12
 MAX_CHARACTER_REFS = 4  # reference images per character; the first one goes to the image model
 MAX_CAST = 3            # characters per keyframe: each adds a reference image to the model's input
@@ -524,13 +525,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
 
     async def info(request):
         styles = animate.load_styles()
-        models_dir = os.path.join(ROOT, "ComfyUI", "models")
-        remote_models = gpu.models()  # file lists from a remote GPU pod; None = check the local folder
-
-        def have(sub, name):
-            if gpu.remote:
-                return remote_models is None or name in remote_models.get(sub, [])  # unknown until the pod has run
-            return os.path.exists(os.path.join(models_dir, sub, name))
+        have = model_checker(gpu)
         h3_missing = [f"{sub}/{animate.DEFAULTS['models'][key]}"
                       for key, sub in (("h3_unet", "diffusion_models"), ("h3_text_encoder", "text_encoders"),
                                        ("h3_vae", "vae"), ("h3_audio_vae", "vae"), ("h3_lora", "loras"))
@@ -552,7 +547,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
             "styles": [{"id": k, "label": v.get("label", k), "restyle": bool(v.get("restyle_prompt"))} for k, v in styles.items()],
             "comfy": comfy,
             "image_models": [{"id": k, "label": v["label"], "license": v["license"],
-                              "missing": animate.missing_image_model_files(models_dir, k, have)}
+                              "missing": animate.missing_image_model_files(MODELS_DIR, k, have)}
                              for k, v in animate.IMAGE_MODELS.items()],
             "engines": [{"id": "wan22", "label": "Wan 2.2", "license": animate.LICENSES["wan22"], "ready": True},
                         {"id": "minimax-h3", "label": "MiniMax H3 + sound", "license": animate.LICENSES["minimax-h3"],
@@ -693,6 +688,10 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         if not prompt:
             return web.json_response({"error": "describe the keyframe"}, status=400)
         seed = data.get("seed")
+        model = data.get("model") or "klein4b"
+        if model in animate.IMAGE_MODELS and animate.missing_image_model_files(MODELS_DIR, model, model_checker(gpu)):
+            return web.json_response({"error": f"{animate.IMAGE_MODELS[model]['label']} isn't installed on the GPU. "
+                                               "Choose another model, or download it (README, Model licenses)."}, status=400)
         try:
             task = maker.start(prompt, data.get("aspect", "16:9"), data.get("source") or None,
                                int(seed) if str(seed or "").isdigit() else None, data.get("model") or "klein4b",
@@ -870,6 +869,18 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         web.static("/static", STATIC),
     ])
     return app
+
+
+def model_checker(gpu):
+    """have(subfolder, filename): is this model file on the GPU? A remote pod reports its files once it has
+    run; until then every model counts as present."""
+    remote_models = gpu.models()
+
+    def have(sub, name):
+        if gpu.remote:
+            return remote_models is None or name in remote_models.get(sub, [])
+        return os.path.exists(os.path.join(MODELS_DIR, sub, name))
+    return have
 
 
 def _read_bytes(path):
