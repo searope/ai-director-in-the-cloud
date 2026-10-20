@@ -4,7 +4,7 @@ An AI video **director** that runs on a **rented GPU** and is used from **any br
 tablet, computer):
 
 ```
-brief → script & storyboard → consistent keyframes (cast) → shots (open models, optional closed APIs) → assembled film
+brief → script & storyboard → consistent keyframes (cast) → shots (open-weight models on the GPU) → assembled film
 ```
 
 Inspired by the "director" workflow of hosted studios such as OpenArt, but self-hosted: open models
@@ -13,11 +13,12 @@ control over styles, LoRAs and seeds).
 
 **Policy:** spending is limited to a **rented cloud GPU** (open-weight models only) and an **AI
 subscription** (Claude or similar) for the story and scripting work. No pay-per-clip generation
-APIs or credits. See [CLAUDE.md](CLAUDE.md).
+APIs or credits. **Commercial use must be allowed**, so the defaults use only Apache 2.0 models
+(see [Model licenses](#model-licenses) and [CLAUDE.md](CLAUDE.md)).
 
 > **Status: early.** What works today is the engine inherited from
 > [searope/32gb-rtx-5050-8gb](https://github.com/searope/32gb-rtx-5050-8gb): keyframe maker,
-> keyframe → video with Wan 2.2 / MiniMax H3, styles, and the browser app. The director features
+> keyframe → video with Wan 2.2 (MiniMax H3 optional), styles, and the browser app. The director features
 > below are the roadmap.
 
 ## Architecture
@@ -34,8 +35,8 @@ any device sees the same state.
 
 | Piece | Where |
 |---|---|
-| Keyframe maker: text → keyframe 1, edits → next keyframes (FLUX.2 Klein 4B/9B, FLUX 3 Klein) | web app, Keyframes tab |
-| Keyframes → video: Wan 2.2 14B first/last frame; MiniMax H3 with sound | web app, Create tab; `animate.py` |
+| Keyframe maker: text → keyframe 1, edits → next keyframes (FLUX.2 Klein 4B default; Klein 9B, FLUX 3 Klein optional) | web app, Keyframes tab |
+| Keyframes → video: Wan 2.2 14B first/last frame (default); MiniMax H3 with sound (optional, see licenses) | web app, Create tab; `animate.py` |
 | Styles: presets, custom text styles, keyframe redraw, Wan style LoRAs | `styles.json` |
 | Browser app with job queue, works from any device; prints the public link on RunPod | `remote/server.py` |
 | Model downloader with profiles | `setup/download_models.py`, `setup/models.json` |
@@ -49,10 +50,25 @@ any device sees the same state.
    when making keyframes. Later: one combined multi-character LoRA.
 3. **Story planner:** brief → script → shot list, written by the AI subscription (e.g. Claude Code
    editing the project's storyboard file) or a local model on the GPU; editable before rendering.
-4. **More engines (open weights, on the GPU):** LTX-2.5 first/last frame, H3 multi-keyframe,
-   H3 "max quality" preset (20 steps, higher resolution, longer clips).
+4. **More engines (open weights, on the GPU, commercial use allowed):** LTX-2.5 first/last frame,
+   a Wan 2.2 "max quality" preset (20 steps, 720p, upscaling).
 5. **Finishing:** 1080p upscaling of chosen shots, voice-over and music tracks, continuity check.
 6. **Cloud ops:** one-command session start, idle auto-stop, cost tracking per project.
+
+## Model licenses
+
+Summaries as of Oct 2026, from secondary sources: check the LICENSE on each official model card
+before commercial use. Details per download profile are in `setup/models.json` (`license`).
+
+| Model | License | Commercial use |
+|---|---|---|
+| Wan 2.2 14B (+ umt5, Wan VAE) | Apache 2.0 | ✅ free (default video engine) |
+| FLUX.2 Klein 4B (+ Qwen3 4B) | Apache 2.0 | ✅ free (default image model) |
+| FILM interpolation | Apache 2.0 | ✅ free |
+| Lightx2v Wan 2.2 4-step LoRAs (fast mode) | not yet verified | ❓ quality mode doesn't use them |
+| FLUX 3 Klein | FLUX Kommunity License | ⚠️ free only under $5M annual revenue |
+| FLUX.2 Klein 9B | FLUX non-commercial | ❌ needs a paid Black Forest Labs license |
+| MiniMax H3 (+ turbo LoRA) | MiniMax H3 Community License | ❌ excludes the US, EU, UK and South Korea |
 
 ## Getting started
 

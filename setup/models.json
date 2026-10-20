@@ -1,8 +1,9 @@
 {
-  "_comment": "Model files per profile. 'dir' is relative to ComfyUI/models. URLs and filenames come from the official ComfyUI workflow templates (comfyui-workflow-templates 0.11.89).",
+  "_comment": "Model files per profile. 'dir' is relative to ComfyUI/models. URLs and filenames come from the official ComfyUI workflow templates (comfyui-workflow-templates 0.11.89). 'license' is a summary from Oct 2026 secondary sources; verify the LICENSE on each official model card before commercial use.",
   "profiles": {
     "wan22-flf": {
       "description": "Wan 2.2 14B image-to-video, first+last frame (keyframe) mode, with the 4-step Lightx2v speed LoRAs. Default profile. ~38 GB on disk.",
+      "license": "Wan 2.2 14B, umt5 text encoder, Wan VAE: Apache 2.0 (commercial OK). Lightx2v 4-step LoRAs: license not yet verified, check huggingface.co/lightx2v before commercial use; quality mode (--quality / fast off) doesn't use them.",
       "files": [
         {
           "dir": "diffusion_models",
@@ -38,6 +39,7 @@
     },
     "interp": {
       "description": "FILM frame interpolation model (smooths 16 fps Wan output to 32 fps). ~70 MB.",
+      "license": "FILM: Apache 2.0 (commercial OK).",
       "files": [
         {
           "dir": "frame_interpolation",
@@ -48,6 +50,7 @@
     },
     "restyle": {
       "description": "FLUX.2 Klein 4B distilled image editor, used to redraw keyframes in a chosen style (anime, claymation, ...). ~12 GB.",
+      "license": "FLUX.2 Klein 4B and Qwen3 4B text encoder: Apache 2.0 (commercial OK).",
       "files": [
         {
           "dir": "diffusion_models",
@@ -67,7 +70,8 @@
       ]
     },
     "minimax-h3": {
-      "description": "OPTIONAL second video engine: MiniMax H3 first/last-frame video with generated sound (24 fps), plus its 8-step turbo LoRA. ~39 GB. Heavier than Wan 2.2 on 8 GB VRAM / 32 GB RAM.",
+      "description": "OPTIONAL second video engine: MiniMax H3 first/last-frame video with generated sound (24 fps), plus its 8-step turbo LoRA. ~39 GB. See 'license': not licensed in the US, EU, UK or South Korea.",
+      "license": "MiniMax H3 Community License: does NOT cover use in the US, EU, UK or South Korea (including local self-hosting); elsewhere royalty-free commercial use under $20M annual revenue, with 'MiniMax H3' shown in the product UI. Not usable for this project's owner (US) without a separate license from MiniMax. The lightx2v turbo LoRA is a derivative under the same terms.",
       "files": [
         {
           "dir": "diffusion_models",
@@ -98,6 +102,7 @@
     },
     "klein9b": {
       "description": "OPTIONAL image model: FLUX.2 Klein 9B distilled (sharper keyframes and edits than 4B). ~19 GB.",
+      "license": "FLUX.2 Klein 9B: FLUX non-commercial license. Commercial use needs a paid license from Black Forest Labs. Personal tests only.",
       "files": [
         {
           "dir": "diffusion_models",
@@ -118,6 +123,7 @@
     },
     "flux3-klein": {
       "description": "OPTIONAL image model: FLUX 3 Image Klein distilled (newest, released Oct 2026). Reuses flux2-vae from the restyle profile. ~22 GB.",
+      "license": "FLUX 3 Klein: FLUX Kommunity License, free commercial use only under $5M annual revenue; above that a paid BFL license.",
       "files": [
         {
           "dir": "diffusion_models",

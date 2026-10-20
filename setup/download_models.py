@@ -96,7 +96,7 @@ def main():
 
     if args.list:
         for name, p in profiles.items():
-            print(f"{name:12} {p['description']}")
+            print(f"{name:12} {p['description']}\n{'':12} License: {p.get('license', 'unknown')}")
         return
 
     models_dir = os.path.join(args.comfy, "models")
@@ -105,7 +105,7 @@ def main():
 
     failed = []
     for name in args.profile or DEFAULT_PROFILES:
-        print(f"[{name}] {profiles[name]['description']}")
+        print(f"[{name}] {profiles[name]['description']}\n  License: {profiles[name].get('license', 'unknown')}")
         for item in profiles[name]["files"]:
             target_dir = os.path.join(models_dir, item["dir"])
             os.makedirs(target_dir, exist_ok=True)

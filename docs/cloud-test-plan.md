@@ -28,10 +28,10 @@ baseline if you want one.
 
 | # | Step | Done when |
 |---|---|---|
-| 0.1 | **Accounts**: RunPod (primary, because its persistent network volumes keep the ~100 GB of models between sessions) and Hugging Face (create a Read token; accept the licenses of FLUX.2 Klein 9B / FLUX 3 Klein if you want them). | Logged in, token saved in a password manager |
+| 0.1 | **Accounts**: RunPod (primary, because its persistent network volumes keep the ~100 GB of models between sessions) and Hugging Face (create a Read token; accept the licenses of FLUX.2 Klein 9B / FLUX 3 Klein if you want them for comparison: 9B is non-commercial, FLUX 3 Klein only under $5M revenue). | Logged in, token saved in a password manager |
 | 0.2 | **Spending guard**: prepay only **$25** of RunPod credit for now. | Credit = $25 |
 | 0.3 | **Benchmark set**: 3 keyframe pairs, same aspect ratio: **A** photos (person, small pose change), **B** a drawn/anime pair, **C** two characters. One motion prompt per pair, written down. Keep them in cloud storage or on your phone, so you can upload them from any device. | 6 images + 3 prompts |
-| 0.4 | *(Optional baseline)* If you have a local GPU machine, run tests T3, T4 and T6 below on it and note the times. | Baseline numbers, or skipped |
+| 0.4 | *(Optional baseline)* If you have a local GPU machine, run tests T3 and T4 below on it and note the times. | Baseline numbers, or skipped |
 
 No SSH keys or terminal on your own device are required: the setup runs in RunPod's **web
 terminal**.
@@ -42,11 +42,11 @@ terminal**.
 
 | # | Step | Notes |
 |---|---|---|
-| 1.1 | Create a **network volume**, ~200 GB, in a region that offers RTX 5090s. | Billed monthly even when no GPU runs. Delete it after the test if you don't continue |
+| 1.1 | Create a **network volume**, ~200 GB (~150 GB is enough without the optional models), in a region that offers RTX 5090s on **Secure Cloud** (network volumes don't work with Community Cloud). | Billed monthly even when no GPU runs. Delete it after the test if you don't continue |
 | 1.2 | Deploy an **RTX 5090 pod** with a PyTorch / CUDA 13 Linux template, the volume mounted at `/workspace`, and **HTTP port 8700 exposed**. Do **not** expose 8188. | 8700 is the web app (token-protected); 8188 is ComfyUI (must stay private) |
 | 1.3 | Open the pod's **web terminal** and run: `cd /workspace && git clone https://github.com/searope/ai-director-in-the-cloud.git && cd ai-director-in-the-cloud` | The repo lives on the persistent volume. The repo is private, so `git clone` asks for credentials: use your GitHub username and a [fine-grained token](https://github.com/settings/personal-access-tokens) with read access to this repo only |
 | 1.4 | `export HF_TOKEN=hf_...` then `bash setup/install_linux.sh` | Installs ComfyUI + PyTorch and downloads the default models. Note how long it takes |
-| 1.5 | Optional models: `.venv/bin/python setup/download_models.py --profile minimax-h3 --profile klein9b --profile flux3-klein` | |
+| 1.5 | Optional comparison models: `.venv/bin/python setup/download_models.py --profile klein9b --profile flux3-klein` | Not for commercial work (see the README's license table). Skip `minimax-h3`: its license doesn't cover the US |
 | 1.6 | Start everything inside `tmux` (so it keeps running if the web terminal closes): `tmux new -s anim` then `./start_all.sh` | It prints an **`https://…proxy.runpod.net/?t=…`** link and a QR code |
 | 1.7 | Open that link on your **phone**, then on **another device**. The status pill should show the 5090 and ~32 GB. | Same link works everywhere; bookmark it / "Add to Home Screen" |
 | 1.8 | Render one short test (Preview, 2 s) from the phone. Close the browser, reopen the link from another device, and check the job is there. | Confirms jobs live on the server, not the device |
@@ -73,8 +73,8 @@ Run each test twice: the first run is "cold" (models loading), the second "warm"
 | T3 | Wan 2.2 fast, Preview, 2 s | pair A |
 | T4 | Wan 2.2 fast, Standard (~480p), 5 s | pairs A, B, C |
 | T5 | Wan 2.2 **quality**, ~720p, 5 s | pair A (web terminal: `./animate.sh --keyframes … --quality --width 1280 --height 720`) |
-| T6 | MiniMax H3 fast, 5 s, with sound | pairs A, C |
-| T7 | MiniMax H3 quality (20 steps), 5 s | pair A |
+| T6 | ~~MiniMax H3 fast, 5 s, with sound~~ | skipped: H3's license excludes the US |
+| T7 | ~~MiniMax H3 quality (20 steps), 5 s~~ | skipped, same reason |
 | T8 | Full storyboard, 3 keyframes, anime style with restyle | `examples/storyboard.json` |
 
 **Record for each run** (in a shared spreadsheet, so you can fill it in from any device):
@@ -88,7 +88,7 @@ The job card shows render time. For peak VRAM, run `nvidia-smi` in the web termi
 renders. Quality, judged by eye: **5** = usable as is, **3** = needs a retake, **1** = broken
 (morphing, melted faces, flicker). Check on a phone *and* a large screen.
 
-**Optional (≈ $3):** repeat T4, T5 and T7 on an **H100** for one hour, using the same volume if it's
+**Optional (≈ $3):** repeat T4 and T5 on an **H100** for one hour, using the same volume if it's
 in the same region, to see whether the more expensive GPU is worth it.
 
 ---
@@ -99,8 +99,8 @@ After Phase 2. Each item needs a small code addition first (Claude):
 
 | # | Test | Question it answers |
 |---|---|---|
-| 3.1 | **LTX-2.5 first/last-frame** engine on pairs A–C | Is the newest open keyframe model better than Wan 2.2 / H3? |
-| 3.2 | **H3 multi-keyframe** (3–4 keyframes in one clip) | Smoother than joining 2-keyframe clips? |
+| 3.1 | **LTX-2.5 first/last-frame** engine on pairs A–C | Is the newest open keyframe model better than Wan 2.2? (Free commercial use under $10M revenue) |
+| 3.2 | **Multi-keyframe clips** (3–4 keyframes in one clip, with an engine whose license allows it, e.g. LTX-2.5) | Smoother than joining 2-keyframe clips? |
 | 3.3 | **480p/720p → 1080p upscale** (SeedVR2) of the best clips | Is "render low, upscale keepers" good enough? |
 | 3.4 | **Cast / multi-reference keyframes** for pair C | Do both characters stay recognizable without training? |
 

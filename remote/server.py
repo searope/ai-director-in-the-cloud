@@ -121,7 +121,7 @@ class Jobs:
             "server": self.comfy_url,
             "keyframes": [os.path.join(out_dir, "inputs", name) for name in job["inputs"]],
             "prompts": s["prompts"],
-            "engine": s.get("engine", "minimax-h3"),
+            "engine": s.get("engine", "wan22"),
             "image_model": s.get("image_model", "klein4b"),
             "audio": s.get("audio", True),
             "sound": s.get("sound") or None,
@@ -243,7 +243,7 @@ def clean_settings(raw, n_keyframes, styles):
     style = raw.get("style") or "photoreal"
     if not custom and style not in styles:
         raise ValueError(f"unknown style {style}")
-    engine = raw.get("engine") or "minimax-h3"
+    engine = raw.get("engine") or "wan22"
     if engine not in animate.ENGINES:
         raise ValueError(f"unknown engine {engine}")
     image_model = raw.get("image_model") or "klein4b"
@@ -308,11 +308,12 @@ def make_app(jobs, token, maker):
         return web.json_response({
             "styles": [{"id": k, "label": v.get("label", k), "restyle": bool(v.get("restyle_prompt"))} for k, v in styles.items()],
             "comfy": comfy,
-            "image_models": [{"id": k, "label": v["label"], "missing": animate.missing_image_model_files(models_dir, k)}
+            "image_models": [{"id": k, "label": v["label"], "license": v["license"],
+                              "missing": animate.missing_image_model_files(models_dir, k)}
                              for k, v in animate.IMAGE_MODELS.items()],
-            "engines": [{"id": "minimax-h3", "label": "MiniMax H3 + sound", "ready": not h3_missing,
-                         "missing": h3_missing},
-                        {"id": "wan22", "label": "Wan 2.2", "ready": True}],
+            "engines": [{"id": "wan22", "label": "Wan 2.2", "license": animate.LICENSES["wan22"], "ready": True},
+                        {"id": "minimax-h3", "label": "MiniMax H3 + sound", "license": animate.LICENSES["minimax-h3"],
+                         "ready": not h3_missing, "missing": h3_missing}],
             "queued": sum(1 for j in jobs.jobs.values() if j["status"] == "queued"),
             "running": any(j["status"] == "running" for j in jobs.jobs.values()),
         })

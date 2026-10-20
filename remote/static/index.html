@@ -136,7 +136,7 @@
     <div class="card">
       <h2>Video model</h2>
       <select id="engine" aria-label="Video model"><option value="wan22">Wan 2.2</option></select>
-      <p id="engineHint" class="hint">Wan 2.2: reliable on this laptop, silent, 16 fps.</p>
+      <p id="engineHint" class="hint">Wan 2.2: reliable, silent, 16 fps. Apache 2.0, commercial OK.</p>
       <div id="soundBox" class="hidden">
         <div class="switch"><span>Generate sound</span><input id="audio" type="checkbox" checked></div>
         <label class="field" for="sound">Describe the sound (optional)</label>
@@ -269,19 +269,17 @@ $("restyle").onchange = () => { state.restyleTouched = true; };
 
 // ---------- engine
 const ENGINE_HINTS = {
-  "wan22": "Wan 2.2: reliable on this laptop, silent, 16 fps.",
-  "minimax-h3": "MiniMax H3: 24 fps with generated sound. Heavier and slower on 8 GB; style LoRAs don't apply.",
+  "wan22": "Wan 2.2: reliable, silent, 16 fps. Apache 2.0, commercial OK.",
+  "minimax-h3": "MiniMax H3: 24 fps with generated sound; style LoRAs don't apply. License: not allowed in the US, EU, UK or South Korea (also for non-commercial use); elsewhere free under $20M revenue.",
 };
 function renderEngines(engines) {
   const sel = $("engine"); sel.innerHTML = "";
   for (const e of engines) {
     const o = document.createElement("option"); o.value = e.id;
-    o.textContent = e.label + (e.ready ? "" : " (not installed)"); o.disabled = !e.ready;
+    o.textContent = e.label + (e.id === "wan22" ? "" : ` (${e.license})`) + (e.ready ? "" : " (not installed)"); o.disabled = !e.ready;
     sel.appendChild(o);
   }
-  const h3 = engines.find((e) => e.id === "minimax-h3");
-  if (h3 && !h3.ready) ENGINE_HINTS.wan22 += ` MiniMax H3 isn't usable yet; missing in ComfyUI/models: ${h3.missing.join(", ")}`;
-  sel.value = (engines.find((e) => e.ready) || engines[0]).id;  // MiniMax H3 is the default when installed
+  sel.value = "wan22";  // commercial-safe default; MiniMax H3 only by explicit choice
   sel.onchange();
 }
 $("engine").onchange = () => {
@@ -417,7 +415,7 @@ function renderImageModels(models) {
     sel.innerHTML = "";
     for (const m of models) {
       const o = document.createElement("option"); o.value = m.id;
-      o.textContent = m.label + (m.missing.length ? " (not installed)" : ""); o.disabled = m.missing.length > 0;
+      o.textContent = `${m.label} · ${m.license}` + (m.missing.length ? " (not installed)" : ""); o.disabled = m.missing.length > 0;
       sel.appendChild(o);
     }
     sel.value = imageModel;

@@ -5,7 +5,8 @@ first/last-frame clip rendered by a running ComfyUI server. The clips share
 their boundary frames, so they are joined seamlessly into a single MP4.
 
 Two engines: Wan 2.2 14B (default, 16 fps, silent) and MiniMax H3 (24 fps,
-generates matching sound; heavier, optional download).
+generates matching sound; heavier, optional download). Check LICENSES before
+commercial use: MiniMax H3's license excludes the US, EU, UK and South Korea.
 
 A style preset (styles.json) adds style wording and optional Wan LoRAs to the
 video prompt, and can first redraw the keyframes in that style with FLUX.2
@@ -48,15 +49,24 @@ DEFAULT_NEGATIVE = (
 
 ENGINES = ("wan22", "minimax-h3")
 
+# Short license notes shown in the app (details in setup/models.json; verify on each model card).
+LICENSES = {
+    "wan22": "Apache 2.0, commercial OK",
+    "minimax-h3": "not licensed in the US, EU, UK or South Korea",
+    "klein4b": "Apache 2.0, commercial OK",
+    "klein9b": "non-commercial",
+    "flux3klein": "commercial only under $5M revenue",
+}
+
 # Image models for keyframe restyling and the keyframe maker (text -> image, image edits).
 IMAGE_MODELS = {
-    "klein4b": {"label": "FLUX.2 Klein 4B (fast)", "family": "flux2",
+    "klein4b": {"label": "FLUX.2 Klein 4B (fast)", "family": "flux2", "license": LICENSES["klein4b"],
                 "unet": "flux-2-klein-4b-fp8.safetensors", "text_encoder": "qwen_3_4b.safetensors",
                 "vae": "flux2-vae.safetensors"},
-    "klein9b": {"label": "FLUX.2 Klein 9B (sharper)", "family": "flux2",
+    "klein9b": {"label": "FLUX.2 Klein 9B (sharper)", "family": "flux2", "license": LICENSES["klein9b"],
                 "unet": "flux-2-klein-9b-fp8.safetensors", "text_encoder": "qwen_3_8b_fp8mixed.safetensors",
                 "vae": "full_encoder_small_decoder.safetensors"},
-    "flux3klein": {"label": "FLUX 3 Klein (newest)", "family": "flux3",
+    "flux3klein": {"label": "FLUX 3 Klein (newest)", "family": "flux3", "license": LICENSES["flux3klein"],
                    "unet": "flux3-image-klein-int8-convrot.safetensors", "text_encoder": "qwen3vl_4b_int8_convrot.safetensors",
                    "vae": "flux2-vae.safetensors"},
 }
@@ -77,7 +87,7 @@ def missing_image_model_files(models_dir, name):
 
 DEFAULTS = {
     "server": "http://127.0.0.1:8188",
-    "engine": "minimax-h3",   # "minimax-h3" (default, with sound) or "wan22"
+    "engine": "wan22",        # "wan22" (default, commercial OK) or "minimax-h3" (with sound; see LICENSES)
     "width": "auto",          # "auto" = match the first keyframe's aspect ratio
     "height": "auto",
     "area": 832 * 480,        # pixel budget for "auto" sizing; fits 8 GB VRAM
