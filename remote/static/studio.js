@@ -68,12 +68,21 @@ const charById = (id) => S.characters.find((c) => c.id === id);
 const modelLabel = (id) => (S.info?.image_models.find((m) => m.id === id) || {}).label || id || "";
 
 // ---------------------------------------------------------------- router
+// Phone tab bar: "More" opens Characters and Styles (the desktop sidebar lists every page).
+$("tabMore").onclick = (e) => {
+  e.stopPropagation();
+  const open = $("moreMenu").classList.toggle("hidden") === false;
+  $("tabMore").setAttribute("aria-expanded", String(open));
+};
+document.addEventListener("click", (e) => { if (!e.target.closest("#moreMenu")) $("moreMenu").classList.add("hidden"); });
 const TITLES = { home: "Home", image: "Create image", video: "Create video", library: "Library", director: "Director", characters: "Characters", styles: "Styles" };
 function route() {
   const name = (location.hash.match(/^#\/(\w+)/) || [])[1];
   const page = TITLES[name] ? name : "home";
   document.querySelectorAll(".page").forEach((p) => p.classList.toggle("hidden", p.dataset.page !== page));
   document.querySelectorAll("[data-route]").forEach((a) => a.classList.toggle("on", a.dataset.route === page));
+  $("tabMore").classList.toggle("on", $("tabMore").dataset.moreRoutes.split(" ").includes(page));  // phone menu
+  $("moreMenu").classList.add("hidden"); $("tabMore").setAttribute("aria-expanded", "false");
   $("pageTitle").textContent = TITLES[page];
   document.title = `${TITLES[page]} · AI Director Studio`;
   S.page = page;

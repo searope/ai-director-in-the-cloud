@@ -640,3 +640,15 @@ body.no-scroll { overflow: hidden; }
   .style-tool { left: 10px; right: 10px; bottom: calc(66px + env(safe-area-inset-bottom)); }
   .page[data-page="styles"] { padding-bottom: 150px; }
 }
+
+/* phone tab bar: "More" (a button styled like the tabs) and its menu */
+.tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 0 8px; font: inherit;
+                 font-size: 11px; font-weight: 600; color: var(--dim); background: none; border: 0; cursor: pointer; }
+.tabbar button svg { width: 21px; height: 21px; }
+.tabbar button.on { color: var(--text); } .tabbar button.on svg { color: var(--accent); }
+.more-menu { position: fixed; z-index: 11; right: 10px; bottom: calc(66px + env(safe-area-inset-bottom)); min-width: 180px; padding: 6px;
+             background: var(--panel); border: 1px solid var(--line2); border-radius: 14px; box-shadow: 0 10px 30px #000a; display: flex; flex-direction: column; }
+.more-menu a { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 10px; color: var(--text); text-decoration: none; font-weight: 600; }
+.more-menu a svg { width: 20px; height: 20px; }
+.more-menu a.on, .more-menu a:hover { background: var(--raise); }
+@media (min-width: 761px) { .more-menu { display: none; } }

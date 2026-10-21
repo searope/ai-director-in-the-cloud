@@ -20,6 +20,7 @@
   <symbol id="i-cast" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2a5 5 0 0 1 5.5 4.8"/></symbol>
   <symbol id="i-style" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.6-.8 1.6-1.7 0-.5-.2-.9-.5-1.2a1.7 1.7 0 0 1 1.3-2.8H16a5 5 0 0 0 5-5C21 6.4 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7.2" r="1.2"/><circle cx="15" cy="7.6" r="1.2"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3 13.8 9.2 20 11l-6.2 1.8L12 19l-1.8-6.2L4 11l6.2-1.8z"/></symbol>
 </svg>
@@ -337,7 +338,12 @@
   <a href="#/video" data-route="video"><svg><use href="#i-video"/></svg>Video<span id="tabBadge" class="badge hidden"></span></a>
   <a href="#/library" data-route="library"><svg><use href="#i-library"/></svg>Library</a>
   <a href="#/director" data-route="director"><svg><use href="#i-director"/></svg>Director</a>
+  <button type="button" id="tabMore" data-more-routes="characters styles" aria-haspopup="true" aria-expanded="false"><svg><use href="#i-more"/></svg>More</button>
 </nav>
+<div id="moreMenu" class="more-menu hidden" role="menu">
+  <a href="#/characters" data-route="characters" role="menuitem"><svg><use href="#i-cast"/></svg>Characters</a>
+  <a href="#/styles" data-route="styles" role="menuitem"><svg><use href="#i-style"/></svg>Styles</a>
+</div>
 
 <div id="lightbox" class="overlay hidden" role="dialog" aria-modal="true">
   <div class="lb">
