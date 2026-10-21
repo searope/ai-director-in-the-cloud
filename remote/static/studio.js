@@ -918,7 +918,7 @@ function renderStyleSheet() {
   const r = st.review;
   $("ssReview").classList.toggle("hidden", !r);
   $("ssReview").innerHTML = !r ? "" : `<div class="ss-cov"><b>${r.coverage}% styled</b> · ${esc(r.strength)} · <span class="hint">AI check of the examples</span></div>
-    <p>${esc(r.summary)}</p>
+    <p>${esc(/[.!?]$/.test(r.summary.trim()) ? r.summary : r.summary.replace(/^(.*[.!?])\s.*$/s, "$1"))}</p>
     ${r.unstyled.length ? `<p><b>May stay unstyled:</b> ${r.unstyled.map(esc).join(", ")}. Similar things in your pictures may not take the style well.</p>` : ""}
     ${r.replaced.length ? `<p class="warn-text"><b>Changed content:</b> ${r.replaced.map(esc).join("; ")}.</p>` : ""}`;
 }

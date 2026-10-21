@@ -663,3 +663,15 @@ body.no-scroll { overflow: hidden; }
 .style-card .sc-check.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 @media (hover: none) { .style-grid:not(.selecting) .sc-check { display: none; } }  /* phones: long press instead */
 .style-grid.selecting .style-card:not(.sel) .sc-img { opacity: .75; }
+
+/* sheets never get wider than the screen: footers wrap, grid cells can shrink */
+.sheet { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.sheet-foot { flex-wrap: wrap; }
+.ss-examples > figure, .ss-try > * { min-width: 0; }
+.char-body { min-width: 0; overflow-x: hidden; }
+@media (max-width: 760px) {
+  .style-sheet .sheet-foot { justify-content: flex-start; gap: 8px; padding: 12px; }
+  .style-sheet .sheet-foot .grow { display: none; }
+  .style-sheet .sheet-foot .btn { flex: 1 1 auto; }
+  .ss-examples { gap: 6px; }
+}

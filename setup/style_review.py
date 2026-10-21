@@ -136,7 +136,7 @@ def main():
                     + (f": {f['note']}" if f.get("note") else "") for f in feats if f["status"] in ("missing", "replaced")]
         r = {"coverage": coverage, "strength": r.get("strength", ""), "unstyled": unstyled[:10], "replaced": replaced[:10],
              "passed": bool(feats) and all(f["status"] == "styled" for f in feats),
-             "features": feats, "summary": str(r.get("summary", ""))[:300],
+             "features": feats, "summary": str(r.get("summary", ""))[:600],
              "prompt": s["restyle_prompt"], "checked": time.strftime("%Y-%m-%d")}
         with lock:
             results[k] = r
