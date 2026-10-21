@@ -22,7 +22,7 @@
     "negative": "photorealistic, photo, 3d render, realistic skin texture",
     "restyle_prompt": "Convert this image into a Japanese 2D cel animation frame, thin clean ink outlines, flat cel colours with one hard-edged shadow tone, large expressive eyes, tiny simplified nose, crisp digital line art. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
-    "group": "Basics"
+    "group": "Animation"
   },
   "3d-cartoon": {
     "label": "3D cartoon",
@@ -30,7 +30,7 @@
     "negative": "photorealistic, photo, 2d, flat, sketch",
     "restyle_prompt": "Convert this image into a stylized 3D animated-feature render, rounded squash-and-stretch proportions, smooth subsurface skin, big glossy eyes, soft global illumination, bright saturated colours, gentle rim light. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
-    "group": "Basics"
+    "group": "Animation"
   },
   "claymation": {
     "label": "Claymation",
@@ -38,7 +38,7 @@
     "negative": "photorealistic, smooth cgi, 2d, anime",
     "restyle_prompt": "A version of this scene as stop-motion clay animation, hand-sculpted plasticine figures with visible fingerprints and tool marks, lumpy matte clay surfaces, a miniature handmade set, small practical lights, tactile toy-like look: the people, animals, objects, buildings and the ground are all made this way. Every person, animal, object and building stays in the same place and pose, with the same framing; only what they are made of changes. Faces, skin, hair and hands are made this way too. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
-    "group": "Basics"
+    "group": "Animation"
   },
   "watercolor": {
     "label": "Watercolor",
@@ -510,7 +510,7 @@
     "negative": "photorealistic, photo, 3d render",
     "restyle_prompt": "Convert this image into a hand-painted anime film frame, lush painterly watercolour backgrounds, soft billowing clouds, warm natural light, gentle thin-lined characters, nostalgic pastoral detail. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
-    "group": "Painting & drawing"
+    "group": "Animation"
   },
   "kawaii-chibi": {
     "label": "Kawaii chibi",
@@ -518,7 +518,7 @@
     "negative": "photorealistic, photo, 3d render",
     "restyle_prompt": "Convert this image into a kawaii chibi illustration, characters two heads tall with oversized heads and tiny bodies, huge sparkling eyes, blush circles, pastel candy colours, thick soft outlines. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
-    "group": "Painting & drawing"
+    "group": "Animation"
   },
   "linocut": {
     "label": "Linocut",
@@ -1078,7 +1078,7 @@
     "negative": "photorealistic, photo",
     "restyle_prompt": "Convert this image into a cel-shaded 3D render, hard two-tone toon shading, thick black ink outlines on 3D forms, flat bright colours. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
-    "group": "Digital & retro"
+    "group": "Animation"
   },
   "rubber-hose": {
     "label": "1930s rubber-hose cartoon",
@@ -1086,7 +1086,7 @@
     "negative": "photorealistic, photo",
     "restyle_prompt": "Convert this image into a 1930s black-and-white cartoon, bendy rubber-hose limbs, pie-cut eyes, white gloves, film grain and flicker. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
-    "group": "Basics"
+    "group": "Animation"
   },
   "rotoscope": {
     "label": "Rotoscope",
@@ -1094,7 +1094,7 @@
     "negative": "photorealistic, photo",
     "restyle_prompt": "Convert this image into rotoscoped animation, live-action motion traced as flat colour shapes, wobbly hand-traced outlines, posterised shading. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
-    "group": "Basics"
+    "group": "Animation"
   },
   "blueprint": {
     "label": "Blueprint",
@@ -1174,7 +1174,7 @@
     "negative": "photorealistic, photo",
     "restyle_prompt": "Convert this image into shadow-puppet theatre, flat cut-out silhouettes with perforated lace patterns, warm backlit screen glow, jointed limbs. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
-    "group": "Fantasy & cultural"
+    "group": "Animation"
   },
   "sand-animation": {
     "label": "Sand art",
@@ -1182,7 +1182,7 @@
     "negative": "photorealistic, photo",
     "restyle_prompt": "Convert this image into sand-art animation, the image drawn in sand on a backlit glass table, grainy amber light through the sand, soft smeared edges. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
-    "group": "Print & craft"
+    "group": "Animation"
   },
   "art-brut": {
     "label": "Outsider art",
