@@ -800,9 +800,13 @@ function renderStylesPage() {
   else if (STY.group === "Recent") list = store.get("recent_styles", []).map(styleById).filter(Boolean);
   else if (STY.group !== "All" && STY.group !== "Removed") list = list.filter((s) => s.group === STY.group);
   const pick = STY.mode === "video";
+  // tap: the style's page; long press (or the tick box): selection mode, where taps tick styles to try
+  const selecting = !pick && (STY.sel.size > 0 || !!STY.image);
+  $("styleGrid").classList.toggle("selecting", selecting);
   const cards = list.map((s) => `<div class="style-card${STY.sel.has(s.id) ? " sel" : ""}${S.style === s.id ? " current" : ""}" data-sid="${s.id}" tabindex="0">
-      ${styleThumb(s, "sc-img")}${!pick && STY.sel.has(s.id) ? `<span class="num">✓</span>` : ""}
-      <button type="button" class="sc-info" data-info="${s.id}" aria-label="Prompts and examples of ${esc(s.label)}" title="Prompts and examples">✎</button>
+      ${styleThumb(s, "sc-img")}
+      ${!pick && s.restyle !== false ? `<button type="button" class="sc-check${STY.sel.has(s.id) ? " on" : ""}" data-check="${s.id}"
+        aria-label="${STY.sel.has(s.id) ? "Unselect" : "Select"} ${esc(s.label)}" title="Select to try it on a picture">✓</button>` : ""}
       <div class="sc-label"><b>${esc(s.label)}</b>${S.style === s.id ? `<span class="in-use">in use</span>` : s.edited ? `<span class="sc-edited">edited</span>` : ""}</div>
       ${!pick && s.restyle === false ? `<span class="sc-note">no redraw</span>` : ""}
     </div>`).join("");
@@ -811,7 +815,7 @@ function renderStylesPage() {
   const tool = $("styleTool"), img = STY.image && imageById(STY.image);
   tool.classList.toggle("hidden", !pick && !STY.sel.size && !img);
   tool.innerHTML = pick ? `<span>Tap a style to use it in Create video.</span><button type="button" class="btn small ghost" data-st="cancel">Back</button>`
-    : `${img ? `<img alt="" src="${imgUrl(img.id)}">` : ""}<span>${STY.sel.size ? `${STY.sel.size} selected` : "Select the styles to try"}${img ? " on this image" : ""}</span>
+    : `${img ? `<img alt="" src="${imgUrl(img.id)}">` : ""}<span>${STY.sel.size ? `${STY.sel.size} selected` : "Tap the styles to try"}${img ? " on this image" : ""}</span>
        ${STY.sel.size ? `<button type="button" class="btn small primary" data-st="try">Try ${STY.sel.size} on ${img ? "it" : "an image"}</button>
        ${STY.sel.size === 1 ? `<button type="button" class="btn small" data-st="use">Use for videos</button>` : ""}
        <button type="button" class="btn small ghost" data-st="clear">Clear</button>` : ""}`;
@@ -825,16 +829,41 @@ $("styleGroups").onclick = (e) => {
   const b = e.target.closest("[data-group]"); if (!b) return;
   STY.group = b.dataset.group; STY.q = ""; $("styleSearch").value = ""; renderStylesPage();
 };
-$("styleGrid").onclick = (e) => {
-  const info = e.target.closest("[data-info]");
-  if (info) return openStyleSheet(info.dataset.info);
-  const card = e.target.closest("[data-sid]"); if (!card) return;
-  const id = card.dataset.sid;
-  if (STY.mode === "video") { setVideoStyle(id); STY.mode = "browse"; go("video"); return; }
+function toggleStyleSel(id) {
   if (styleById(id)?.restyle === false) return toast(`${styleLabel(id)} keeps images as they are: nothing to redraw`);
   STY.sel.has(id) ? STY.sel.delete(id) : STY.sel.add(id);
   renderStylesPage();
+}
+$("styleGrid").onclick = (e) => {
+  if (STY.longPressed) { STY.longPressed = false; return; }  // the long press already selected it
+  const check = e.target.closest("[data-check]");
+  if (check) return toggleStyleSel(check.dataset.check);
+  const card = e.target.closest("[data-sid]"); if (!card) return;
+  const id = card.dataset.sid;
+  if (STY.mode === "video") { setVideoStyle(id); STY.mode = "browse"; go("video"); return; }
+  if ($("styleGrid").classList.contains("selecting")) return toggleStyleSel(id);
+  openStyleSheet(id);
 };
+// long press (finger or mouse, ~0.5 s) starts selection mode with that style
+$("styleGrid").addEventListener("pointerdown", (e) => {
+  const card = e.target.closest("[data-sid]");
+  if (!card || STY.mode === "video" || e.target.closest("[data-check]") || (e.pointerType === "mouse" && e.button !== 0)) return;
+  const x = e.clientX, y = e.clientY;
+  const cancel = () => { clearTimeout(STY.pressTimer); card.removeEventListener("pointermove", move); };
+  const move = (m) => { if (Math.abs(m.clientX - x) + Math.abs(m.clientY - y) > 12) cancel(); };  // a scroll, not a press
+  card.addEventListener("pointermove", move);
+  card.addEventListener("pointerup", cancel, { once: true });
+  card.addEventListener("pointerleave", cancel, { once: true });
+  card.addEventListener("pointercancel", cancel, { once: true });
+  STY.pressTimer = setTimeout(() => {
+    card.removeEventListener("pointermove", move);
+    STY.longPressed = true;  // swallow the click that follows this press (it may not come: the card is redrawn)
+    setTimeout(() => { STY.longPressed = false; }, 700);
+    navigator.vibrate?.(15);
+    if (!STY.sel.has(card.dataset.sid)) toggleStyleSel(card.dataset.sid);
+  }, 500);
+});
+$("styleGrid").addEventListener("contextmenu", (e) => { if (e.target.closest("[data-sid]")) e.preventDefault(); });  // no menu on a long press
 $("styleTool").onclick = async (e) => {
   const a = e.target.closest("[data-st]")?.dataset.st; if (!a) return;
   if (a === "cancel") { STY.mode = "browse"; go("video"); }
