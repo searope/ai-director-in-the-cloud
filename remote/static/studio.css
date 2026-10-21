@@ -675,3 +675,10 @@ body.no-scroll { overflow: hidden; }
   .style-sheet .sheet-foot .btn { flex: 1 1 auto; }
   .ss-examples { gap: 6px; }
 }
+
+/* style panel: swiping to the next/previous style slides the new one in */
+@keyframes slide-from-right { from { transform: translateX(40px); opacity: .4; } }
+@keyframes slide-from-left { from { transform: translateX(-40px); opacity: .4; } }
+.sheet.slide-next { animation: slide-from-right .18s ease-out; }
+.sheet.slide-prev { animation: slide-from-left .18s ease-out; }
+@media (prefers-reduced-motion: reduce) { .sheet.slide-next, .sheet.slide-prev { animation: none; } }

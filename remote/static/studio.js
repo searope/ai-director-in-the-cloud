@@ -329,8 +329,68 @@ document.addEventListener("keydown", (e) => {
 
 // ---------------------------------------------------------------- lightbox
 // the page behind an open overlay doesn't scroll
-new MutationObserver(() => document.body.classList.toggle("no-scroll", !!document.querySelector(".overlay:not(.hidden)")))
-  .observe(document.body, { subtree: true, attributes: true, attributeFilter: ["class"] });
+new MutationObserver(() => {
+  const open = !!document.querySelector(".overlay:not(.hidden)");
+  document.body.classList.toggle("no-scroll", open);
+  // an open overlay has its own history entry, so Back closes it instead of leaving the page
+  if (open && !history.state?.overlay) history.pushState({ overlay: true, n: history.state?.n || 0 }, "");
+  else if (!open && history.state?.overlay && !S.skipPop) { S.skipPop = true; history.back(); }  // closed with ✕, Esc or a tap outside
+}).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["class"] });
+
+// ---------------------------------------------------------------- back
+// Back (the browser's, the phone's, or a swipe right from the left edge) closes the top overlay first, then goes to the previous page.
+const OVERLAYS_TOP_FIRST = ["picker", "ssZoom", "lightbox", "charSheet", "soundSheet", "styleSheet"];
+const openOverlays = () => OVERLAYS_TOP_FIRST.filter((id) => !$(id).classList.contains("hidden"));
+window.addEventListener("popstate", () => {
+  if (S.skipPop) { S.skipPop = false; return; }
+  const top = openOverlays()[0];
+  if (top) closeOverlay(top);  // the others keep a new entry (see the observer above)
+  else if (history.state?.overlay) { S.skipPop = true; history.back(); }  // an overlay's entry left behind by a page change: skip it
+});
+// history.state.n counts the app's pages behind this one, so Back never leaves the app
+window.addEventListener("hashchange", () => {
+  if (history.state?.n == null) history.replaceState({ n: (S.lastN || 0) + 1 }, "");
+  S.lastN = history.state.n;
+});
+if (history.state?.n == null) history.replaceState({ ...history.state, n: 0 }, "");  // the page the app opened on
+S.lastN = history.state.n;
+function goBack() {
+  if (openOverlays().length || (history.state?.n || 0) > 0) history.back();
+  else if (S.page !== "home") go("home");
+}
+(() => {
+  // iOS Safari (not the home-screen app) already goes back on an edge swipe
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (/Mac/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  if (ios && !navigator.standalone) return;
+  let t0 = null;
+  document.addEventListener("touchstart", (e) => {
+    const t = e.touches[0];
+    t0 = e.touches.length === 1 && t.clientX < 28 && !e.target.closest?.("input[type=range]") ? { x: t.clientX, y: t.clientY, at: Date.now() } : null;
+  }, { passive: true });
+  document.addEventListener("touchend", (e) => {
+    if (!t0) return;
+    const t = e.changedTouches[0], dx = t.clientX - t0.x, dy = Math.abs(t.clientY - t0.y), quick = Date.now() - t0.at < 800;
+    t0 = null;
+    if (dx > 70 && dy < dx * 0.6 && quick) goBack();
+  }, { passive: true });
+  document.addEventListener("touchcancel", () => { t0 = null; }, { passive: true });
+})();
+// a sideways swipe across el, not from the left edge (that's Back): step(1) for a swipe left (next), step(-1) for right
+function onSideSwipe(el, step) {
+  let t0 = null;
+  el.addEventListener("touchstart", (e) => {
+    const t = e.touches[0];
+    t0 = e.touches.length === 1 && t.clientX >= 28 && !e.target.closest("input, textarea, select, video") ? { x: t.clientX, y: t.clientY } : null;
+  }, { passive: true });
+  el.addEventListener("touchend", (e) => {
+    if (!t0) return;
+    const t = e.changedTouches[0], dx = t.clientX - t0.x, dy = Math.abs(t.clientY - t0.y);
+    t0 = null;
+    if (Math.abs(dx) > 70 && dy < Math.abs(dx) * 0.5) step(dx < 0 ? 1 : -1);
+  }, { passive: true });
+  el.addEventListener("touchcancel", () => { t0 = null; }, { passive: true });
+}
+onSideSwipe($("lightbox"), (d) => { if ($("lbMedia").querySelector(".lb-paddle")) S.lbStep?.(d); });  // keyframes and the like
 function closeOverlay(id) {
   const o = $(id); if (o.classList.contains("hidden")) return;
   o.classList.add("hidden"); o.querySelectorAll("video").forEach((v) => v.pause());
@@ -888,6 +948,20 @@ function openStyleSheet(id, seed = null) {
   $("styleSheet").classList.remove("hidden");
   if (!id) $("ssName").focus();
 }
+// swipe left/right across the style panel: the next/previous style, in the Styles page's order
+function stepStyleSheet(d) {
+  const st = SS.id && styleById(SS.id); if (!st) return;
+  const edited = $("ssRestyle").value !== (st.restyle_prompt || "") || $("ssLook").value !== (st.look || "") || (st.custom && $("ssName").value !== st.label);
+  if (edited && !confirm("Discard your changes to this style?")) return;
+  let ids = [...$("styleGrid").querySelectorAll("[data-sid]")].map((c) => c.dataset.sid);
+  if (!ids.includes(SS.id)) ids = S.info.styles.filter((s) => !s.hidden || s.id === SS.id).map((s) => s.id);
+  openStyleSheet(ids[(ids.indexOf(SS.id) + d + ids.length) % ids.length]);
+  const sheet = $("styleSheet").querySelector(".sheet");
+  sheet.querySelector(".char-body").scrollTop = 0;
+  sheet.classList.remove("slide-next", "slide-prev"); void sheet.offsetWidth;  // restart the slide-in
+  sheet.classList.add(d > 0 ? "slide-next" : "slide-prev");
+}
+onSideSwipe($("styleSheet"), stepStyleSheet);
 function renderStyleSheet() {
   const st = SS.id ? styleById(SS.id) : SS.draft; if (!st) return;
   $("ssNameBlock").classList.toggle("hidden", !st.custom);
@@ -990,6 +1064,7 @@ $("ssZoom").addEventListener("click", (e) => {
   else if (a) { ZOOM.before = a === "before"; renderZoom(); }
   else if (e.target.id === "ssZoomImg") { ZOOM.before = !ZOOM.before; renderZoom(); }  // tap the picture to compare
 });
+onSideSwipe($("ssZoom"), zoomStep);  // swipe to the next/previous scene
 document.addEventListener("keydown", (e) => {
   if ($("ssZoom").classList.contains("hidden")) return;
   if (e.key === "ArrowLeft" || e.key === "ArrowRight") zoomStep(e.key === "ArrowLeft" ? -1 : 1);
