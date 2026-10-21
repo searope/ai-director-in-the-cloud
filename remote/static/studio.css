@@ -103,6 +103,7 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 .t-video .tool-art { background: linear-gradient(135deg, #6366f1, #06b6d4); }
 .t-director .tool-art { background: linear-gradient(135deg, #f59e0b, #ef4444); }
 .t-cast .tool-art { background: linear-gradient(135deg, #10b981, #0ea5e9); }
+.t-style .tool-art { background: linear-gradient(135deg, #f59e0b, #ec4899); }
 .section-head { display: flex; align-items: baseline; justify-content: space-between; margin: 26px 0 12px; }
 .section-head h3 { margin: 0; font-size: 16px; }
 .section-head a { color: var(--muted); font-size: 13.5px; text-decoration: none; }
