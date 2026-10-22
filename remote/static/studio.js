@@ -329,6 +329,13 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && e.target.matches?.(".tile")) e.target.click();
 });
 
+// One player at a time: starting a video with controls pauses every other one (the muted previews that play
+// on hover in the grids are left alone, and don't stop a player).
+document.addEventListener("play", (e) => {
+  if (!(e.target instanceof HTMLVideoElement) || !e.target.controls) return;
+  document.querySelectorAll("video[controls]").forEach((v) => { if (v !== e.target && !v.paused) v.pause(); });
+}, true);
+
 // ---------------------------------------------------------------- lightbox
 // the page behind an open overlay doesn't scroll
 new MutationObserver(() => {
