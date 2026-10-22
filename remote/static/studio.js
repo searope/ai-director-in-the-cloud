@@ -2263,7 +2263,7 @@ function renderFilm(p) {
   const facts = job ? [`<span data-film-len>${f.seconds ? fmtTime(f.seconds) : "…"}</span>`, `${f.shots} shots`, p.brief.aspect, esc(engine || ""),
     job.audio?.mixed ? "sound mixed" : "sound as rendered", ...(reel ? [`${(job.reel?.parts || []).length} lines on screen`] : []),
     `made ${ago(f.finished)}`] : [];
-  setHtml($("dirFilmBox"), f.status === "done" && job ? `<div class="mcard film-card">
+  setHtml($("dirFilmBox"), f.status === "done" && job ? `<div class="mcard film-card" title="Click to show or hide its shots">
       <div class="mc-media"><video controls playsinline preload="metadata" src="${jobVideo(job)}"></video></div>
       <div class="mc-info"><div class="mc-title"><span class="mc-tag">${reel ? "Lantern reel" : "Film"}</span><b>${esc(p.title)}</b></div>
         <div class="mc-facts">${facts.join("<i>·</i>")}</div>
@@ -2509,7 +2509,13 @@ $("dirAutorun").onclick = async (e) => {
 };
 $("dirFilm").onclick = async () => { if (await shotAction("film")) refreshJobs(); };
 $("dirFilmBox").onclick = (e) => {
-  const b = e.target.closest("[data-film-sound], [data-film-open], [data-film-reel]"); if (!b) return;
+  const b = e.target.closest("[data-film-sound], [data-film-open], [data-film-reel]");
+  if (!b) {  // a click on the film card itself (not its player or buttons) opens or closes its shots
+    if (D.project && e.target.closest(".film-card") && !e.target.closest("button, a, video") && D.project.shots.length) {
+      store.set(`shots_folded_${D.project.id}`, !shotsFolded(D.project)); renderDirector();
+    }
+    return;
+  }
   if (b.dataset.filmSound) openSound(b.dataset.filmSound);
   else if (b.dataset.filmOpen) openVideo(b.dataset.filmOpen);
   else openReel(b.dataset.filmReel);
