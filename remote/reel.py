@@ -1,7 +1,7 @@
 """Lantern quote reels: a finished video as a 1080x1920 reel with its quote over it.
 
 The Lantern look: the picture fills the vertical frame (a landscape video sits on night blue instead),
-the quote appears in parts in a serif at the lower third, the accent parts in lantern amber, each
+the quote appears in parts in a serif, at the lower third or the top, wherever the picture is calmer, the accent parts in lantern amber, each
 fading in and out on its own times. A small lantern mark stays in a corner, and the reel ends on the
 lantern glowing on night blue. Text is drawn with Pillow and laid over with ffmpeg, so any ffmpeg build
 works (no drawtext/freetype needed).
@@ -104,48 +104,102 @@ def _wrap(text, font, width, draw):
 
 
 def text_image(text, accent, size=66):
-    """One part as a cropped RGBA image: centred serif lines with a soft shadow (and a warm glow when accented)."""
+    """One part as a cropped RGBA image: centred serif lines on a soft dark backdrop (so they read over a
+    bright lantern too), with a soft shadow and a warm glow when accented."""
     font = _font(size)
     probe_draw = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
     lines = _wrap(text, font, W - 200, probe_draw)
     step, pad = round(size * 1.32), TEXT_PAD
     img = Image.new("RGBA", (W, step * len(lines) + pad * 2), (0, 0, 0, 0))
     colour = AMBER if accent else TEXT
+    widest = max(probe_draw.textlength(line, font=font) for line in lines)
 
     def draw_lines(layer, fill):
         d = ImageDraw.Draw(layer)
         for i, line in enumerate(lines):
             x = (W - d.textlength(line, font=font)) / 2
             d.text((x, pad + i * step), line, font=font, fill=fill)
+    backdrop = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    ImageDraw.Draw(backdrop).rounded_rectangle([(W - widest) / 2 - 34, pad * 0.55, (W + widest) / 2 + 34,
+                                                img.height - pad * 0.35], radius=40, fill=NIGHT + (150,))
+    img.alpha_composite(backdrop.filter(ImageFilter.GaussianBlur(18)))
     shadow = Image.new("RGBA", img.size, (0, 0, 0, 0))
     draw_lines(shadow, (5, 8, 18, 200))
     img.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(9)))
     if accent:
         glow = Image.new("RGBA", img.size, (0, 0, 0, 0))
-        draw_lines(glow, AMBER + (120,))
+        draw_lines(glow, AMBER + (110,))
         img.alpha_composite(glow.filter(ImageFilter.GaussianBlur(14)))
     draw_lines(img, colour + (255,))
     return img
 
 
-def _shade():
-    """A dark wash over the lower part of a full-frame picture so the text reads on anything."""
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    top = int(H * 0.48)
-    for y in range(top, H):
-        d.line([(0, y), (W, y)], fill=NIGHT + (round(200 * ((y - top) / (H - top)) ** 1.4),))
-    return img
+# Where the words go: the band of the frame that is calmest while they show (few edges, no bright light).
+BANDS = {"top": (0.10, 0.36), "bottom": (0.62, 0.90)}
 
 
-def layout(parts):
-    """y position of each part: the first at the lower third, later ones under the parts still showing."""
-    top, gap, ys, heights = int(H * 0.64), 14 - 2 * TEXT_PAD, [], []  # the padding overlaps
+def groups(parts):
+    """Runs of parts on screen together (each part overlapping the run so far), as lists of indexes."""
+    out = []
+    for i, p in enumerate(parts):
+        if out and p["start"] < max(parts[j]["end"] for j in out[-1]):
+            out[-1].append(i)
+        else:
+            out.append([i])
+    return out
+
+
+def _frame(src, t, portrait):
+    """The source picture at time t as it sits in the reel, small and grey (for measuring calm)."""
+    from PIL import ImageOps
+    raw = subprocess.run([ffmpeg_exe(), "-loglevel", "error", "-ss", f"{t:.2f}", "-i", src, "-frames:v", "1",
+                          "-f", "image2pipe", "-vcodec", "png", "-"], capture_output=True).stdout
+    small = (108, 192)
+    canvas = Image.new("RGB", small, NIGHT)
+    if raw:
+        import io
+        pic = Image.open(io.BytesIO(raw)).convert("RGB")
+        if portrait:
+            canvas = ImageOps.fit(pic, small)
+        else:
+            pic.thumbnail(small)
+            canvas.paste(pic, ((small[0] - pic.width) // 2, max(0, (small[1] - pic.height) // 2 - round(small[1] * 0.12))))
+    return canvas.convert("L")
+
+
+def busyness(img, band):
+    """How hard it is to read words over this band: edges, contrast and bright light (a lantern)."""
+    from PIL import ImageStat
+    w, h = img.size
+    region = img.crop((0, round(h * band[0]), w, round(h * band[1])))
+    edges = ImageStat.Stat(region.filter(ImageFilter.FIND_EDGES)).mean[0]
+    contrast = ImageStat.Stat(region).stddev[0]
+    bright = sum(region.point(lambda v: 255 if v > 205 else 0).histogram()[255:]) / (region.width * region.height)
+    return edges + 0.4 * contrast + 120 * bright
+
+
+def placements(src, parts, portrait):
+    """"top" or "bottom" for each part: per group of parts shown together, the calmer band over its time."""
+    where = ["bottom"] * len(parts)
+    for g in groups(parts):
+        start, end = parts[g[0]]["start"], max(parts[j]["end"] for j in g)
+        frames = [_frame(src, start + (end - start) * k / 4, portrait) for k in (1, 2, 3)]
+        score = {name: sum(busyness(f, band) for f in frames) for name, band in BANDS.items()}
+        choice = "top" if score["top"] < score["bottom"] * 0.9 else "bottom"  # the lower third unless top is clearly calmer
+        for j in g:
+            where[j] = choice
+    return where
+
+
+def layout(parts, where=None):
+    """y position of each part: the first of a group at its band, later ones under the parts still showing."""
+    where = where or ["bottom"] * len(parts)
+    gap, ys, heights = 14 - 2 * TEXT_PAD, [], []  # the padding overlaps
     for i, p in enumerate(parts):
         img_h = text_image(p["text"], p["accent"]).height
-        showing = [j for j in range(i) if parts[j]["start"] <= p["start"] < parts[j]["end"]]
-        y = max([ys[j] + heights[j] + gap for j in showing], default=top)
-        ys.append(min(y, H - img_h - 120))
+        showing = [j for j in range(i) if parts[j]["start"] <= p["start"] < parts[j]["end"] and where[j] == where[i]]
+        y = max([ys[j] + heights[j] + gap for j in showing], default=int(H * BANDS[where[i]][0]) - TEXT_PAD)
+        ys.append(max(0, min(y, H - img_h - 120)))
         heights.append(img_h)
     return ys
 
@@ -161,7 +215,8 @@ def compose(src, out, parts, logo=True, end_card=True):
     with tempfile.TemporaryDirectory() as tmp:
         cmd = [ffmpeg_exe(), "-y", "-hide_banner", "-loglevel", "error", "-i", src]
         # a portrait picture covers the whole frame; a landscape one sits a little above centre on night blue
-        fit = "increase,crop={W}:{H}" if _is_portrait(src) else "decrease"
+        portrait = _is_portrait(src)
+        fit = "increase,crop={W}:{H}" if portrait else "decrease"
         graph = [
             f"color=c=0x{bytes(NIGHT).hex()}:s={W}x{H}:r={FPS}:d={duration:.3f}[bg]",
             f"[0:v]scale={W}:{H}:force_original_aspect_ratio={fit.format(W=W, H=H)},setsar=1,fps={FPS}[pic]",
@@ -177,10 +232,7 @@ def compose(src, out, parts, logo=True, end_card=True):
             n += 1
             return n - 1
 
-        k = add_image(_shade(), "shade.png")
-        graph.append(f"[{last}][{k}:v]overlay=0:0[v{k}]")
-        last = f"v{k}"
-        for i, (p, y) in enumerate(zip(parts, layout(parts))):
+        for i, (p, y) in enumerate(zip(parts, layout(parts, placements(src, parts, portrait)))):
             k = add_image(text_image(p["text"], p["accent"]), f"part{i}.png")
             fade_out = max(p["start"] + FADE, p["end"] - FADE)
             graph.append(f"[{k}:v]format=rgba,fade=t=in:st={p['start']:.2f}:d={FADE}:alpha=1,"
