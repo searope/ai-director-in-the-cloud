@@ -108,6 +108,10 @@ REEL_SCHEMA["properties"]["reel"] = {
     },
 }
 
+# The series' look, filled in when a project becomes a Lantern reel with no style of its own (styles.json "paint-on-glass").
+REEL_STYLE = ("paint-on-glass animation, slow-drying oil paint smeared by fingers on backlit glass, soft morphing edges, "
+              "luminous glowing colour, visible finger strokes; night blue and warm lantern amber")
+
 REEL_PROMPT = """
 
 This film is a Lantern reel: a vertical 9:16 short of 20-30 seconds in a series about handling everyday
@@ -122,7 +126,9 @@ stress, being well and mental health. Its words appear on screen over the pictur
 
 The series' mark: a small glowing paper lantern is in every reel. Its light follows the feeling: dim or
 flickering in the moment, steadier in the reframe, warm and bright at the close. Keep night blue and warm
-amber in every frame. Make the people and creatures original; never imitate characters from other films.
+amber in every frame. Make the people and creatures original; never imitate characters from other films. When the cast has the
+series character (a name starting with "Lantern"), it is the reel's main character: calm, with a neutral,
+slightly smiling face, except for the strain of the stressful moment.
 
 `reel.parts` are the words on screen: 2-6 short parts, lowercase, at most 9 words each, gentle and honest
 (it's fine to say something is hard; no toxic positivity, no medical claims or promises). Set accent: true
@@ -648,7 +654,10 @@ class Director:
             if "title" in raw:
                 p["title"] = _clean_text(raw["title"], 120) or p["title"]
             if "brief" in raw:
+                was_reel = p["brief"].get("format") == "reel"
                 p["brief"] = self._clean_brief(raw["brief"])
+                if p["brief"]["format"] == "reel" and not was_reel:
+                    self._reel_defaults(p)
             if "cast" in raw:
                 p["cast"] = self._clean_cast(raw["cast"])
             if raw.get("writer") in self.writers:
@@ -663,6 +672,14 @@ class Director:
                 old = {s["id"]: s for s in p["shots"]}
                 p["shots"] = [self._clean_shot(s, old.get(s.get("id"))) for s in raw["shots"][:MAX_SHOTS]]
         return self.update(project_id, change)
+
+    def _reel_defaults(self, project):
+        """A project switched to Lantern reel gets the series' look when its brief leaves it open: the
+        paint-on-glass style, and the series character (any character named "Lantern ...") in the cast."""
+        if not project["brief"]["style"]:
+            project["brief"]["style"] = REEL_STYLE
+        if not project["cast"]:
+            project["cast"] = [c["id"] for c in self.characters.list() if c["name"].lower().startswith("lantern")][:2]
 
     @staticmethod
     def _clean_reel(raw, shots, quiet_close=False):

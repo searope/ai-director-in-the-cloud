@@ -122,7 +122,7 @@ and a `command` writer gets the file's path. One check is one request (~20-30 s 
 
 ## Lantern reels
 
-Format **Lantern reel** makes a vertical 9:16 short of 20-30 seconds for a series about everyday stress,
+Format **Lantern reel** (the series' look is filled in when the brief leaves it open: the paint-on-glass style, and any character whose name starts with "Lantern" in the cast) makes a vertical 9:16 short of 20-30 seconds for a series about everyday stress,
 being well and mental health. The AI writes the script in four beats (a stressful moment, a reframe while
 the quote appears, one simple practice to try, a calm close) with a small glowing lantern in every reel, and
 also writes the **words on screen** (each from one shot until another; "glow" lines are lantern amber) and the
