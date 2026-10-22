@@ -5,7 +5,7 @@ subscription, the Anthropic API, any OpenAI-compatible endpoint, or any command-
 Every writer gets the same instructions and returns JSON that matches SCRIPT_SCHEMA, so the
 rest of the pipeline doesn't depend on which model wrote it. Each shot then becomes a start
 keyframe (text to image, with the shot's characters as references), an end keyframe (an edit of
-the start), and a 2-5 s clip between the two (MiniMax H3 with sound by default, or Wan 2.2).
+the start), and a 2-6 s clip between the two (MiniMax H3 with sound by default, or Wan 2.2).
 "Make film" joins the clips in order, keeping their sound.
 
 Projects are output/director/<id>.json. Writers are configured in remote/config.json:
@@ -35,8 +35,8 @@ import uuid
 
 import reel
 
-SECONDS = (2, 3, 4, 5)
-LENGTH_FOR_SECONDS = {2: 33, 3: 49, 4: 65, 5: 81}  # Wan 2.2 frames at 16 fps
+SECONDS = (2, 3, 4, 5, 6)
+LENGTH_FOR_SECONDS = {2: 33, 3: 49, 4: 65, 5: 81, 6: 97}  # Wan 2.2 frames at 16 fps
 MAX_SHOTS = 40
 VIDEO_ENGINES = ("minimax-h3", "wan22", "ltx23")  # the first is the default for new films
 TEXT_FIELDS = {"scene": 200, "action": 600, "start_frame": 1500, "end_change": 600, "motion": 600, "narration": 600}
@@ -70,7 +70,7 @@ SYSTEM_PROMPT = """You write shot lists for short AI-animated films.
 
 The film is made shot by shot. For each shot, an image model draws the first frame from
 `start_frame`, then edits it into the last frame with `end_change`, and a video model
-(MiniMax H3 or Wan 2.2) animates the 2-5 seconds between those two frames following `motion`. Shots are
+(MiniMax H3 or Wan 2.2) animates the 2-6 seconds between those two frames following `motion`. Shots are
 joined with hard cuts.
 
 For each shot, in order:
@@ -85,7 +85,7 @@ For each shot, in order:
   Keep it small enough to happen in a few seconds.
 - motion: the movement and camera for the video model, e.g. "she turns her head toward the
   camera, hair moving in the wind, slow push-in".
-- seconds: 2 to 5.
+- seconds: 2 to 6.
 - characters: the cast members visible in the shot, at most 3, spelled exactly as in the
   cast list. Use [] when no cast member is visible.
 - narration: voice-over or dialogue heard during the shot, or "".
@@ -123,7 +123,9 @@ stress, being well and mental health. Its words appear on screen over the pictur
 2. Reframe (1-2 shots): the quote appears while the scene changes: the tension eases, the light warms.
 3. Try this (1-2 shots): one simple, well-established practice, shown and named: slow breathing (in for 4,
    out for 6), 5-4-3-2-1 grounding, naming the feeling, unclenching jaw and shoulders, a short walk
-   outside, writing the worry down. The picture can move with it (a slow rise and fall for a breath).
+   outside, writing the worry down. The picture can move with it: for slow breathing give each breath its own shot, the in-breath 4
+   seconds (shoulders rise) and the out-breath 6 seconds (shoulders fall), the second starting where the
+   first ends.
 4. Close (1 shot): a calm picture with the lantern. No words.
 
 The series' mark: a small glowing paper lantern is in every reel. Its light follows the feeling: dim or
@@ -170,7 +172,7 @@ REVIEW_PROMPT = """You check shot lists for short AI-animated films before they 
 
 Each shot's first frame is drawn from `start_frame` alone (plus the reference images of its
 `characters`), its last frame is an edit of the first one by `end_change`, and a video model
-animates 2-5 seconds between them. Look for real problems only:
+animates 2-6 seconds between them. Look for real problems only:
 - continuity between shots: a character's looks or outfit, props, time of day, weather,
   location, screen direction;
 - a start_frame that refers to other shots ("same as before") or leaves out what the image model
