@@ -2018,7 +2018,12 @@ function briefFields() {
   return { title: $("dirTitle").value, writer: $("dirWriter").value, brief: { idea: $("dirIdea").value, style: $("dirStyle").value,
     seconds: $("dirSeconds").value, aspect: $("dirAspect").value, notes: $("dirNotes").value, format: $("dirFormat").value } };
 }
-["dirTitle", "dirFormat", "dirIdea", "dirStyle", "dirSeconds", "dirAspect", "dirNotes"].forEach((id) => { $(id).onchange = () => saveProject(briefFields()); });
+["dirTitle", "dirIdea", "dirStyle", "dirSeconds", "dirAspect", "dirNotes"].forEach((id) => { $(id).onchange = () => saveProject(briefFields()); });
+$("dirFormat").onchange = async () => {  // a new Lantern reel gets the series' style and character from the server
+  await saveProject(briefFields());
+  const b = D.project?.brief; if (!b) return;
+  $("dirStyle").value = b.style; $("dirAspect").value = b.aspect;
+};
 $("dirWriter").onchange = () => { store.set("writer", $("dirWriter").value); saveProject({ writer: $("dirWriter").value }); };
 $("dirCast").onclick = (e) => {
   const b = e.target.closest("[data-dcast]"); if (!b || !D.project) return;
