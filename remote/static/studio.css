@@ -797,3 +797,12 @@ body.no-scroll { overflow: hidden; }
 .mc-shots b { color: var(--text); }
 #dirShotEdit .panel-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
 #dirShotEdit .panel-top .back { margin: 0; }
+
+/* Create video: an opened render is about the size of a Director card (a 300 px player), with keyframes twice as big */
+.jrow { max-width: 760px; }
+.jrow > .job video { width: auto; max-width: 100%; height: 300px; max-height: none; margin: 12px 0 0; }
+.jrow .kf-thumb img { height: 128px; }
+@media (max-width: 760px) {
+  .jrow > .job video { height: 240px; }
+  .jrow .kf-thumb img { height: 104px; }
+}
