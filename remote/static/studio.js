@@ -1990,7 +1990,7 @@ function renderDirector() {
   // the shots sit under a heading naming their film; once the film is made they fold away under it
   // (click the heading to open or close them; each film remembers its choice)
   const folded = shotsFolded(p);
-  $("dirShotsHead").classList.toggle("hidden", board || words || !p.shots.length);
+  $("dirShotsHead").classList.toggle("hidden", board || words || !p.shots.length || !!$("dirFilmBox").querySelector(".film-card"));
   setHtml($("dirShotsHead"), `<button type="button" class="linkish" data-fold aria-expanded="${!folded}">${folded ? "▸" : "▾"}
     ${p.shots.length} shot${p.shots.length === 1 ? "" : "s"} in <b>${esc(p.title)}</b>${folded ? " · show them" : ""}</button>`);
   if (!board && !words) { $("dirShots").classList.toggle("hidden", folded); $("dirAddShot").classList.toggle("hidden", folded); }
@@ -2140,15 +2140,13 @@ function frame(id, label, busy) {
 // The shot's own render settings, each defaulting to the film's; Reset to defaults puts the film's back.
 function shotRenderSettings(p, s) {
   const engines = S.info.engines || [], label = (id) => engines.find((e) => e.id === id)?.label || id;
-  const own = s.engine || s.fast != null;
   return `<div class="shot-render"><b>Render settings</b><span class="hint" style="margin:0">this shot only</span>
     <div class="field-row">
       <label class="sf">Video model<select data-f="engine"><option value="">Film's: ${esc(label(p.engine))}</option>
         ${engines.map((e) => `<option value="${e.id}"${s.engine === e.id ? " selected" : ""}${e.ready ? "" : " disabled"}>${esc(e.label)}</option>`).join("")}</select></label>
       <label class="sf">Renders<select data-f="fast"><option value="">Film's: ${p.fast !== false ? "fast" : "quality"}</option>
         <option value="fast"${s.fast === true ? " selected" : ""}>Fast</option><option value="quality"${s.fast === false ? " selected" : ""}>Quality</option></select></label>
-    </div>
-    <button type="button" class="btn small ghost" data-sa="reset"${own ? "" : " disabled"}>Reset to defaults</button></div>`;
+    </div></div>`;
 }
 // The settings panel while a shot is selected: its full card, with the way back to the film's settings.
 const shotsFolded = (p) => store.get(`shots_folded_${p.id}`, p.film?.status === "done") && !D.sel;  // a selected shot stays in view
@@ -2162,7 +2160,10 @@ function renderShotPanel(p) {
   panel.parentElement.classList.toggle("shot-mode", !!D.sel);
   panel.classList.toggle("hidden", !D.sel);
   if (!D.sel || panel.contains(document.activeElement)) return;  // don't redraw what is being typed
-  setHtml(panel, `<button type="button" class="back linkish" data-panel-back>← Film settings</button>${shotCard(p, p.shots[i], i, true)}`);
+  const s = p.shots[i], own = s.engine || s.fast != null;
+  setHtml(panel, `<div class="panel-top"><button type="button" class="back linkish" data-panel-back>← Film settings</button>
+    <button type="button" class="btn small" data-reset-shot${own ? "" : " disabled"} title="${own ? "Put the film's video model and fast/quality back for this shot"
+      : "This shot uses the film's render settings"}">Reset to defaults</button></div>${shotCard(p, s, i, true)}`);
 }
 function selectShot(id) {
   D.sel = D.sel === id ? null : id;  // selecting the selected shot again goes back to the film's settings
@@ -2263,7 +2264,7 @@ function renderFilm(p) {
   const facts = job ? [`<span data-film-len>${f.seconds ? fmtTime(f.seconds) : "…"}</span>`, `${f.shots} shots`, p.brief.aspect, esc(engine || ""),
     job.audio?.mixed ? "sound mixed" : "sound as rendered", ...(reel ? [`${(job.reel?.parts || []).length} lines on screen`] : []),
     `made ${ago(f.finished)}`] : [];
-  setHtml($("dirFilmBox"), f.status === "done" && job ? `<div class="mcard film-card">
+  setHtml($("dirFilmBox"), f.status === "done" && job ? `<div class="mcard film-card" title="Click to show or hide its shots">
       <div class="mc-media"><video controls playsinline preload="metadata" src="${jobVideo(job)}"></video></div>
       <div class="mc-info"><div class="mc-title"><span class="mc-tag">${reel ? "Lantern reel" : "Film"}</span><b>${esc(p.title)}</b></div>
         <div class="mc-facts">${facts.join("<i>·</i>")}</div>
@@ -2271,7 +2272,9 @@ function renderFilm(p) {
         <div class="row"><button type="button" class="btn small" data-film-open="${job.id}">Open</button>
           <button type="button" class="btn small" data-film-sound="${job.id}">Sound</button>
           ${reel ? `<button type="button" class="btn small" data-film-reel="${job.id}">Edit reel</button>` : ""}
-          <a class="btn small" href="${jobVideo(job, null, true)}">Download</a></div></div></div>`
+          <a class="btn small" href="${jobVideo(job, null, true)}">Download</a></div>
+        ${p.shots.length ? `<button type="button" class="linkish mc-shots" data-film-shots aria-expanded="${!shotsFolded(p)}">${shotsFolded(p) ? "▸" : "▾"}
+          ${p.shots.length} shot${p.shots.length === 1 ? "" : "s"} in <b>${esc(p.title)}</b>${shotsFolded(p) ? " · show them" : ""}</button>` : ""}</div></div>`
     : f.status === "working" ? `<div class="ai-status"><div class="spinner"></div>Joining the shots into one film…</div>`
     : f.status === "failed" ? `<div class="ai-status bad"><b>The film wasn't made.</b> ${esc(f.error || "")}</div>` : "");
   const v = $("dirFilmBox").querySelector("video"), len = $("dirFilmBox").querySelector("[data-film-len]");
@@ -2446,6 +2449,9 @@ function shotChange(e) {
 }
 async function shotClick(e) {
   if (e.target.closest("[data-panel-back]")) { D.sel = null; return renderDirector(); }
+  if (e.target.closest("[data-reset-shot]")) {
+    return saveProject({ shots: shotsForSave(D.project.shots.map((s) => s.id === D.sel ? { ...s, engine: null, fast: null } : s)) });
+  }
   const img = e.target.closest("[data-open-img]");
   if (img) { await refreshImages(); return openImage(img.dataset.openImg); }
   const card = e.target.closest("[data-shot]"); if (!card) return;
@@ -2468,7 +2474,6 @@ async function shotClick(e) {
   }
   const a = e.target.closest("[data-sa]")?.dataset.sa; if (!a) return;
   if (a === "open") return selectShot(id);
-  if (a === "reset") return saveProject({ shots: shotsForSave(shots.map((s) => s.id === id ? { ...s, engine: null, fast: null } : s)) });
   const busyText = { check: "Starting the check…", kf: "Starting…", kfend: "Starting…", render: "Queueing…" }[a];
   const restore = busyText ? busyButton(e.target.closest("[data-sa]"), busyText) : () => {};
   if (a === "check") { if (await checkClip(shots[i].job_id)) await refreshDirector(); else restore(); return renderDirector(); }
@@ -2509,7 +2514,14 @@ $("dirAutorun").onclick = async (e) => {
 };
 $("dirFilm").onclick = async () => { if (await shotAction("film")) refreshJobs(); };
 $("dirFilmBox").onclick = (e) => {
-  const b = e.target.closest("[data-film-sound], [data-film-open], [data-film-reel]"); if (!b) return;
+  const b = e.target.closest("[data-film-sound], [data-film-open], [data-film-reel]");
+  if (!b) {  // a click on the film card itself (not its player or buttons) or its shots line opens or closes its shots
+    if (D.project && e.target.closest(".film-card") && (e.target.closest("[data-film-shots]") || !e.target.closest("button, a, video"))
+        && D.project.shots.length) {
+      store.set(`shots_folded_${D.project.id}`, !shotsFolded(D.project)); renderDirector();
+    }
+    return;
+  }
   if (b.dataset.filmSound) openSound(b.dataset.filmSound);
   else if (b.dataset.filmOpen) openVideo(b.dataset.filmOpen);
   else openReel(b.dataset.filmReel);

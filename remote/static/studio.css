@@ -790,3 +790,10 @@ body.no-scroll { overflow: hidden; }
 /* cards about as wide as a player and its text need, not the whole column */
 .mcard { max-width: 760px; }
 .shots-head .linkish { font-size: 13px; color: var(--muted); }
+.film-card { cursor: pointer; }
+.film-card video { cursor: auto; }
+
+.mc-shots { align-self: flex-start; font-size: 13px; color: var(--muted); margin-top: 2px; }
+.mc-shots b { color: var(--text); }
+#dirShotEdit .panel-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+#dirShotEdit .panel-top .back { margin: 0; }
