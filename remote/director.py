@@ -33,6 +33,8 @@ import urllib.error
 import urllib.request
 import uuid
 
+import reel
+
 SECONDS = (2, 3, 4, 5)
 LENGTH_FOR_SECONDS = {2: 33, 3: 49, 4: 65, 5: 81}  # Wan 2.2 frames at 16 fps
 MAX_SHOTS = 40
@@ -91,6 +93,46 @@ For each shot, in order:
 Keep the visual style, the characters' looks and the world consistent from shot to shot.
 Make the seconds add up to roughly the requested length. Prefer several short, simple shots
 to one long complicated move. Give the film a title and a one-sentence logline."""
+
+# A Lantern reel (brief format "reel"): the script also carries the words shown on screen and the post caption.
+REEL_SCHEMA = json.loads(json.dumps(SCRIPT_SCHEMA))
+REEL_SCHEMA["required"].append("reel")
+REEL_SCHEMA["properties"]["reel"] = {
+    "type": "object", "additionalProperties": False, "required": ["parts", "caption"],
+    "properties": {
+        "parts": {"type": "array", "items": {
+            "type": "object", "additionalProperties": False, "required": ["text", "accent", "shot", "until_shot"],
+            "properties": {"text": {"type": "string"}, "accent": {"type": "boolean"},
+                           "shot": {"type": "integer"}, "until_shot": {"type": "integer"}}}},
+        "caption": {"type": "string"},
+    },
+}
+
+REEL_PROMPT = """
+
+This film is a Lantern reel: a vertical 9:16 short of 20-30 seconds in a series about handling everyday
+stress, being well and mental health. Its words appear on screen over the picture. Build it in four beats:
+1. Moment (1-2 shots): a relatable stressful moment (a phone that won't stop buzzing, a late night of
+   overthinking, a crowded commute). No words on screen yet.
+2. Reframe (1-2 shots): the quote appears while the scene changes: the tension eases, the light warms.
+3. Try this (1-2 shots): one simple, well-established practice, shown and named: slow breathing (in for 4,
+   out for 6), 5-4-3-2-1 grounding, naming the feeling, unclenching jaw and shoulders, a short walk
+   outside, writing the worry down. The picture can move with it (a slow rise and fall for a breath).
+4. Close (1 shot): a calm picture with the lantern. No words.
+
+The series' mark: a small glowing paper lantern is in every reel. Its light follows the feeling: dim or
+flickering in the moment, steadier in the reframe, warm and bright at the close. Keep night blue and warm
+amber in every frame. Make the people and creatures original; never imitate characters from other films.
+
+`reel.parts` are the words on screen: 2-6 short parts, lowercase, at most 9 words each, gentle and honest
+(it's fine to say something is hard; no toxic positivity, no medical claims or promises). Set accent: true
+on the one or two key phrases. The practice goes in parts too, e.g. "breathe in… 2… 3… 4" then
+"and out… slowly". `shot` is the shot (1-based) where a part appears and `until_shot` the last shot it
+stays on; parts meant to be read together share until_shot. Nothing on screen in the last shot.
+`reel.caption` is the post caption: one to three short sentences that open up the idea, the practice in one
+line, then 3-5 hashtags. When the topic is heavy (burnout, grief, panic, loneliness, hopelessness), add a
+line on its own: "If you're struggling, you're not alone. In the US, call or text 988." Never diagnose.
+`narration` is usually "": the words are on screen."""
 
 
 REVIEW_SCHEMA = {
@@ -543,7 +585,10 @@ class Director:
         raw = raw or {}
         seconds = raw.get("seconds")
         aspect = raw.get("aspect") if raw.get("aspect") in ("16:9", "9:16", "1:1", "4:3", "3:4") else "16:9"
-        return {"idea": _clean_text(raw.get("idea"), 4000), "style": _clean_text(raw.get("style"), 300),
+        fmt = "reel" if raw.get("format") == "reel" else "film"
+        if fmt == "reel":
+            aspect = "9:16"
+        return {"format": fmt, "idea": _clean_text(raw.get("idea"), 4000), "style": _clean_text(raw.get("style"), 300),
                 "seconds": max(4, min(300, int(seconds))) if str(seconds or "").isdigit() else 30, "aspect": aspect,
                 "notes": _clean_text(raw.get("notes"), 2000)}
 
@@ -605,10 +650,24 @@ class Director:
                 p["fast"] = bool(raw["fast"])
             if raw.get("engine") in VIDEO_ENGINES and raw["engine"] != p.get("engine"):
                 p["engine"] = raw["engine"]
+            if isinstance(raw.get("reel"), dict):  # the words on screen and the caption, edited by hand
+                p["reel"] = self._clean_reel(raw["reel"], len(p["shots"]))
             if "shots" in raw:  # the full list in its new order: known ids are edited, new ones added, missing ones removed
                 old = {s["id"]: s for s in p["shots"]}
                 p["shots"] = [self._clean_shot(s, old.get(s.get("id"))) for s in raw["shots"][:MAX_SHOTS]]
         return self.update(project_id, change)
+
+    @staticmethod
+    def _clean_reel(raw, shots):
+        parts = []
+        for part in (raw.get("parts") or [])[:reel.MAX_PARTS]:
+            if not isinstance(part, dict) or not str(part.get("text") or "").strip():
+                continue
+            shot = max(1, min(shots or 1, int(part.get("shot") or 1) if str(part.get("shot") or "").isdigit() else 1))
+            until = int(part.get("until_shot") or shot) if str(part.get("until_shot") or "").isdigit() else shot
+            parts.append({"text": _clean_text(part["text"], 160), "accent": bool(part.get("accent")),
+                          "shot": shot, "until_shot": max(shot, min(shots or 1, until))})
+        return {"parts": parts, "caption": _clean_text(raw.get("caption"), 2200)}
 
     def delete(self, project_id):
         if self.running.get(project_id):
@@ -628,7 +687,8 @@ class Director:
         return "\n".join(lines) or "(no cast: invent the people or creatures the story needs, described in each prompt)"
 
     def _current_script(self, project):
-        return {"title": project["title"], "logline": project.get("logline", ""), "shots": [
+        extra = {"reel": project["reel"]} if project["brief"].get("format") == "reel" and project.get("reel") else {}
+        return extra | {"title": project["title"], "logline": project.get("logline", ""), "shots": [
             {k: s[k] for k in ("scene", "action", "start_frame", "end_change", "motion", "seconds", "narration")}
             | {"characters": [c["name"] for c in map(self.characters.get, s["characters"]) if c]}
             for s in project["shots"]]}
@@ -689,7 +749,9 @@ class Director:
                 board = writer.write(BOARD_PROMPT, prompt, BOARD_SCHEMA)
                 self.update(project_id, lambda p: self._apply_board(p, board, writer))
             else:
-                script = writer.write(SYSTEM_PROMPT, prompt, SCRIPT_SCHEMA)
+                is_reel = self._load(project_id)["brief"].get("format") == "reel"
+                script = writer.write(SYSTEM_PROMPT + REEL_PROMPT if is_reel else SYSTEM_PROMPT, prompt,
+                                      REEL_SCHEMA if is_reel else SCRIPT_SCHEMA)
                 self.update(project_id, lambda p: self._apply_script(p, script, writer))
         except Exception as e:  # report any failure in the app
             msg = str(e) if isinstance(e, WriterError) else f"{type(e).__name__}: {e}"
@@ -721,6 +783,8 @@ class Director:
         project["shots"] = shots
         project["title"] = _clean_text(script.get("title"), 120) or project["title"]
         project["logline"] = _clean_text(script.get("logline"), 400)
+        if isinstance(script.get("reel"), dict):
+            project["reel"] = self._clean_reel(script["reel"], len(shots))
         project["ai"].update(status="done", error=None, finished=time.time(), writer=writer.id)
         project["review"] = None  # notes were about the old shot list
 
@@ -908,7 +972,7 @@ class Director:
         project = self.get(project_id)
         if not project:
             raise KeyError("no such project")
-        clips, keyframes, narration, start = [], [], [], 0.0
+        clips, keyframes, narration, start, bounds = [], [], [], 0.0, []
         for i, shot in enumerate(project["shots"]):
             if not shot["render"] or shot["render"]["status"] != "done":
                 raise ValueError(f"shot {i + 1} isn't rendered yet")
@@ -917,7 +981,8 @@ class Director:
                 keyframes.append(self.maker.path(shot["start_image"]))
             if shot["narration"]:
                 narration.append({"start": round(start, 2), "text": shot["narration"], "shot": i + 1})
-            start += _probe(clips[-1])["seconds"]
+            bounds.append((start, start + _probe(clips[-1])["seconds"]))
+            start = bounds[-1][1]
         if not clips:
             raise ValueError("there are no shots")
         if project.get("film", {}).get("status") == "working":
@@ -925,9 +990,26 @@ class Director:
         info = {"title": project["title"], "fast": project.get("fast", True), "narration": narration,
                 "prompts": [s["action"] or s["motion"] for s in project["shots"]],
                 "engine": "minimax-h3" if any(_probe(c)["audio"] for c in clips) else "wan22"}
+        words = self.reel_times(project.get("reel", {}).get("parts", []), bounds) if project["brief"].get("format") == "reel" else None
+        if words is not None and not words:
+            raise ValueError("the reel has no words on screen: write them in Words on screen")
         self.update(project_id, lambda p: p.update(film={"status": "working", "started": time.time()}))
         self._task_started(project_id)
-        threading.Thread(target=self._film, args=(project_id, clips, keyframes, info), daemon=True).start()
+        threading.Thread(target=self._film, args=(project_id, clips, keyframes, info, words), daemon=True).start()
+
+    @staticmethod
+    def reel_times(parts, bounds):
+        """Seconds for each part on screen: it appears a moment into its shot (a little later for each earlier
+        part in the same shot) and stays until the end of its until_shot."""
+        timed, per_shot = [], {}
+        for part in parts:
+            first, last = min(part["shot"], len(bounds)) - 1, min(part["until_shot"], len(bounds)) - 1
+            k = per_shot[first] = per_shot.get(first, -1) + 1
+            start = bounds[first][0] + 0.6 + 1.4 * k
+            end = bounds[max(first, last)][1] - 0.15
+            if end - start >= 0.8:
+                timed.append({"text": part["text"], "accent": part["accent"], "start": round(start, 2), "end": round(end, 2)})
+        return timed
 
     @staticmethod
     def _join(clips, out_path):
@@ -959,9 +1041,19 @@ class Director:
         if proc.returncode:
             raise RuntimeError(proc.stderr.strip()[-600:] or "ffmpeg failed")
 
-    def _film(self, project_id, clips, keyframes, info):
+    def _film(self, project_id, clips, keyframes, info, words=None):
+        def make(path):
+            if words is None:
+                return self._join(clips, path)
+            clean = os.path.join(os.path.dirname(path), "clean.mp4")  # the cut without words, for editing them later
+            self._join(clips, clean)
+            reel.compose(clean, path, words)
         try:
-            job = self.add_film(lambda path: self._join(clips, path), keyframes, info)
+            job = self.add_film(make, keyframes, info)
+            if words is not None:
+                project = self._load(project_id) or {}
+                self.jobs.update(job, reel={"source": job["id"], "parts": words, "logo": True, "end_card": True,
+                                            "caption": project.get("reel", {}).get("caption", "")})
             self.update(project_id, lambda p: p.update(film={"status": "done", "finished": time.time(),
                                                               "shots": len(clips), "job_id": job["id"]}))
         except Exception as e:

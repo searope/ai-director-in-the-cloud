@@ -120,6 +120,21 @@ The model needs to see images: Claude Code reads the sheet with its Read tool (o
 only in the sheet's folder), the Claude API and OpenAI-compatible endpoints get it in the request,
 and a `command` writer gets the file's path. One check is one request (~20-30 s with Claude Code).
 
+## Lantern reels
+
+Format **Lantern reel** makes a vertical 9:16 short of 20-30 seconds for a series about everyday stress,
+being well and mental health. The AI writes the script in four beats (a stressful moment, a reframe while
+the quote appears, one simple practice to try, a calm close) with a small glowing lantern in every reel, and
+also writes the **words on screen** (each from one shot until another; "glow" lines are lantern amber) and the
+post caption. Heavy topics get a line with the US 988 crisis number in the caption. You can edit the words
+and caption under the shot list. **Make film** then lays the words over the picture in the Lantern look
+(`remote/reel.py`): serif lines at the lower third, the lantern mark in the corner and a closing card with
+the glowing lantern. The words-free cut is kept, so the reel can be redone with other words.
+
+Any finished video can become a reel too: open it in the Library and choose **Quote reel** (times in
+seconds). A reel is a new video in the library, so Sound (music) and Download work on it; add music after
+the words, since Edit reel starts again from the original. The logo is `remote/static/lantern.png`.
+
 ## Tips
 
 - Keep each shot's **end change** small (one pose or camera change): a shot is only 2-5 s.
