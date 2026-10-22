@@ -1767,7 +1767,7 @@ function openCharacter(id, refs, kind) {
 function stepCharacter(d) {
   const c = CH.id && charById(CH.id); if (!c) return;
   const edited = charSig() !== CH.sig;  // name, description, layout, pictures, floor plan
-  if (edited &&!confirm("Discard your changes to this character?")) return;
+  if (edited && !confirm("Discard your changes to this character?")) return;
   let ids = [...$("charGrid").querySelectorAll("[data-char]")].map((x) => x.dataset.char);
   if (!ids.includes(CH.id)) ids = S.characters.map((x) => x.id);
   if (ids.length < 2) return;
