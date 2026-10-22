@@ -110,7 +110,9 @@ REEL_SCHEMA["properties"]["reel"] = {
 
 # The series' look, filled in when a project becomes a Lantern reel with no style of its own (styles.json "paint-on-glass").
 REEL_STYLE = ("paint-on-glass animation, slow-drying oil paint smeared by fingers on backlit glass, soft morphing edges, "
-              "luminous glowing colour, visible finger strokes; night blue and warm lantern amber")
+              "luminous glowing colour, visible finger strokes; night blue and warm lantern amber; the painting fills the "
+              "frame edge to edge, no paper border")
+REEL_AVOID = "border, frame, vignette, paper edge"  # Wan's negative prompt for reel shots
 
 REEL_PROMPT = """
 
@@ -145,7 +147,8 @@ Before you answer, check every point and fix the script if one fails:
 - one practice from the list above is named in the words on screen and shown in the try-this shots;
 - every part is lowercase, at most 9 words, and the last shot has no words;
 - the caption has the practice on a line of its own;
-- every start_frame names the night-blue and lantern-amber palette and the visual style."""
+- every start_frame names the night-blue and lantern-amber palette and the visual style, and says the
+  picture fills the frame edge to edge with no border or vignette."""
 
 
 REVIEW_SCHEMA = {
@@ -986,7 +989,8 @@ class Director:
                                      "custom_style": project["brief"].get("style", ""),
                                      "restyle": False, "fast": project.get("fast", True), "audio": True,
                                      "length": LENGTH_FOR_SECONDS[shot["seconds"]], "size": "standard",
-                                     "smooth": engine == "wan22"})  # H3 and LTX already render 24-25 fps
+                                     "smooth": engine == "wan22",  # H3 and LTX already render 24-25 fps
+                                     "negative_extra": REEL_AVOID if project["brief"].get("format") == "reel" else ""})
         self.update(project_id, lambda p: self._shot(p, shot_id).update(job_id=job["id"]))
         return job
 
