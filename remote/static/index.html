@@ -217,7 +217,25 @@
 
       <div class="feed">
         <div class="section-head"><h3>Renders</h3><span id="jobCount" class="hint"></span></div>
+        <div class="jl-tools">
+          <div class="chips jl-status" id="jobStatus" role="group" aria-label="Show renders">
+            <button type="button" class="chip on" data-status="">All</button>
+            <button type="button" class="chip" data-status="active">Rendering</button>
+            <button type="button" class="chip" data-status="done">Done</button>
+            <button type="button" class="chip" data-status="failed">Failed</button>
+          </div>
+          <div class="jl-find">
+            <select id="jobKind" aria-label="Made in">
+              <option value="">Everywhere</option>
+              <option value="video">Create video</option>
+              <option value="shot">Director shots</option>
+              <option value="film">Films and reels</option>
+            </select>
+            <input id="jobSearch" type="search" placeholder="Search prompts and titles" aria-label="Search renders">
+          </div>
+        </div>
         <div id="jobList" class="jobs"></div>
+        <div id="jobPager" class="jl-pager hidden"></div>
       </div>
     </section>
 

@@ -572,7 +572,7 @@ function openVideo(id) {
 const SND = { job: null, kind: "voice", version: "original", lines: [], sig: "", video: "" };
 const SND_KINDS = { voice: "Voice-over", dialogue: "Dialogue", sfx: "Effect", music: "Music" };
 // An older film may be outside the newest 50 jobs: the open Director project carries its job.
-const jobById = (id) => S.jobs.find((x) => x.id === id) || (D.project?.film?.job?.id === id ? D.project.film.job : null);
+const jobById = (id) => S.jobs.find((x) => x.id === id) || VL.items.find((x) => x.id === id) || (D.project?.film?.job?.id === id ? D.project.film.job : null);
 const sndJob = () => jobById(SND.job);
 const sndAudio = (j) => j.audio || { tracks: [], dubs: {}, video_volume: 1, mixed: null };
 
@@ -1409,13 +1409,80 @@ function busyButton(btn, text) {
   btn.disabled = true; btn.classList.add("busy"); btn.innerHTML = `<span class="spinner"></span>${esc(text)}`;
   return () => { if (btn.isConnected) { btn.disabled = false; btn.classList.remove("busy"); btn.innerHTML = html; } };
 }
+// ---------------------------------------------------------------- the render list
+// One page of renders at a time (GET /api/jobs?offset&limit&status&kind&q; rendering ones first), a slim row
+// each, the full card only for the open one. Director shots next to each other fold under their film.
+const VL = { status: "", kind: store.get("jl_kind", ""), q: "", offset: 0, limit: 25,
+  items: [], total: 0, counts: null, open: null, groups: new Map() };  // groups: project id -> folded open by the user
+const ACTIVE_STATES = ["queued", "running", "approve"];
+const vlQuery = () => new URLSearchParams({ offset: VL.offset, limit: VL.limit, status: VL.status, kind: VL.kind, q: VL.q }).toString();
+async function refreshJobList() {
+  const key = vlQuery(), r = await api(`/api/jobs?${key}`);
+  if (key !== vlQuery()) return;  // the filters changed meanwhile: this answer is out of date
+  if (r.total && VL.offset >= r.total) { VL.offset = Math.floor((r.total - 1) / VL.limit) * VL.limit; return refreshJobList(); }
+  Object.assign(VL, { items: r.items, total: r.total, counts: r.counts });
+}
+const reloadJobList = () => refreshJobList().then(renderJobs).catch((e) => toast(e.message));
+// Today: the time; earlier: the date too. Not "5 min ago": an open row would be redrawn (and its video stopped) as it ages.
+const jobWhen = (t) => { const d = new Date(t * 1000);
+  return d.toLocaleString([], d.toDateString() === new Date().toDateString() ? { hour: "numeric", minute: "2-digit" }
+    : { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); };
+const jobPic = (j) => j.styled.length ? jobImg(j, "styled", j.styled[0]) : j.inputs.length ? jobImg(j, "input", j.inputs[0]) : "";
+function jobLength(j) {
+  if (j.kind === "film") return `${j.settings.prompts.length} shots`;
+  const r = j.render || {}, s = j.settings;
+  if (r.seconds) return `${r.seconds} s`;
+  return `≈ ${Math.round(Math.max(1, j.inputs.length - (s.loop ? 0 : 1)) * (s.length - 1) / 16)} s`;
+}
+function jobProgressShort(j) {
+  const eta = (sec) => sec < 60 ? "under a minute" : `${Math.round(sec / 60)} min`;
+  if (j.status === "approve") return "check the redrawn keyframes";
+  if (j.status === "queued") return `${j.queue_position ? `#${j.queue_position} in line` : "waiting"}${j.starts_in_seconds ? ` · starts in ${eta(j.starts_in_seconds)}` : ""}`;
+  return `${j.progress}${j.eta_seconds && j.progress !== "cancelling…" ? ` · ${eta(j.eta_seconds)} left` : ""}`;
+}
+function jobRow(j, inGroup) {
+  const src = j.source || {}, open = VL.open === j.id, active = ACTIVE_STATES.includes(j.status);
+  const cancelling = j.status === "running" && j.progress === "cancelling…";
+  const label = cancelling ? "cancelling…" : { approve: "waiting for you", running: "rendering" }[j.status] || j.status;
+  const title = j.kind === "film" ? j.title || "Film" : j.settings.prompts.find(Boolean) || "(smooth natural motion)";
+  const from = src.kind === "shot" ? (inGroup ? `Shot ${src.shot || "?"}` : `${src.title || "Director"} · shot ${src.shot || "?"}`)
+    : { film: "Film", reel: "Reel" }[src.kind] || "";
+  const engine = (S.info?.engines || []).find((e) => e.id === j.settings.engine)?.label || j.settings.engine;
+  const sub = active ? [from, jobProgressShort(j)] : [from, engine, jobLength(j), jobWhen(j.created)];
+  const flash = S.flashJob?.id === j.id && Date.now() < S.flashJob.until, pic = jobPic(j);
+  return `<div class="jrow${open ? " open" : ""}${inGroup ? " in-group" : ""}${flash ? " flash" : ""}" data-row="${j.id}">
+    <button type="button" class="jr-head" data-open aria-expanded="${open}">
+      <span class="jr-thumb">${pic ? `<img loading="lazy" alt="" src="${pic}">` : ""}</span>
+      <span class="jr-main"><span class="jr-title">${esc(title)}</span><span class="jr-sub">${esc(sub.filter(Boolean).join(" · "))}</span></span>
+      <span class="status ${j.status}${cancelling ? " cancelling" : ""}">${label}</span>
+    </button>
+    ${j.status === "running" && !open ? `<div class="bar"><span></span></div>` : ""}
+    ${open ? jobCard(j) : ""}
+  </div>`;
+}
+function jobGroupHead(src, rows, open) {
+  const done = rows.filter((j) => j.status === "done").length, bad = rows.filter((j) => ["failed", "cancelled"].includes(j.status)).length;
+  const pics = rows.map(jobPic).filter(Boolean).slice(0, 3);
+  return `<div class="jgroup${open ? " open" : ""}">
+    <button type="button" class="jr-head" data-group="${esc(src.project)}" aria-expanded="${open}">
+      <span class="jr-thumb jg-stack">${pics.map((p) => `<img loading="lazy" alt="" src="${p}">`).join("")}</span>
+      <span class="jr-main"><span class="jr-title">${esc(src.title || "Director film")}</span>
+        <span class="jr-sub">${esc([`Director · ${rows.length} renders`, done ? `${done} done` : "", bad ? `${bad} failed` : "", jobWhen(rows[0].created)].filter(Boolean).join(" · "))}</span></span>
+      <span class="jg-caret" aria-hidden="true">${open ? "▾" : "▸"}</span>
+    </button></div>`;
+}
 // After queueing a render: bring the list to it and flash it, so it's clear where it went.
-function showNewJob(id) {
-  S.flashJob = { id, until: Date.now() + 3000 };  // kept in the state: the card is redrawn when its status changes
+async function showNewJob(id) {
+  S.flashJob = { id, until: Date.now() + 3000 };  // kept in the state: the row is redrawn when its status changes
   (S.seenJobs ||= new Set()).add(id);
+  VL.offset = 0; if (VL.status !== "active") VL.status = "";
+  try {
+    await refreshJobList();
+    if (!VL.items.some((j) => j.id === id)) { VL.kind = VL.q = ""; $("jobSearch").value = ""; await refreshJobList(); }
+  } catch (e) {}
   renderJobs();
-  setTimeout(() => {  // one jump after the redraw (a smooth scroll is cancelled when the card is redrawn mid-way)
-    const el = document.querySelector(`#jobList .job[data-id="${id}"]`); if (!el || !el.offsetParent) return;
+  setTimeout(() => {  // one jump after the redraw (a smooth scroll is cancelled when the row is redrawn mid-way)
+    const el = document.querySelector(`#jobList [data-row="${id}"]`); if (!el || !el.offsetParent) return;
     window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + scrollY - 80) });
   }, 50);
   setTimeout(() => renderJobs(), 3100);
@@ -1428,19 +1495,52 @@ function renderJobs() {
     if (fresh && S.flashJob?.id !== fresh.id) { S.jobs.forEach((j) => S.seenJobs.add(j.id)); return showNewJob(fresh.id); }
   }
   S.seenJobs = new Set([...(S.seenJobs || []), ...S.jobs.map((j) => j.id)]);
-  if (!S.jobs.length) { setHtml(list, emptyState("No renders yet. Add keyframes on the left, describe the motion, and render.")); return; }
+  if (!VL.counts) {  // the first page isn't loaded yet
+    if (!VL.loading) { VL.loading = true; refreshJobList().then(() => { VL.loading = false; renderJobs(); }, (e) => { VL.loading = false; toast(e.message); }); }
+    return;
+  }
+  const c = VL.counts;
+  document.querySelectorAll("#jobStatus [data-status]").forEach((b) => {
+    b.dataset.label ||= b.textContent;
+    const n = b.dataset.status ? c[b.dataset.status] : 0;
+    b.textContent = b.dataset.label + (n ? ` ${n}` : ""); b.classList.toggle("on", b.dataset.status === VL.status);
+  });
+  $("jobKind").value = VL.kind;
+  $("jobCount").textContent = c.active ? `${c.active} rendering` : `${c.all} render${c.all === 1 ? "" : "s"}`;
+  // Rows, with a run of two or more finished renders of one Director film folded under a header.
+  const entries = [], items = VL.items, groupOf = (j) => !ACTIVE_STATES.includes(j.status) && j.source?.project;
+  for (let i = 0; i < items.length;) {
+    const p = groupOf(items[i]); let k = i + 1;
+    while (p && k < items.length && groupOf(items[k]) === p) k++;
+    if (k - i < 2) { entries.push({ key: `j:${items[i].id}`, html: jobRow(items[i], false) }); i++; continue; }
+    const rows = items.slice(i, k), open = VL.groups.has(p) ? VL.groups.get(p) : rows.some((j) => j.id === VL.open);
+    entries.push({ key: `g:${p}:${rows[0].id}`, html: jobGroupHead(items[i].source, rows, open) });
+    if (open) rows.forEach((j) => entries.push({ key: `j:${j.id}`, html: jobRow(j, true) }));
+    i = k;
+  }
+  const end = VL.offset + items.length;
+  $("jobPager").classList.toggle("hidden", VL.total <= VL.limit && !VL.offset);
+  setHtml($("jobPager"), `<button type="button" class="btn small" data-page="-1"${VL.offset ? "" : " disabled"}>‹ Newer</button>
+    <span class="hint">${items.length ? `${VL.offset + 1}–${end}` : 0} of ${VL.total}</span>
+    <button type="button" class="btn small" data-page="1"${end < VL.total ? "" : " disabled"}>Older ›</button>`);
+  if (!entries.length) {
+    setHtml(list, VL.status || VL.kind || VL.q
+      ? `<div class="empty">No renders match.<br><button type="button" class="btn small" data-clear-filters>Show all renders</button></div>`
+      : emptyState("No renders yet. Add keyframes on the left, describe the motion, and render."));
+    return;
+  }
   if (list.querySelector(".empty")) { list.innerHTML = ""; list.dataset.sig = ""; }
-  // Only touch cards that changed, and never move unchanged ones: detaching a <video> stops playback.
-  const existing = new Map([...list.children].map((c) => [c.dataset.id, c]));
-  const ids = new Set(S.jobs.map((j) => j.id));
-  for (const [id, el] of existing) if (!ids.has(id)) el.remove();
+  // Only touch rows that changed, and never move unchanged ones: detaching a <video> stops playback.
+  const existing = new Map([...list.children].map((c) => [c.dataset.key, c]));
+  const keys = new Set(entries.map((x) => x.key));
+  for (const [key, el] of existing) if (!keys.has(key)) el.remove();
   let prev = null;
-  for (const j of S.jobs) {
-    const html = jobCard(j);
-    let el = existing.get(j.id);
-    if ((!el || el.dataset.html !== html) && !(el && el.contains(document.activeElement))) {  // keep a card being edited
+  for (const { key, html } of entries) {
+    let el = existing.get(key);
+    const editing = el && el.contains(document.activeElement) && document.activeElement.matches("input, textarea, select");
+    if ((!el || el.dataset.html !== html) && !editing) {  // keep a card being edited
       const tmp = document.createElement("div"); tmp.innerHTML = html;
-      const fresh = tmp.firstElementChild; fresh.dataset.html = html;
+      const fresh = tmp.firstElementChild; fresh.dataset.html = html; fresh.dataset.key = key;
       if (el) el.replaceWith(fresh);
       el = fresh;
     }
@@ -1448,9 +1548,37 @@ function renderJobs() {
     if (want !== el) list.insertBefore(el, want);
     prev = el;
   }
-  const active = S.jobs.filter((j) => ["queued", "running"].includes(j.status)).length;
-  $("jobCount").textContent = active ? `${active} active` : `${S.jobs.length} render${S.jobs.length === 1 ? "" : "s"}`;
 }
+$("jobStatus").onclick = (e) => {
+  const b = e.target.closest("[data-status]"); if (!b) return;
+  VL.status = b.dataset.status; VL.offset = 0; reloadJobList();
+};
+$("jobKind").onchange = () => { VL.kind = $("jobKind").value; VL.offset = 0; store.set("jl_kind", VL.kind); reloadJobList(); };
+$("jobSearch").oninput = () => {
+  clearTimeout(VL.typing);
+  VL.typing = setTimeout(() => { VL.q = $("jobSearch").value.trim(); VL.offset = 0; reloadJobList(); }, 300);
+};
+$("jobPager").onclick = async (e) => {
+  const b = e.target.closest("[data-page]"); if (!b || b.disabled) return;
+  VL.offset = Math.max(0, VL.offset + b.dataset.page * VL.limit); VL.open = null;
+  await reloadJobList();
+  const top = $("jobList").getBoundingClientRect().top;
+  if (top < 0) window.scrollTo({ top: scrollY + top - 120 });
+};
+$("jobList").addEventListener("click", (e) => {
+  if (e.target.closest("[data-clear-filters]")) {
+    VL.status = VL.kind = VL.q = ""; VL.offset = 0; $("jobSearch").value = "";
+    store.set("jl_kind", ""); reloadJobList(); return;
+  }
+  const g = e.target.closest("[data-group]");
+  if (g) { VL.groups.set(g.dataset.group, g.getAttribute("aria-expanded") !== "true"); renderJobs(); return; }
+  const head = e.target.closest("[data-open]"); if (!head) return;
+  const id = head.closest("[data-row]").dataset.row;
+  VL.open = VL.open === id ? null : id;
+  renderJobs();
+  const row = document.querySelector(`#jobList [data-row="${id}"]`), top = row?.getBoundingClientRect().top;
+  if (row && VL.open && (top < 60 || top > innerHeight - 120)) window.scrollTo({ top: Math.max(0, scrollY + top - 80) });
+});
 async function deleteJob(id) {
   if (!confirm("Delete this render?")) return false;
   try { await api(`/api/jobs/${id}`, { method: "DELETE" }); await refreshJobs(); renderAll(); return true; }
@@ -2414,7 +2542,7 @@ async function refreshInfo() {
   renderStatus();
 }
 async function refreshImages() { S.images = await api("/api/images"); S.imagesLoaded = true; }
-async function refreshJobs() { S.jobs = await api("/api/jobs"); }
+async function refreshJobs() { [S.jobs] = await Promise.all([api("/api/jobs"), S.page === "video" ? refreshJobList() : null]); }
 async function refreshCharacters() { S.characters = await api("/api/characters"); S.charactersLoaded = true; }
 
 function renderAll() {
