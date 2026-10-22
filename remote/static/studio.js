@@ -1980,9 +1980,13 @@ function renderDirector() {
   const board = D.tab === "board", words = D.tab === "words";
   $("dirShots").classList.toggle("hidden", board || words); $("dirAddShot").classList.toggle("hidden", board || words);
   $("dirBoard").classList.toggle("hidden", !board);
-  // the shots sit under a heading naming their film, so they read as its parts
+  // the shots sit under a heading naming their film; once the film is made they fold away under it
+  // (click the heading to open or close them; each film remembers its choice)
+  const folded = shotsFolded(p);
   $("dirShotsHead").classList.toggle("hidden", board || words || !p.shots.length);
-  setHtml($("dirShotsHead"), `${p.shots.length} shot${p.shots.length === 1 ? "" : "s"} in <b>${esc(p.title)}</b>`);
+  setHtml($("dirShotsHead"), `<button type="button" class="linkish" data-fold aria-expanded="${!folded}">${folded ? "▸" : "▾"}
+    ${p.shots.length} shot${p.shots.length === 1 ? "" : "s"} in <b>${esc(p.title)}</b>${folded ? " · show them" : ""}</button>`);
+  if (!board && !words) { $("dirShots").classList.toggle("hidden", folded); $("dirAddShot").classList.toggle("hidden", folded); }
   renderDirReel(p, words);
   if (board) renderBoard(p); else if (!words) renderShots(p);
   renderShotPanel(p);
@@ -2140,6 +2144,11 @@ function shotRenderSettings(p, s) {
     <button type="button" class="btn small ghost" data-sa="reset"${own ? "" : " disabled"}>Reset to defaults</button></div>`;
 }
 // The settings panel while a shot is selected: its full card, with the way back to the film's settings.
+const shotsFolded = (p) => store.get(`shots_folded_${p.id}`, p.film?.status === "done") && !D.sel;  // a selected shot stays in view
+$("dirShotsHead").onclick = (e) => {
+  if (!e.target.closest("[data-fold]") || !D.project) return;
+  store.set(`shots_folded_${D.project.id}`, !shotsFolded(D.project)); renderDirector();
+};
 function renderShotPanel(p) {
   const panel = $("dirShotEdit"), i = p.shots.findIndex((s) => s.id === D.sel);
   if (i < 0) D.sel = null;

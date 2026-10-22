@@ -786,3 +786,7 @@ body.no-scroll { overflow: hidden; }
 .shots-head { font-size: 13px; color: var(--muted); margin: 4px 0 8px; }
 .shots-head b { color: var(--text); }
 #dirShots { border-left: 3px solid rgba(139, 92, 246, .45); padding-left: 12px; margin-left: 6px; }
+
+/* cards about as wide as a player and its text need, not the whole column */
+.mcard { max-width: 760px; }
+.shots-head .linkish { font-size: 13px; color: var(--muted); }
