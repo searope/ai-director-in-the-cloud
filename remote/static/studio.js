@@ -1972,12 +1972,16 @@ function renderDirector() {
   $("dirFilm").disabled = !p.shots.length || rendered < p.shots.length || p.film?.status === "working";
   $("dirFilm").title = rendered < p.shots.length ? `${rendered} of ${p.shots.length} shots rendered` : "";
   renderFilm(p);
-  renderDirReel(p);
+  // tabs: the shots, the storyboard, and for a Lantern reel its words on screen and caption
+  const reel = p.brief.format === "reel";
+  if (D.tab === "words" && !reel) D.tab = "shots";
+  document.querySelector('#dirTabs [data-dtab="words"]').classList.toggle("hidden", !reel);
   document.querySelectorAll("#dirTabs [data-dtab]").forEach((b) => b.classList.toggle("on", b.dataset.dtab === D.tab));
-  const board = D.tab === "board";
-  $("dirShots").classList.toggle("hidden", board); $("dirAddShot").classList.toggle("hidden", board);
+  const board = D.tab === "board", words = D.tab === "words";
+  $("dirShots").classList.toggle("hidden", board || words); $("dirAddShot").classList.toggle("hidden", board || words);
   $("dirBoard").classList.toggle("hidden", !board);
-  if (board) renderBoard(p); else renderShots(p);
+  renderDirReel(p, words);
+  if (board) renderBoard(p); else if (!words) renderShots(p);
   renderShotPanel(p);
 }
 
@@ -2257,8 +2261,8 @@ function renderFilm(p) {
 
 // A Lantern reel's words on screen (each from one shot until another) and its post caption, written by the AI
 // with the script and editable here; Make film lays them over the picture.
-function renderDirReel(p) {
-  const box = $("dirReel"), on = p.brief.format === "reel";
+function renderDirReel(p, shown = true) {
+  const box = $("dirReel"), on = p.brief.format === "reel" && shown;
   box.classList.toggle("hidden", !on);
   if (!on || box.contains(document.activeElement)) return;  // don't redraw what is being typed
   const r = p.reel || { parts: [], caption: "" }, n = Math.max(1, p.shots.length);
