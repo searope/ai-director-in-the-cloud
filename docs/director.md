@@ -120,6 +120,41 @@ The model needs to see images: Claude Code reads the sheet with its Read tool (o
 only in the sheet's folder), the Claude API and OpenAI-compatible endpoints get it in the request,
 and a `command` writer gets the file's path. One check is one request (~20-30 s with Claude Code).
 
+## Places: the same room in every shot
+
+A character keeps its face because the image model sees its reference picture; a room needs the same.
+In **Characters**, **New place** makes a place: its first image is the **master picture**, a wide view of
+the whole room with nobody in it, in your film's aspect ratio; its **layout** says where things are ("bed
+against the back wall, nightstand with the lantern on its LEFT, one round window above the headboard"); an
+optional **floor plan** (draw it in the plan editor: bed, nightstand, window, door, camera...) shows the room
+from above. Add the place to a film's cast: the AI writer lists it in every shot that happens there and
+describes the room by its layout, and the image model gets the master picture, the plan and the layout with
+every keyframe in that place (up to 3 characters and one place per picture).
+
+With **Draw shots from the place's picture** on (the default), a shot's start keyframe is drawn as an *edit*
+of the master picture, so the furniture can't move: the nightstand stays on the same side and the window keeps
+its shape. Turn it off for shots whose camera angle is very different from the master's.
+
+## Render all: one shot at a time, each one checked
+
+**Render all** renders the shots one by one. After each render, the project's AI model checks the clip
+(below) before the next one starts, and Render all stops at the first shot that needs another go: no GPU time
+goes to the rest. It also stops on a shot without keyframes or with a warning. With a writer that is paid per
+use, or none set up, it stops after every shot so you can look at it yourself; press Render all again to go on.
+Fix a stopped shot (the check suggests a better motion prompt and what to change in the keyframes), render it
+again, and Render all carries on from the next one.
+
+Each shot card warns before you render:
+- the start and end keyframes are almost the same picture: the clip will barely move (put the action or a
+  camera move into the end change);
+- the motion or style names how the picture is made (fingers, brushes, glass): video models show those things
+  (real fingers smearing the paint). Describe only what the camera sees.
+
+The clip check compares the frames with the shot: every point of its action and end, the characters'
+expressions, the timing (one long breath, not a quick in-and-out), whether the clip really moves, anything
+showing how it was made, and, for a shot in a place, the room against the place's picture. It also measures how
+far the first and last frames are from the keyframes.
+
 ## Lantern reels
 
 Format **Lantern reel** (the series' look is filled in when the brief leaves it open: the paint-on-glass style, and any character whose name starts with "Lantern" in the cast) makes a vertical 9:16 short of 20-30 seconds for a series about everyday stress,

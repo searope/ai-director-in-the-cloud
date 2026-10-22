@@ -1597,6 +1597,8 @@ $("setNew").onclick = () => openCharacter(null, [], "set");
 // Characters and places (sets) share one store: a place has a master picture of the whole room, a written layout
 // and an optional floor plan, and keeps its furniture where it is in every shot.
 const CH = { id: null, refs: [], kind: "character", plan: null, planItems: [] };
+// what the sheet shows, to tell whether it was changed since it opened
+const charSig = () => JSON.stringify([$("charName").value, $("charDesc").value, $("charLayout").value, CH.refs, CH.kind, CH.plan]);
 function setCharKind(kind) {
   CH.kind = kind;
   document.querySelectorAll("#charKind [data-kind]").forEach((b) => b.classList.toggle("on", b.dataset.kind === kind));
@@ -1719,7 +1721,10 @@ function planHit(px, py) {
 $("planItems").onclick = (e) => {
   const b = e.target.closest("[data-thing]"); if (!b) return;
   const [w, h] = PLAN_THINGS[b.dataset.thing];
-  PLAN.items.push({ type: b.dataset.thing, x: 0.5 - w / 2, y: 0.5 - h / 2, w, h, rot: 0 }); PLAN.sel = PLAN.items.length - 1; drawPlan();
+  const k = PLAN.items.length % 6, off = (k - 2.5) * 0.07;  // new things cascade instead of stacking in the middle
+  PLAN.items.push({ type: b.dataset.thing, x: Math.min(1 - w, Math.max(0, 0.5 - w / 2 + off)), y: Math.min(1 - h, Math.max(0, 0.5 - h / 2 + off)),
+    w, h, rot: 0 });
+  PLAN.sel = PLAN.items.length - 1; drawPlan();
 };
 $("planCanvas").addEventListener("pointerdown", (e) => {
   const [px, py] = planAt(e), i = planHit(px, py);

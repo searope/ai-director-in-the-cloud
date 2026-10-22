@@ -703,5 +703,5 @@ body.no-scroll { overflow: hidden; }
 
 /* places: the floor plan editor and its preview in the character sheet */
 .plan-sheet { width: min(820px, 100%); }
-#planCanvas { width: min(100%, 560px); aspect-ratio: 1; display: block; margin: 10px auto; border-radius: 10px; background: #fff; touch-action: none; cursor: grab; }
+#planCanvas { width: min(100%, 560px, calc(var(--vh, 100vh) - 300px)); aspect-ratio: 1; display: block; margin: 10px auto; border-radius: 10px; background: #fff; touch-action: none; cursor: grab; }
 .plan-field img { width: 160px; border-radius: 8px; background: #fff; display: block; margin-bottom: 6px; }

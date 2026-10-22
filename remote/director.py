@@ -1101,6 +1101,7 @@ class Director:
                 start = self._wait_task(self.maker.start(prompt, aspect, place["refs"][0], None, model, people))
             else:
                 start = self._wait_task(self.maker.start(shot["start_frame"], aspect, None, None, model, cast))
+            if not keep_start:
                 self.update(project_id, lambda p: self._shot(p, shot_id).update(start_image=start))
             end = self._wait_task(self.maker.start(shot["end_change"], aspect, start, None, model, cast))
             self.update(project_id, lambda p: self._shot(p, shot_id).update(end_image=end, kf_status="done"))

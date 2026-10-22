@@ -454,6 +454,8 @@ def clean_plan_items(raw):
     for it in (raw or [])[:60]:
         try:
             box = {k: min(1.0, max(0.0, float(it.get(k, 0)))) for k in ("x", "y", "w", "h")}
+            if not it.get("type") or not box["w"] or not box["h"]:
+                continue
             items.append({"type": str(it.get("type") or "thing")[:20], **box, "rot": int(it.get("rot") or 0) % 360})
         except (TypeError, ValueError, AttributeError):
             continue
