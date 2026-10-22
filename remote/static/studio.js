@@ -1638,9 +1638,8 @@ function openCharacter(id, refs, kind) {
 // the next/previous character, in the Characters grid's order (asks before dropping edits)
 function stepCharacter(d) {
   const c = CH.id && charById(CH.id); if (!c) return;
-  const edited = $("charName").value !== c.name || $("charDesc").value !== (c.description || "")
-    || ($("charLayout")?.value ?? "") !== (c.layout || "") || CH.refs.join() !== c.refs.join();
-  if (edited && !confirm("Discard your changes to this character?")) return;
+  const edited = charSig() !== CH.sig;  // name, description, layout, pictures, floor plan
+  if (edited &&!confirm("Discard your changes to this character?")) return;
   let ids = [...$("charGrid").querySelectorAll("[data-char]")].map((x) => x.dataset.char);
   if (!ids.includes(CH.id)) ids = S.characters.map((x) => x.id);
   if (ids.length < 2) return;
