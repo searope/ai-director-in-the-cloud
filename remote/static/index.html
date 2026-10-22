@@ -252,6 +252,10 @@
             <input id="dirTitle" type="text" maxlength="120">
           </div>
           <div class="field-block">
+            <label class="lbl" for="dirFormat">Format</label>
+            <select id="dirFormat"><option value="film">Film</option><option value="reel">Lantern reel: 9:16, words on screen</option></select>
+          </div>
+          <div class="field-block">
             <label class="lbl" for="dirIdea">Idea</label>
             <textarea id="dirIdea" rows="4" placeholder="What happens? e.g. a young sailor relights a dead lighthouse during a storm and saves a ship"></textarea>
           </div>
@@ -307,6 +311,7 @@
             </div>
           </div>
           <div id="dirFilmBox"></div>
+          <div id="dirReel" class="reel-words hidden"></div>
           <div id="dirShots" class="shots"></div>
           <button type="button" id="dirAddShot" class="btn ghost wide">+ Add a shot</button>
           <div id="dirBoard" class="hidden"></div>
@@ -448,6 +453,33 @@
       <span class="grow"></span>
       <button type="button" id="ssRedraw" class="btn">Redraw examples</button>
       <button type="button" id="ssSave" class="btn primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="reelSheet" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="reelTitle">
+  <div class="sheet reel-sheet">
+    <div class="sheet-head">
+      <h3 id="reelTitle">Quote reel</h3>
+      <span class="hint">9:16 in the Lantern look: the quote over the picture, the lantern mark, a lantern end card</span>
+      <button type="button" class="lb-close" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="char-body reel-body">
+      <div class="reel-preview"><video id="reelVideo" controls playsinline></video><p id="reelClock" class="hint"></p></div>
+      <div>
+        <label class="lbl">Words on screen <span class="hint">times in seconds; a line that starts while others show goes under them</span></label>
+        <div id="reelParts"></div>
+        <button type="button" id="reelAdd" class="btn small ghost">+ Add a line</button>
+        <label class="toggle"><input id="reelLogo" type="checkbox" checked><span>Lantern mark in the corner</span></label>
+        <label class="toggle"><input id="reelEnd" type="checkbox" checked><span>End on the glowing lantern</span></label>
+        <label class="lbl" for="reelCaption">Caption <span class="hint">for the post; not drawn on the video</span></label>
+        <textarea id="reelCaption" rows="4" maxlength="2200" placeholder="A line or two about the idea, the practice, a few hashtags"></textarea>
+      </div>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" id="reelCopy" class="btn ghost">Copy caption</button>
+      <span class="grow"></span>
+      <button type="button" id="reelGo" class="btn primary">Make reel</button>
     </div>
   </div>
 </div>

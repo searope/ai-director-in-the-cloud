@@ -320,7 +320,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {  // the picker can sit on top of the character sheet: close only the top one
     if (!$("picker").classList.contains("hidden")) return closeOverlay("picker");
     if (!$("ssZoom").classList.contains("hidden")) return closeOverlay("ssZoom");
-    closeOverlay("lightbox"); closeOverlay("charSheet"); closeOverlay("soundSheet"); closeOverlay("styleSheet");
+    closeOverlay("lightbox"); closeOverlay("charSheet"); closeOverlay("reelSheet"); closeOverlay("soundSheet"); closeOverlay("styleSheet");
   }
   if (e.key === "Enter" && e.target.matches?.(".tile")) e.target.click();
   if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !$("lightbox").classList.contains("hidden") && $("lbMedia").querySelector(".lb-paddle")
@@ -339,7 +339,7 @@ new MutationObserver(() => {
 
 // ---------------------------------------------------------------- back
 // Back (the browser's, the phone's, or a swipe right from the left edge) closes the top overlay first, then goes to the previous page.
-const OVERLAYS_TOP_FIRST = ["picker", "ssZoom", "lightbox", "charSheet", "soundSheet", "styleSheet"];
+const OVERLAYS_TOP_FIRST = ["picker", "ssZoom", "lightbox", "charSheet", "reelSheet", "soundSheet", "styleSheet"];
 const openOverlays = () => OVERLAYS_TOP_FIRST.filter((id) => !$(id).classList.contains("hidden"));
 window.addEventListener("popstate", () => {
   if (S.skipPop) { S.skipPop = false; return; }
@@ -526,6 +526,7 @@ function openVideo(id) {
     ${keyframeStrip(j)}
     <div class="acts">
       <button type="button" class="btn" data-lb="sound">Sound</button>
+      <button type="button" class="btn" data-lb="reel" title="A 9:16 reel with a quote over it, in the Lantern look">${j.reel ? "Edit reel" : "Quote reel"}</button>
       <a class="btn" href="${jobVideo(j, null, true)}">Download</a>
       <button type="button" class="btn danger" data-lb="delete">Delete</button>
     </div>`;
@@ -534,6 +535,7 @@ function openVideo(id) {
     if (kf) return openKeyframe(id, kf.dataset.kf, true);
     const a = e.target.closest("[data-lb]")?.dataset.lb;
     if (a === "sound") openSound(id);
+    else if (a === "reel") openReel(id);
     else if (a === "delete" && await deleteJob(id)) closeOverlay("lightbox");
   };
   $("lightbox").classList.remove("hidden");
@@ -1685,6 +1687,7 @@ function renderDirector() {
   $("dirFilm").disabled = !p.shots.length || rendered < p.shots.length || p.film?.status === "working";
   $("dirFilm").title = rendered < p.shots.length ? `${rendered} of ${p.shots.length} shots rendered` : "";
   renderFilm(p);
+  renderDirReel(p);
   document.querySelectorAll("#dirTabs [data-dtab]").forEach((b) => b.classList.toggle("on", b.dataset.dtab === D.tab));
   const board = D.tab === "board";
   $("dirShots").classList.toggle("hidden", board); $("dirAddShot").classList.toggle("hidden", board);
@@ -1787,7 +1790,11 @@ function renderDirPanel(p) {
     D.filled = fill;
     $("dirTitle").value = p.title; $("dirIdea").value = p.brief.idea; $("dirStyle").value = p.brief.style;
     $("dirSeconds").value = p.brief.seconds; $("dirAspect").value = p.brief.aspect; $("dirNotes").value = p.brief.notes;
+    $("dirFormat").value = p.brief.format || "film";
   }
+  $("dirAspect").disabled = p.brief.format === "reel";  // a reel is always 9:16
+  if (p.brief.format === "reel") $("dirAspect").value = "9:16";
+  $("dirAspect").title = p.brief.format === "reel" ? "A Lantern reel is always 9:16" : "";
   setHtml($("dirCast"), S.characters.length ? S.characters.map((c) => `<button type="button" class="cast-chip${p.cast.includes(c.id) ? " on" : ""}" data-dcast="${c.id}">
       ${c.refs[0] ? `<img alt="" src="${imgUrl(c.refs[0])}">` : ""}${esc(c.name)}</button>`).join("")
     : `<p class="hint" style="margin:0">No characters yet. <a href="#/characters">Create them</a> to keep faces consistent; without a cast the AI describes everyone in each prompt.</p>`);
@@ -1900,6 +1907,105 @@ function renderFilm(p) {
     : f.status === "failed" ? `<div class="ai-status bad"><b>The film wasn't made.</b> ${esc(f.error || "")}</div>` : "");
 }
 
+// A Lantern reel's words on screen (each from one shot until another) and its post caption, written by the AI
+// with the script and editable here; Make film lays them over the picture.
+function renderDirReel(p) {
+  const box = $("dirReel"), on = p.brief.format === "reel";
+  box.classList.toggle("hidden", !on);
+  if (!on || box.contains(document.activeElement)) return;  // don't redraw what is being typed
+  const r = p.reel || { parts: [], caption: "" }, n = Math.max(1, p.shots.length);
+  const opts = (sel) => Array.from({ length: n }, (_, i) => `<option${i + 1 === sel ? " selected" : ""}>${i + 1}</option>`).join("");
+  setHtml(box, `<div class="row"><b>Words on screen</b><span class="hint" style="margin:0 0 0 8px">from shot · until shot · glow = lantern amber</span></div>
+    ${r.parts.map((w, i) => `<div class="reel-row" data-rw="${i}">
+      <input type="text" data-f="text" maxlength="160" value="${esc(w.text)}" aria-label="Line ${i + 1}">
+      <select data-f="shot" aria-label="From shot">${opts(w.shot)}</select><select data-f="until_shot" aria-label="Until shot">${opts(w.until_shot)}</select>
+      <label class="toggle" title="Lantern amber, for the key phrase"><input type="checkbox" data-f="accent"${w.accent ? " checked" : ""}><span>glow</span></label>
+      <button type="button" class="btn small ghost" data-rw-del aria-label="Remove line">✕</button></div>`).join("")
+      || `<p class="hint">Write the script and the AI adds the words; or add them yourself.</p>`}
+    <button type="button" class="btn small ghost" data-rw-add>+ Add a line</button>
+    <label class="lbl">Caption <span class="hint">for the post</span></label>
+    <textarea data-rw-caption rows="4" maxlength="2200">${esc(r.caption)}</textarea>
+    <div class="row"><button type="button" class="btn small" data-rw-copy>Copy caption</button></div>`);
+}
+function dirReelFields() {
+  return { parts: [...$("dirReel").querySelectorAll("[data-rw]")].map((row) => ({
+    text: row.querySelector("[data-f=text]").value, accent: row.querySelector("[data-f=accent]").checked,
+    shot: +row.querySelector("[data-f=shot]").value, until_shot: +row.querySelector("[data-f=until_shot]").value })),
+    caption: $("dirReel").querySelector("[data-rw-caption]")?.value || "" };
+}
+$("dirReel").onchange = () => saveProject({ reel: dirReelFields() });
+$("dirReel").onclick = async (e) => {
+  const r = dirReelFields();
+  if (e.target.closest("[data-rw-add]")) r.parts.push({ text: "", accent: false, shot: 1, until_shot: 1 });
+  else if (e.target.closest("[data-rw-del]")) r.parts.splice(+e.target.closest("[data-rw]").dataset.rw, 1);
+  else if (e.target.closest("[data-rw-copy]")) return copyText(r.caption, "Caption copied");
+  else return;
+  document.activeElement?.blur();
+  if (r.parts.length && !r.parts.at(-1).text) {  // a new empty line: show it now, save it once it has words
+    D.project.reel = r; $("dirReel").dataset.sig = ""; renderDirReel(D.project);
+    $("dirReel").querySelector(".reel-row:last-of-type input")?.focus();
+    return;
+  }
+  await saveProject({ reel: r });
+};
+async function copyText(text, done) {
+  try { await navigator.clipboard.writeText(text); toast(done); } catch { toast("Couldn't copy: select the text and copy it"); }
+}
+
+// ---------------------------------------------------------------- Lantern quote reels
+// Any finished video becomes a 9:16 reel with its quote over it (remote/reel.py), as a new video in the library.
+// A reel remembers its words, so Edit reel makes a new one from the same original.
+const REEL = { job: null, parts: [] };
+function openReel(id) {
+  const j = jobById(id); if (!j) return;
+  const spec = j.reel, source = spec && jobById(spec.source);
+  REEL.job = id;
+  REEL.parts = spec ? spec.parts.map((x) => ({ ...x }))
+    : [{ text: "", start: 1, end: 6, accent: false }, { text: "", start: 2.5, end: 6, accent: true }];
+  $("reelLogo").checked = spec?.logo !== false; $("reelEnd").checked = spec?.end_card !== false;
+  $("reelCaption").value = spec?.caption || "";
+  $("reelVideo").src = source && source.id !== j.id ? jobVideo(source) : jobVideo(j);  // the words-free original when there is one
+  closeOverlay("lightbox");
+  renderReelParts();
+  $("reelSheet").classList.remove("hidden");
+}
+function renderReelParts() {
+  $("reelParts").innerHTML = REEL.parts.map((x, i) => `<div class="reel-row" data-rp="${i}">
+    <input type="text" data-f="text" maxlength="160" value="${esc(x.text)}" placeholder="${i ? "the key phrase" : "the first words"}" aria-label="Line ${i + 1}">
+    <input type="number" data-f="start" min="0" step="0.1" value="${x.start}" aria-label="Appears at (s)" title="Appears at (seconds)">
+    <input type="number" data-f="end" min="0" step="0.1" value="${x.end}" aria-label="Goes at (s)" title="Goes at (seconds)">
+    <label class="toggle" title="Lantern amber, for the key phrase"><input type="checkbox" data-f="accent"${x.accent ? " checked" : ""}><span>glow</span></label>
+    <button type="button" class="btn small ghost" data-rp-del aria-label="Remove line">✕</button></div>`).join("");
+}
+$("reelParts").oninput = (e) => {
+  const row = e.target.closest("[data-rp]"); if (!row) return;
+  const x = REEL.parts[+row.dataset.rp], f = e.target.dataset.f;
+  x[f] = f === "accent" ? e.target.checked : f === "text" ? e.target.value : +e.target.value;
+};
+$("reelParts").onclick = (e) => {
+  if (!e.target.closest("[data-rp-del]")) return;
+  REEL.parts.splice(+e.target.closest("[data-rp]").dataset.rp, 1); renderReelParts();
+};
+$("reelAdd").onclick = () => {
+  const t = Math.round(($("reelVideo").currentTime || 0) * 10) / 10;  // a new line starts where the preview is
+  REEL.parts.push({ text: "", start: t, end: Math.round((t + 4) * 10) / 10, accent: false }); renderReelParts();
+  $("reelParts").querySelector(".reel-row:last-child input")?.focus();
+};
+$("reelVideo").ontimeupdate = () => { $("reelClock").textContent = `at ${$("reelVideo").currentTime.toFixed(1)} s: use these times for the lines`; };
+$("reelCopy").onclick = () => copyText($("reelCaption").value, "Caption copied");
+$("reelGo").onclick = async () => {
+  const parts = REEL.parts.filter((x) => x.text.trim());
+  if (!parts.length) return toast("Write at least one line");
+  $("reelGo").disabled = true; $("reelGo").textContent = "Making the reel…";
+  try {
+    const j = await api(`/api/jobs/${REEL.job}/reel`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ parts, logo: $("reelLogo").checked, end_card: $("reelEnd").checked, caption: $("reelCaption").value }) });
+    await refreshJobs(); renderAll();
+    closeOverlay("reelSheet"); openVideo(j.id); toast("Reel made: it's in the Library");
+  } catch (e) { toast(e.message); }
+  $("reelGo").disabled = false; $("reelGo").textContent = "Make reel";
+};
+
 async function newFilm() {
   try {
     const p = await api("/api/director", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -1910,9 +2016,9 @@ async function newFilm() {
 $("dirNew").onclick = newFilm;
 function briefFields() {
   return { title: $("dirTitle").value, writer: $("dirWriter").value, brief: { idea: $("dirIdea").value, style: $("dirStyle").value,
-    seconds: $("dirSeconds").value, aspect: $("dirAspect").value, notes: $("dirNotes").value } };
+    seconds: $("dirSeconds").value, aspect: $("dirAspect").value, notes: $("dirNotes").value, format: $("dirFormat").value } };
 }
-["dirTitle", "dirIdea", "dirStyle", "dirSeconds", "dirAspect", "dirNotes"].forEach((id) => { $(id).onchange = () => saveProject(briefFields()); });
+["dirTitle", "dirFormat", "dirIdea", "dirStyle", "dirSeconds", "dirAspect", "dirNotes"].forEach((id) => { $(id).onchange = () => saveProject(briefFields()); });
 $("dirWriter").onchange = () => { store.set("writer", $("dirWriter").value); saveProject({ writer: $("dirWriter").value }); };
 $("dirCast").onclick = (e) => {
   const b = e.target.closest("[data-dcast]"); if (!b || !D.project) return;

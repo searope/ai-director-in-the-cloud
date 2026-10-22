@@ -42,6 +42,7 @@ import animate  # noqa: E402
 import clipreview  # noqa: E402
 import director as directors  # noqa: E402
 import gpu as gpus  # noqa: E402
+import reel  # noqa: E402
 import soundtrack  # noqa: E402
 
 STATIC = os.path.join(HERE, "static")
@@ -740,6 +741,33 @@ def add_film_job(jobs, make_video, keyframes, info):
     return job
 
 
+def reel_source(jobs, job):
+    """The video a Lantern reel is made from: for a reel, its original (without the words), else the video
+    with its Sound mix when it has one. A Director reel keeps its words-free cut as clean.mp4."""
+    src = jobs.jobs.get(job["reel"]["source"]) if job.get("reel") else job
+    if not src:
+        raise ValueError("the reel's original video was deleted from the library")
+    folder = jobs.dir(src["id"])
+    names = ["clean.mp4"] + (["mix.mp4"] if (src.get("audio") or {}).get("mixed") else [])
+    return src["id"], next((p for p in (os.path.join(folder, n) for n in names) if os.path.exists(p)), os.path.join(folder, "result.mp4"))
+
+
+def make_reel_job(jobs, job, raw):
+    """A new library video: `job` as a 9:16 Lantern reel with the words in raw["parts"] (see remote/reel.py)."""
+    source_id, src = reel_source(jobs, job)
+    spec = {"source": source_id, "parts": reel.clean_parts(raw.get("parts")),
+            "logo": raw.get("logo", True) is not False, "end_card": raw.get("end_card", True) is not False,
+            "caption": str(raw.get("caption") or "").strip()[:2200]}
+    if not spec["parts"]:
+        raise ValueError("write at least one line of the quote")
+    title = job["title"] if job.get("reel") else f"{job.get('title') or 'Video'} · reel"
+    new = add_film_job(jobs, lambda path: reel.compose(src, path, spec["parts"], spec["logo"], spec["end_card"]),
+                       job_keyframes(jobs, job), {"title": title, "prompts": job["settings"]["prompts"], "narration": job.get("narration", []),
+                                                  "engine": job["settings"].get("engine", "wan22"), "fast": job["settings"].get("fast", True)})
+    jobs.update(new, reel=spec)
+    return new
+
+
 # ---------------------------------------------------------------- web app
 
 def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
@@ -762,6 +790,17 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         if not job:
             raise web.HTTPNotFound()
         return job
+
+    async def job_reel(request):
+        job = get_job(request)
+        if job["status"] != "done":
+            return web.json_response({"error": "the video isn't finished yet"}, status=400)
+        raw = await request.json()
+        try:  # ffmpeg takes a few seconds per second of video
+            new = await asyncio.get_running_loop().run_in_executor(None, lambda: make_reel_job(jobs, job, raw))
+        except (ValueError, RuntimeError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+        return web.json_response(jobs.public(new))
 
     async def index(request):
         return web.FileResponse(os.path.join(STATIC, "index.html"), headers={"Cache-Control": "no-cache"})
@@ -1299,6 +1338,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         web.delete("/api/jobs/{id}/audio/{track}", delete_track),
         web.get("/api/jobs/{id}/audio/{name}", audio_file),
         web.post("/api/jobs/{id}/dubs", add_dub),
+        web.post("/api/jobs/{id}/reel", job_reel),
         web.delete("/api/jobs/{id}/dubs/{lang}", delete_dub),
         web.get("/api/jobs/{id}/image/{kind}/{name}", image),
         web.post("/api/keyframes/generate", keyframe_generate),

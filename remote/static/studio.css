@@ -682,3 +682,21 @@ body.no-scroll { overflow: hidden; }
 .sheet.slide-next { animation: slide-from-right .18s ease-out; }
 .sheet.slide-prev { animation: slide-from-left .18s ease-out; }
 @media (prefers-reduced-motion: reduce) { .sheet.slide-next, .sheet.slide-prev { animation: none; } }
+
+/* Lantern reels: the words-on-screen rows (Director and the Quote reel panel) */
+.reel-sheet { width: min(980px, 100%); }
+.reel-body { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 18px; padding-bottom: 18px; }
+.reel-preview video { width: 100%; max-height: 60vh; border-radius: 12px; background: #0f182c; }
+.reel-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.reel-row input[type=text] { flex: 1; min-width: 0; }
+.reel-row input[type=number] { width: 70px; }
+.reel-row select { width: 56px; }
+.reel-row .toggle { margin: 0; white-space: nowrap; }
+.reel-words { border: 1px solid var(--line2); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; }
+.reel-words textarea { width: 100%; box-sizing: border-box; }
+@media (max-width: 760px) {
+  .reel-body { grid-template-columns: minmax(0, 1fr); }
+  .reel-preview video { max-height: 40vh; }
+  .reel-row { flex-wrap: wrap; }
+  .reel-row input[type=text] { flex-basis: 100%; }
+}
