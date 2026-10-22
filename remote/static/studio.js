@@ -542,7 +542,7 @@ function openKeyframe(jobId, ref, back) {
 }
 
 function openVideo(id) {
-  const j = S.jobs.find((x) => x.id === id); if (!j) return;
+  const j = jobById(id); if (!j) return;  // a Director film may be older than the newest jobs
   const s = j.settings, sum = jobSummary(j);
   $("lbMedia").innerHTML = `<video controls autoplay loop playsinline src="${jobVideo(j)}"></video>`;
   const rows = [["Keyframes", j.inputs.length], ["Render time", j.started && j.finished ? fmtTime(j.finished - j.started) : ""], ["Created", ago(j.created)]]
@@ -2183,14 +2183,25 @@ function renderShots(p) {
   });
   list.dataset.sig = "";
 }
+// The finished film as a compact card: a small player and the basic facts; Open shows it full size.
 function renderFilm(p) {
   const f = p.film || {}, job = f.job;  // sent with the project: the job list only holds the newest 50
-  setHtml($("dirFilmBox"), f.status === "done" && job ? `<div class="film"><video controls playsinline preload="metadata" src="${jobVideo(job)}"></video>
-      <div class="row"><b>Film</b><span class="hint" style="margin:0">${f.shots} shots · made ${ago(f.finished)}${job.audio?.mixed ? " · with sound" : ""}</span>
-      <button type="button" class="btn small" data-film-sound="${job.id}">Sound</button>
-      <a class="btn small" href="${jobVideo(job, null, true)}">Download</a></div></div>`
+  const reel = p.brief.format === "reel", engine = (S.info.engines || []).find((e) => e.id === p.engine)?.label || p.engine;
+  const facts = job ? [["Length", `<span data-film-len>${f.seconds ? fmtTime(f.seconds) : "…"}</span>`], ["Shots", f.shots],
+    ["Aspect", p.brief.aspect], ["Video model", esc(engine || "")], ["Sound", job.audio?.mixed ? "mixed in Sound" : "as rendered"],
+    ...(reel ? [["Words on screen", `${(job.reel?.parts || []).length} lines`]] : []), ["Made", ago(f.finished)]] : [];
+  setHtml($("dirFilmBox"), f.status === "done" && job ? `<div class="film-card">
+      <video controls playsinline preload="metadata" src="${jobVideo(job)}"></video>
+      <div class="film-info"><div class="film-title"><b>${esc(p.title)}</b><span class="hint">${reel ? "Lantern reel" : "Film"}</span></div>
+        <dl>${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>
+        <div class="row"><button type="button" class="btn small" data-film-open="${job.id}">Open</button>
+          <button type="button" class="btn small" data-film-sound="${job.id}">Sound</button>
+          ${reel ? `<button type="button" class="btn small" data-film-reel="${job.id}">Edit reel</button>` : ""}
+          <a class="btn small" href="${jobVideo(job, null, true)}">Download</a></div></div></div>`
     : f.status === "working" ? `<div class="ai-status"><div class="spinner"></div>Joining the shots into one film…</div>`
     : f.status === "failed" ? `<div class="ai-status bad"><b>The film wasn't made.</b> ${esc(f.error || "")}</div>` : "");
+  const v = $("dirFilmBox").querySelector("video"), len = $("dirFilmBox").querySelector("[data-film-len]");
+  if (v && len) v.onloadedmetadata = () => { len.textContent = fmtTime(v.duration); };  // its real length, end card included
 }
 
 // A Lantern reel's words on screen (each from one shot until another) and its post caption, written by the AI
@@ -2416,7 +2427,12 @@ $("dirAutorun").onclick = async (e) => {
   if (e.target.closest("[data-autorun=stop]") && await shotAction("render_all/stop")) toast("Stopping after the shot that is rendering");
 };
 $("dirFilm").onclick = async () => { if (await shotAction("film")) refreshJobs(); };
-$("dirFilmBox").onclick = (e) => { const b = e.target.closest("[data-film-sound]"); if (b) openSound(b.dataset.filmSound); };
+$("dirFilmBox").onclick = (e) => {
+  const b = e.target.closest("[data-film-sound], [data-film-open], [data-film-reel]"); if (!b) return;
+  if (b.dataset.filmSound) openSound(b.dataset.filmSound);
+  else if (b.dataset.filmOpen) openVideo(b.dataset.filmOpen);
+  else openReel(b.dataset.filmReel);
+};
 $("dirDelete").onclick = async () => {
   if (!D.project || !confirm(`Delete "${D.project.title}"? Its images and renders stay in the library.`)) return;
   try { await api(`/api/director/${D.project.id}`, { method: "DELETE" }); D.project = null; location.hash = "#/director"; } catch (e) { toast(e.message); }

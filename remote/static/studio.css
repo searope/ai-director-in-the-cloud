@@ -294,10 +294,20 @@ a.char-card .row { color: var(--muted); font-size: 12.5px; }
 .dir-head .hint { margin-top: 4px; max-width: 640px; }
 .dir-head .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .dir-head .toggle { margin: 0 6px 0 0; font-size: 13px; }
-.film { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px; margin-bottom: 14px; }
-.film video { width: 100%; max-height: 60vh; background: #000; border-radius: 11px; display: block; }
-.film .row { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
-.film .row .btn { margin-left: auto; }
+.film-card { display: flex; gap: 16px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line);
+             border-radius: 16px; padding: 12px; margin-bottom: 14px; }
+.film-card video { height: 240px; width: auto; max-width: 45%; background: #000; border-radius: 11px; display: block; flex: none; }
+.film-info { flex: 1; min-width: 0; }
+.film-title { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 8px; }
+.film-title b { font-size: 16px; }
+.film-info dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0 0 10px; font-size: 13px; }
+.film-info dt { color: var(--muted); }
+.film-info dd { margin: 0; }
+.film-info .row { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 760px) {
+  .film-card { flex-direction: column; align-items: stretch; }
+  .film-card video { height: 220px; max-width: 100%; margin: 0 auto; }
+}
 .shots { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
 .shot { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px; }
 .shot-head { display: grid; grid-template-columns: 30px minmax(0, 1fr) 82px auto; gap: 8px; align-items: center; }
