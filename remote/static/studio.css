@@ -749,9 +749,9 @@ body.no-scroll { overflow: hidden; }
 .mcard { display: flex; gap: 14px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px; }
 .film-card { margin-bottom: 14px; }
 .mc-media { flex: none; }
-.mc-media video, .mc-media img, .mc-media .ph { height: 150px; width: auto; max-width: 240px; min-width: 84px; border-radius: 9px;
+.mc-media video, .mc-media img, .mc-media .ph { height: 300px; width: auto; max-width: 480px; min-width: 168px; border-radius: 9px;
   background: #000; display: block; object-fit: cover; }
-.mc-media .ph { display: grid; place-items: center; width: 100px; background: var(--card); border: 1px solid var(--line); color: var(--dim); font-size: 12px; }
+.mc-media .ph { display: grid; place-items: center; width: 170px; background: var(--card); border: 1px solid var(--line); color: var(--dim); font-size: 12px; }
 .mc-media img { cursor: zoom-in; }
 .mc-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .mc-title { display: flex; gap: 8px; align-items: center; min-width: 0; }
@@ -767,7 +767,7 @@ body.no-scroll { overflow: hidden; }
 .mc-flag.good { color: #5fd39a; border-color: #2f6e50; }
 .mc-flag.minor { color: #f2c46d; border-color: #6e5a2f; }
 .mc-flag.redo { color: #ff8a8a; border-color: #6e2f2f; }
-@media (max-width: 760px) { .mc-media video, .mc-media img { height: 120px; max-width: 150px; } }
+@media (max-width: 760px) { .mc-media video, .mc-media img { height: 240px; max-width: 50vw; } }
 
 /* a selected shot: highlighted in the list, edited in the settings panel (which hides the film's settings meanwhile) */
 .mcard.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(139, 92, 246, .35); }
@@ -781,3 +781,8 @@ body.no-scroll { overflow: hidden; }
 .shot-render .btn { align-self: flex-start; }
 #dirShotEdit .frames video { width: auto; max-width: 100%; height: 260px; margin: 0 auto; }
 #dirShotEdit .frames .pair img, #dirShotEdit .frames .ph { aspect-ratio: auto; height: 180px; object-fit: contain; }
+
+/* the shots of a film: a heading naming the film, and the cards indented on a rail under it */
+.shots-head { font-size: 13px; color: var(--muted); margin: 4px 0 8px; }
+.shots-head b { color: var(--text); }
+#dirShots { border-left: 3px solid rgba(139, 92, 246, .45); padding-left: 12px; margin-left: 6px; }
