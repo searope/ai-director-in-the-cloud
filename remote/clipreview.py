@@ -54,7 +54,14 @@ Look for what a viewer would find wrong or weird:
 - textures or backgrounds that boil, smear or flicker; sudden jumps between frames;
 - motion that doesn't match the prompt, or nothing happening; the clip drifting away from the
   keyframes (it should start like START and end like END);
-- physics that look wrong (things floating, passing through each other).
+- physics that look wrong (things floating, passing through each other);
+- bodies moving wrongly against the set (a major issue): a person or animal sliding or gliding across a
+  bed, floor or seat without moving their limbs (e.g. lying in bed and drifting toward the camera),
+  floating, sinking into furniture, or the room moving with them. Compare each body with the fixed things
+  around it (pillow, headboard, floor edge) frame by frame. A camera move moves everything together; only
+  a real action should move a body relative to the set. This usually comes from a push-in the video model
+  turned into the subject moving: say in motion_prompt that the character stays in place and only the
+  camera moves.
 Only report what you can actually see in the frames. Small frame-to-frame differences that a
 viewer wouldn't notice are fine.
 
