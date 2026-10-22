@@ -781,3 +781,8 @@ body.no-scroll { overflow: hidden; }
 .shot-render .btn { align-self: flex-start; }
 #dirShotEdit .frames video { width: auto; max-width: 100%; height: 260px; margin: 0 auto; }
 #dirShotEdit .frames .pair img, #dirShotEdit .frames .ph { aspect-ratio: auto; height: 180px; object-fit: contain; }
+
+/* the shots of a film: a heading naming the film, and the cards indented on a rail under it */
+.shots-head { font-size: 13px; color: var(--muted); margin: 4px 0 8px; }
+.shots-head b { color: var(--text); }
+#dirShots { border-left: 3px solid rgba(139, 92, 246, .45); padding-left: 12px; margin-left: 6px; }

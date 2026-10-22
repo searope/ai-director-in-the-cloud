@@ -1980,6 +1980,9 @@ function renderDirector() {
   const board = D.tab === "board", words = D.tab === "words";
   $("dirShots").classList.toggle("hidden", board || words); $("dirAddShot").classList.toggle("hidden", board || words);
   $("dirBoard").classList.toggle("hidden", !board);
+  // the shots sit under a heading naming their film, so they read as its parts
+  $("dirShotsHead").classList.toggle("hidden", board || words || !p.shots.length);
+  setHtml($("dirShotsHead"), `${p.shots.length} shot${p.shots.length === 1 ? "" : "s"} in <b>${esc(p.title)}</b>`);
   renderDirReel(p, words);
   if (board) renderBoard(p); else if (!words) renderShots(p);
   renderShotPanel(p);
@@ -2151,10 +2154,10 @@ function selectShot(id) {
   if (D.sel && innerWidth <= 760) window.scrollTo({ top: $("dirShotEdit").getBoundingClientRect().top + scrollY - 70, behavior: "smooth" });
 }
 // A shot as a compact row: a small player (or its start keyframe), the basics and quick actions; Edit opens the full card.
-function shotRow(s, i, status, bad, kfBusy) {
+function shotRow(p, s, i, status, bad, kfBusy) {
   const r = s.render, review = r?.review?.status === "done" ? r.review : null;
   const ready = s.start_image && s.end_image && !["queued", "running"].includes(r?.status) && !kfBusy;
-  const facts = [`${s.seconds} s`, `<span class="shot-status${bad ? " bad" : ""}">${esc(status || "Not started")}</span>`,
+  const facts = [`${esc(p.title)} · shot ${i + 1}`, `${s.seconds} s`, `<span class="shot-status${bad ? " bad" : ""}">${esc(status || "Not started")}</span>`,
     ...(review ? [`<span class="mc-flag ${review.verdict}">check: ${esc(review.verdict)}</span>`] : []),
     ...((s.warnings || []).length ? [`<span class="mc-flag redo" title="${esc(s.warnings.join(" "))}">${s.warnings.length} warning${s.warnings.length === 1 ? "" : "s"}</span>`] : [])];
   return `<div class="shot mcard${D.sel === s.id ? " selected" : ""}" data-shot="${s.id}" title="Select to edit it in the settings panel">
@@ -2177,7 +2180,7 @@ function shotCard(p, s, i, panel = false) {
     : r?.status === "failed" ? `Render failed: ${r.error || ""}` : r?.status === "done" ? "Rendered"
     : s.start_image && s.end_image ? "Keyframes ready" : "";
   const bad = s.kf_status === "failed" || r?.status === "failed";
-  if (!panel) return shotRow(s, i, status, bad, kfBusy);
+  if (!panel) return shotRow(p, s, i, status, bad, kfBusy);
   const cast = p.cast.map(charById).filter(Boolean);
   const ta = (f, label, rows, ph) => `<label class="sf">${label}<textarea data-f="${f}" rows="${rows}" placeholder="${ph}">${esc(s[f] || "")}</textarea></label>`;
   return `<div class="shot" data-shot="${s.id}">
