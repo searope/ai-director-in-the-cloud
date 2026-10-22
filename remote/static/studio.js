@@ -1933,7 +1933,7 @@ $("charPlan").onclick = (e) => {
 // ---------------------------------------------------------------- director
 const D = { list: [], project: null, filled: "", tab: "shots" };
 const dirId = () => (location.hash.match(/^#\/director\/([0-9a-f]{12})/) || [])[1];
-const SHOT_FIELDS = ["scene", "action", "start_frame", "end_change", "motion", "narration", "seconds", "characters"];
+const SHOT_FIELDS = ["scene", "action", "start_frame", "end_change", "motion", "narration", "sound", "seconds", "characters"];
 const writerById = (id) => (S.info?.writers || []).find((w) => w.id === id);
 
 async function refreshDirector() {
@@ -2146,6 +2146,7 @@ function shotCard(p, s, i) {
         ${ta("end_change", "End change", 2, "One change that makes the last frame, e.g. she turns and smiles")}
         ${ta("motion", "Motion", 2, "Movement and camera, e.g. slow push-in")}
         ${ta("narration", "Narration", 1, "Voice-over or dialogue (optional)")}
+        ${ta("sound", "Sound", 1, "What you hear, e.g. a blanket rustling, slow breathing (music only if you write it)")}
         ${(s.warnings || []).map((w) => `<div class="note warn-text">${esc(w)}</div>`).join("")}
         ${(p.review?.notes || []).filter((n) => n.shot_id === s.id).map((n) => `<div class="note">${esc(n.note)}</div>`).join("")}
         ${r?.status === "done" ? reviewBlock(r.review, ["usefix", "Use this prompt and render again"]) : ""}

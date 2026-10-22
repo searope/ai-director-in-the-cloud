@@ -170,6 +170,15 @@ Any finished video can become a reel too: open it in the Library and choose **Qu
 seconds). A reel is a new video in the library, so Sound (music) and Download work on it; add music after
 the words, since Edit reel starts again from the original. The logo is `remote/static/lantern.png`.
 
+## Sound
+
+MiniMax H3 (and LTX) make each clip's soundtrack from a sound line. Each shot has one, written by the AI with
+the script: the concrete sounds you'd hear ("a blanket rustling, slow breathing, a clock ticking far away"). A
+shot without one gets "quiet room tone and the soft natural sounds of the scene". Never write "no music": the
+model has no negative prompt and the word itself brings music in; without any sound line it adds music too.
+Describe music only when you want it, or add it later with Sound. Make film levels the joined sound to one
+loudness.
+
 ## Tips
 
 - Keep each shot's **end change** small (one pose or camera change): a shot is only 2-5 s.

@@ -44,7 +44,8 @@ MAKING_OF = re.compile(r"\b(fingers?|finger-smeared|brush(?:es)?|paintbrush|glas
 LENGTH_FOR_SECONDS = {2: 33, 3: 49, 4: 65, 5: 81, 6: 97}  # Wan 2.2 frames at 16 fps
 MAX_SHOTS = 40
 VIDEO_ENGINES = ("minimax-h3", "wan22", "ltx23")  # the first is the default for new films
-TEXT_FIELDS = {"scene": 200, "action": 600, "start_frame": 1500, "end_change": 600, "motion": 600, "narration": 600}
+TEXT_FIELDS = {"scene": 200, "action": 600, "start_frame": 1500, "end_change": 600, "motion": 600, "narration": 600,
+               "sound": 300}
 
 SCRIPT_SCHEMA = {
     "type": "object",
@@ -56,7 +57,7 @@ SCRIPT_SCHEMA = {
         "shots": {"type": "array", "items": {
             "type": "object",
             "additionalProperties": False,
-            "required": ["scene", "action", "start_frame", "end_change", "motion", "seconds", "characters", "narration"],
+            "required": ["scene", "action", "start_frame", "end_change", "motion", "seconds", "characters", "narration", "sound"],
             "properties": {
                 "scene": {"type": "string"},
                 "action": {"type": "string"},
@@ -66,6 +67,7 @@ SCRIPT_SCHEMA = {
                 "seconds": {"type": "integer", "enum": list(SECONDS)},
                 "characters": {"type": "array", "items": {"type": "string"}},
                 "narration": {"type": "string"},
+                "sound": {"type": "string"},
             },
         }},
     },
@@ -94,6 +96,9 @@ For each shot, in order:
 - characters: the cast members visible in the shot, at most 3, spelled exactly as in the
   cast list. Use [] when no cast member is visible.
 - narration: voice-over or dialogue heard during the shot, or "".
+- sound: what the shot sounds like, as concrete sounds you'd hear, e.g. "a blanket rustling, slow breathing, a
+  clock ticking far away". The video model makes this soundtrack. Never write the word music (not even "no
+  music": the model then adds music); describe music only when the brief asks for it.
 
 Keep the visual style, the characters' looks and the world consistent from shot to shot. A cast member
 marked "place" is a set with a reference picture and a fixed layout: for every shot that happens there,
@@ -846,7 +851,7 @@ class Director:
     def _current_script(self, project):
         extra = {"reel": project["reel"]} if project["brief"].get("format") == "reel" and project.get("reel") else {}
         return extra | {"title": project["title"], "logline": project.get("logline", ""), "shots": [
-            {k: s[k] for k in ("scene", "action", "start_frame", "end_change", "motion", "seconds", "narration")}
+            {k: s.get(k, "") for k in ("scene", "action", "start_frame", "end_change", "motion", "seconds", "narration", "sound")}
             | {"characters": [c["name"] for c in map(self.characters.get, s["characters"]) if c]}
             for s in project["shots"]]}
 
@@ -1129,6 +1134,7 @@ class Director:
                                      # the film's style keeps the clip in it (and tells Check clip what to judge)
                                      "custom_style": project["brief"].get("style", ""),
                                      "restyle": False, "fast": project.get("fast", True), "audio": True,
+                                     "sound": shot.get("sound", ""),  # without one: the scene's quiet sounds, no music
                                      "length": LENGTH_FOR_SECONDS[shot["seconds"]], "size": "standard",
                                      "smooth": engine == "wan22",  # H3 and LTX already render 24-25 fps
                                      "negative_extra": REEL_AVOID if project["brief"].get("format") == "reel" else ""},
@@ -1188,7 +1194,8 @@ class Director:
     @staticmethod
     def _join(clips, out_path):
         """Join the clips with hard cuts, re-encoding so mixed sizes, frame rates and engines fit together.
-        Sound is kept (H3 clips have it); a silent clip gets silence of its length."""
+        Sound is kept (H3 clips have it); a silent clip gets silence of its length. The joined sound is levelled to one
+        loudness, so a quiet clip (a sound line of soft room sounds) doesn't drop out next to a louder one."""
         import imageio_ffmpeg
         ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
         info = [_probe(c) for c in clips]
@@ -1207,7 +1214,7 @@ class Director:
                     extra += 1
         joined = "".join(f"[v{n}]" + (f"[a{n}]" if with_audio else "") for n in range(len(clips)))
         maps = ["-map", "[out]"] + (["-map", "[aout]", "-c:a", "aac", "-b:a", "192k"] if with_audio else [])
-        outs = "[out][aout]" if with_audio else "[out]"
+        outs = "[out][acat];[acat]loudnorm=I=-26:TP=-2:LRA=15,aresample=48000[aout]" if with_audio else "[out]"
         cmd = [ffmpeg, "-y", "-loglevel", "error"] + inputs + [
             "-filter_complex", "".join(parts) + f"{joined}concat=n={len(clips)}:v=1:a={int(with_audio)}{outs}",
             *maps, "-c:v", "libx264", "-crf", "17", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out_path]
