@@ -1098,9 +1098,9 @@
   },
   "paint-on-glass": {
     "label": "Paint-on-glass",
-    "video_prompt": "paint-on-glass animation, slow-drying oil paint smeared by fingers on backlit glass, soft morphing edges, luminous glowing colour, visible finger strokes, painterly blur between forms",
+    "video_prompt": "paint-on-glass animation look: soft blended oil-paint texture, smudged painterly strokes, soft morphing edges, luminous glowing colour as if lit from behind, painterly blur between forms",
     "negative": "photorealistic, photo, 3d render, clean lines",
-    "restyle_prompt": "Convert this image into paint-on-glass animation, slow-drying oil paint smeared by fingers on backlit glass, soft morphing edges, luminous glowing colour, visible finger strokes, painterly blur between forms. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
+    "restyle_prompt": "Convert this image into the paint-on-glass animation look: soft blended oil-paint texture, smudged painterly strokes, soft morphing edges, luminous glowing colour as if lit from behind, painterly blur between forms. Keep everything in the picture: every person, animal, object, building and the background stay in the same places, with the same poses and framing; change only how it is drawn, coloured and lit. Faces, skin, hair and hands are redrawn in the style too, like the rest of the picture. The background shows the same things as before (a blurred background stays blurred); nothing new is added.",
     "loras": [],
     "group": "Animation"
   },

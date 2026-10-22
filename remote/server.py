@@ -57,6 +57,7 @@ MODELS_DIR = os.path.join(ROOT, "ComfyUI", "models")  # when ComfyUI runs on thi
 MAX_KEYFRAMES = 12
 MAX_CHARACTER_REFS = 4  # reference images per character; the first one goes to the image model
 MAX_CAST = 3            # characters per keyframe: each adds a reference image to the model's input
+MAX_SETS = 1            # plus one place (set): its picture, and its floor plan when it has one
 MAX_SIDE = 2048  # phone photos are downscaled to this before rendering
 
 SIZES = {"preview": 512 * 288, "standard": 832 * 480}
@@ -382,15 +383,36 @@ class KeyframeMaker:
                          daemon=True).start()
         return task
 
-    @staticmethod
-    def cast_prompt(prompt, cast, first_image):
-        """Name each character's reference image, so the model knows who is who."""
+    def cast_refs(self, cast):
+        """The reference images for a cast, in order: each character's main image; a place's picture, then its plan."""
+        refs = []
+        for c in cast:
+            refs.append(self.path(c["refs"][0]))
+            if c.get("kind") == "set" and c.get("plan") and self.exists(c["plan"]):
+                refs.append(self.path(c["plan"]))
+        return refs
+
+    def cast_prompt(self, prompt, cast, first_image):
+        """Name each reference image, so the model knows who is who and which place it is."""
         if not cast:
             return prompt
-        who = "; ".join(f"{c['name']} is the character in image {first_image + i}"
-                        + (f" ({c['description']})" if c["description"] else "") for i, c in enumerate(cast))
-        return (f"{prompt.strip().rstrip('.')}. {who}. Keep each character's face, hair, body and outfit "
-                "exactly as in their reference image.")
+        notes, n, people = [], first_image, False
+        for c in cast:
+            if c.get("kind") == "set":
+                note = f"the place is {c['name']}, shown in image {n}" + (f" ({c['description']})" if c["description"] else "")
+                if c.get("layout"):
+                    note += f"; its layout: {c['layout']}"
+                if c.get("plan") and self.exists(c["plan"]):
+                    n += 1
+                    note += f"; image {n} is its floor plan seen from above, showing where everything stands"
+                notes.append(note + ". Keep the place's layout exactly: furniture, windows, doors and walls stay where they "
+                             "are; only the camera, the people and the light change")
+            else:
+                people = True
+                notes.append(f"{c['name']} is the character in image {n}" + (f" ({c['description']})" if c["description"] else ""))
+            n += 1
+        return (f"{prompt.strip().rstrip('.')}. " + "; ".join(notes) + "."
+                + (" Keep each character's face, hair, body and outfit exactly as in their reference image." if people else ""))
 
     def _run(self, task, prompt, aspect, source, seed, model, cast, style=None, example=None):
         image_id = uuid.uuid4().hex[:16]
@@ -400,7 +422,7 @@ class KeyframeMaker:
 
         try:
             server = self.gpu.ensure(report)
-            refs = [self.path(c["refs"][0]) for c in cast]
+            refs = self.cast_refs(cast)
             if example:
                 tmp = example + ".png"
                 animate.make_keyframe(server, prompt, tmp, seed, aspect, source, report, model, keep_look=False)
@@ -424,6 +446,18 @@ class KeyframeMaker:
 
     def busy(self):
         return any(t["status"] == "running" for t in list(self.tasks.values()))
+
+
+def clean_plan_items(raw):
+    """A floor plan's things (type, x, y, w, h as fractions of the plan, rot in degrees), kept to edit it again."""
+    items = []
+    for it in (raw or [])[:60]:
+        try:
+            box = {k: min(1.0, max(0.0, float(it.get(k, 0)))) for k in ("x", "y", "w", "h")}
+            items.append({"type": str(it.get("type") or "thing")[:20], **box, "rot": int(it.get("rot") or 0) % 360})
+        except (TypeError, ValueError, AttributeError):
+            continue
+    return items
 
 
 class Characters:
@@ -470,8 +504,14 @@ class Characters:
             old = self.get(char_id) if char_id else None
             if char_id and not old:
                 raise KeyError("no such character")
-            char = {"id": char_id or uuid.uuid4().hex[:12], "name": name,
+            kind = "set" if raw.get("kind") == "set" else "character"
+            plan = str(raw.get("plan") or "") if kind == "set" else ""
+            if plan and not self.maker.exists(plan):
+                raise ValueError("the floor plan is no longer in the library")
+            char = {"id": char_id or uuid.uuid4().hex[:12], "name": name, "kind": kind,
                     "description": str(raw.get("description") or "").strip()[:400], "refs": refs,
+                    "layout": str(raw.get("layout") or "").strip()[:800] if kind == "set" else "", "plan": plan or None,
+                    "plan_items": clean_plan_items(raw.get("plan_items")) if kind == "set" and plan else [],
                     "created": old["created"] if old else time.time(), "updated": time.time()}
             tmp = self.path(char["id"]) + ".tmp"
             with open(tmp, "w", encoding="utf-8") as f:
@@ -487,8 +527,8 @@ class Characters:
     def cast(self, ids):
         """Characters for one keyframe, in the order chosen."""
         ids = list(dict.fromkeys(str(i) for i in (ids or [])))
-        if len(ids) > MAX_CAST:
-            raise ValueError(f"up to {MAX_CAST} characters per image")
+        if len(ids) > MAX_CAST + MAX_SETS:
+            raise ValueError(f"up to {MAX_CAST} characters and one place per image")
         cast = []
         for char_id in ids:
             char = self.get(char_id)
@@ -497,6 +537,8 @@ class Characters:
             if not char["refs"]:
                 raise ValueError(f"{char['name']} has no reference image left in the library")
             cast.append(char)
+        if sum(c.get("kind") == "set" for c in cast) > MAX_SETS:
+            raise ValueError("one place per image")
         return cast
 
 
@@ -668,28 +710,36 @@ def job_keyframes(jobs, job):
     return [os.path.join(jobs.dir(job["id"]), folder, n) for n in names]
 
 
-def review_job(jobs, job, writer):
+def run_review(jobs, job, writer, maker=None):
+    """Review a finished clip now (blocking) and record it in job["review"]; returns that record."""
+    jobs.update(job, review={"status": "working", "writer": writer.id, "started": time.time()})
+    keys = job_keyframes(jobs, job)
+    settings = job["settings"]
+    originals = [os.path.join(jobs.dir(job["id"]), "inputs", n) for n in job["inputs"]] if job.get("styled") else []
+    shot = job.get("shot") or None  # a Director shot: what it should show, and its place
+    place = shot.get("place") if shot else None
+    set_ref = maker.path(place["image"]) if place and maker and maker.exists(place.get("image") or "") else None
+    try:
+        style = animate.resolve_style({"style": settings.get("style"), "custom_style": settings.get("custom_style")})
+        result = clipreview.review(writer, os.path.join(jobs.dir(job["id"]), "result.mp4"), [keys[0], keys[-1]],
+                                   " / then: ".join(settings["prompts"]),
+                                   {"label": style.get("label", "?"), "description": style.get("video_prompt", "")},
+                                   [originals[0], originals[-1]] if originals else (), shot=shot, set_ref=set_ref)
+        record = {**result, "status": "done", "writer": writer.id, "finished": time.time()}
+    except Exception as e:  # report any failure in the app
+        record = {"status": "failed", "writer": writer.id, "error": str(e)[-800:]}
+    jobs.update(job, review=record)
+    return record
+
+
+def review_job(jobs, job, writer, maker=None):
     """Have a writer review a finished clip in the background; the result goes to job["review"]."""
     if job["status"] != "done" or job.get("kind") == "film":
         raise ValueError("only a finished clip can be checked")
     if (job.get("review") or {}).get("status") == "working":
         raise ValueError("this clip is already being checked")
     jobs.update(job, review={"status": "working", "writer": writer.id, "started": time.time()})
-
-    def run():
-        keys = job_keyframes(jobs, job)
-        settings = job["settings"]
-        originals = [os.path.join(jobs.dir(job["id"]), "inputs", n) for n in job["inputs"]] if job.get("styled") else []
-        try:
-            style = animate.resolve_style({"style": settings.get("style"), "custom_style": settings.get("custom_style")})
-            result = clipreview.review(writer, os.path.join(jobs.dir(job["id"]), "result.mp4"), [keys[0], keys[-1]],
-                                       " / then: ".join(settings["prompts"]),
-                                       {"label": style.get("label", "?"), "description": style.get("video_prompt", "")},
-                                       [originals[0], originals[-1]] if originals else ())
-            jobs.update(job, review={**result, "status": "done", "writer": writer.id, "finished": time.time()})
-        except Exception as e:  # report any failure in the app
-            jobs.update(job, review={"status": "failed", "writer": writer.id, "error": str(e)[-800:]})
-    threading.Thread(target=run, daemon=True).start()
+    threading.Thread(target=run_review, args=(jobs, job, writer, maker), daemon=True).start()
 
 
 def rerender_job(jobs, job, prompts, keep_styled=False, engine=None):
@@ -958,7 +1008,7 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         if not writer or not writer.ready:
             return web.json_response({"error": "choose an AI model that is set up (see docs/director.md)"}, status=400)
         try:
-            review_job(jobs, job, writer)
+            review_job(jobs, job, writer, maker)
         except ValueError as e:
             return web.json_response({"error": str(e)}, status=400)
         return web.json_response(jobs.public(job))
@@ -1290,6 +1340,14 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         keep_start = request.query.get("keep_start") == "1"
         return await director_call(lambda: director.make_keyframes(pid, sid, keep_start) or director.get(pid))
 
+    async def render_all(request):
+        pid = project_id(request)
+        return await director_call(lambda: director.render_all(pid) or director.get(pid))
+
+    async def stop_render_all(request):
+        pid = project_id(request)
+        return await director_call(lambda: director.stop_render_all(pid) or director.get(pid))
+
     async def shot_render(request):
         pid, sid = project_id(request), request.match_info["shot"]
         return await director_call(lambda: director.render(pid, sid) and director.get(pid))
@@ -1368,6 +1426,8 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         web.post("/api/director/{id}/shots/{shot}/keyframes", shot_keyframes),
         web.post("/api/director/{id}/shots/{shot}/render", shot_render),
         web.post("/api/director/{id}/film", make_film),
+        web.post("/api/director/{id}/render_all", render_all),
+        web.post("/api/director/{id}/render_all/stop", stop_render_all),
         web.get("/api/director/{id}/film", film),
         web.static("/static", STATIC),
     ])
@@ -1511,8 +1571,10 @@ def main():
     characters = Characters(maker)
     writers = directors.load_writers(config)
     jobs.keyframe_checker = keyframe_checker(jobs, writers)
-    director = directors.Director(ROOT, writers, maker, characters, lambda files, raw: queue_job(jobs, files, raw), jobs,
-                                  lambda make_video, keyframes, info: add_film_job(jobs, make_video, keyframes, info))
+    director = directors.Director(ROOT, writers, maker, characters,
+                                  lambda files, raw, extra=None: queue_job(jobs, files, raw, extra), jobs,
+                                  lambda make_video, keyframes, info: add_film_job(jobs, make_video, keyframes, info),
+                                  lambda job, writer: run_review(jobs, job, writer, maker))
     print("Director AI: " + (", ".join(f"{w.label}{' (paid)' if w.paid else ''}{'' if w.ready else ' [not set up]'}"
                                          for w in writers.values()) or "none set up (see docs/director.md)") + "\n")
     web.run_app(make_app(jobs, token, maker, idle, sound, gpu, characters, director),

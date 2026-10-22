@@ -88,7 +88,26 @@ sentences on what works and what doesn't. If the style is weak or lost, put styl
 motion_prompt (e.g. "watercolor painting, visible paper texture, soft bleeding pigments, the whole
 clip stays a painting") and say in keyframe_advice if the redraw itself is the problem.
 
-verdict: "good" (nothing a viewer would notice), "minor" (small flaws, usable), or "redo".
+When the message describes the SHOT (a Director film), also check it against that description:
+- go through the shot's action and end point by point: is each thing it should show visible and
+  recognisable in the frames (e.g. "the memory painted on the ceiling" must read as that memory, not an
+  abstract swirl; "the lantern dims" must visibly dim)? Each missing story point is a major issue;
+- faces and expressions: does each character's expression fit what the shot says, in every frame (a
+  "calm, slight smile" turning into a sad, downturned mouth or worried brows is an issue)? Name the time;
+- timing: does the action take the time it should (one long in-breath, not a quick in-and-out)?
+- the clip must really move as the shot needs: a nearly frozen clip when the action asks for movement is
+  a major issue (often START and END are almost the same picture: say so in keyframe_advice);
+- anything showing how the picture is made rather than the scene: a painter's hands or fingers, brushes,
+  panes of glass, camera gear. These are major issues; they come from making-of words in the prompts;
+- when a SET picture (the place's reference) is on the sheet, the place must match it: the same
+  furniture on the same sides, the same windows and doors in the same places, the same walls and colours.
+  A nightstand that switches sides or a window that changes shape is a major continuity issue.
+The message also gives measured differences between pictures (0 = identical, mean of the pixel
+differences): first frame vs START and last frame vs END over about 15 mean the clip drifts away from its
+keyframes; START vs END under about 8 means the keyframes are almost the same, so the clip barely moves.
+
+verdict: "good" (nothing a viewer would notice), "minor" (small flaws, usable), or "redo" (any major
+issue, including a missing story point, a wrong expression in a key moment, or a broken place).
 summary: one or two sentences."""
 
 
@@ -106,18 +125,22 @@ def _frames(video_path, count):
     return [(frames[i], i / fps) for i in picks]
 
 
-def make_sheet(video_path, keyframe_paths, out_path, count=SHEET_FRAMES, original_paths=()):
+def make_sheet(video_path, keyframe_paths, out_path, count=SHEET_FRAMES, original_paths=(), set_ref=None):
     """Write the contact sheet (PNG) and return its path. original_paths: the keyframes before a style
-    redraw, shown next to the redrawn START and END."""
+    redraw, shown next to the redrawn START and END; set_ref: the place's reference picture."""
     from PIL import Image, ImageDraw, ImageFont
     frames = _frames(video_path, count)
     w = CELL_W
     h = round(w * frames[0][0].height / frames[0][0].width)
-    cols = 4
-    rows = (len(frames) + cols - 1) // cols
     label_h, gap = 26, 8
     keys = [Image.open(p).convert("RGB") for p in keyframe_paths[:2]]
     keys += [Image.open(p).convert("RGB") for p in list(original_paths)[:2]]
+    labels = ["START keyframe", "END keyframe"] + ["ORIGINAL of START", "ORIGINAL of END"][:len(list(original_paths)[:2])]
+    if set_ref:
+        keys.append(Image.open(set_ref).convert("RGB"))
+        labels.append("SET (the place)")
+    cols = max(4, len(keys))  # the top row holds every reference picture
+    rows = (len(frames) + cols - 1) // cols
     top = (label_h + h + gap) if keys else 0
     sheet = Image.new("RGB", (cols * w + (cols + 1) * gap, top + rows * (label_h + h + gap) + gap), (18, 18, 22))
     draw = ImageDraw.Draw(sheet)
@@ -130,7 +153,7 @@ def make_sheet(video_path, keyframe_paths, out_path, count=SHEET_FRAMES, origina
         draw.text((x + 2, y + 3), label, fill=color, font=font)
         sheet.paste(img.resize((w, h)), (x, y + label_h))
 
-    for i, (img, label) in enumerate(zip(keys, ("START keyframe", "END keyframe", "ORIGINAL of START", "ORIGINAL of END"))):
+    for i, (img, label) in enumerate(zip(keys, labels)):
         cell(img, gap + i * (w + gap), gap, label, (250, 204, 21))
     for i, (img, t) in enumerate(frames):
         r, c = divmod(i, cols)
@@ -139,8 +162,39 @@ def make_sheet(video_path, keyframe_paths, out_path, count=SHEET_FRAMES, origina
     return out_path
 
 
-def user_prompt(motion_prompt, seconds, style=None, redrawn=False):
+def differences(video_path, keyframe_paths):
+    """Mean pixel differences: first frame vs START, last frame vs END, START vs END (0 = identical)."""
+    from PIL import ImageChops, ImageStat
+    from PIL import Image
+    frames = _frames(video_path, 2)
+    start, end = (Image.open(p).convert("RGB") for p in keyframe_paths[:2])
+
+    def diff(a, b):
+        a = a.convert("RGB").resize((256, round(256 * a.height / a.width)))
+        return round(sum(ImageStat.Stat(ImageChops.difference(a, b.resize(a.size))).mean) / 3, 1)
+    return {"first_vs_start": diff(frames[0][0], start), "last_vs_end": diff(frames[-1][0], end), "start_vs_end": diff(start, end)}
+
+
+def shot_text(shot, measured):
+    text = ""
+    if shot:
+        text += (f"\nThe SHOT (what the clip should show): {shot.get('action', '')}\n"
+                 f"It should end with: {shot.get('end', '')}\n")
+        if shot.get("characters"):
+            text += f"Characters: {shot['characters']}\n"
+        place = shot.get("place")
+        if place:
+            text += f"The place: {place.get('name', '')}" + (f"; its layout: {place['layout']}" if place.get("layout") else "") + \
+                (" (its picture is the SET cell on the sheet)" if place.get("image") else "") + "\n"
+    if measured:
+        text += (f"Measured differences: first frame vs START {measured['first_vs_start']}, last frame vs END "
+                 f"{measured['last_vs_end']}, START vs END {measured['start_vs_end']}.\n")
+    return text
+
+
+def user_prompt(motion_prompt, seconds, style=None, redrawn=False, shot=None, measured=None):
     text = f"The motion prompt used was: \"{motion_prompt}\"\nThe clip is {seconds:.1f} seconds long.\n"
+    text += shot_text(shot, measured)
     if style:
         text += f"Requested style: {style['label']}: {style['description']}\n"
         text += ("The START and END keyframes were redrawn in this style from the ORIGINAL keyframes shown next to them.\n"
@@ -157,13 +211,16 @@ def duration(video_path):
         return float(container.duration or 0) / 1_000_000
 
 
-def review(writer, video_path, keyframe_paths, motion_prompt, style=None, original_paths=()):
-    """Ask a writer (from director.load_writers) to review a clip. Returns the parsed review.
-    style: {"label", "description"} of the requested style; original_paths: the keyframes before a redraw."""
+def review(writer, video_path, keyframe_paths, motion_prompt, style=None, original_paths=(), shot=None, set_ref=None):
+    """Ask a writer (from director.load_writers) to review a clip. Returns the parsed review, with the measured
+    differences added. style: {"label", "description"} of the requested style; original_paths: the keyframes
+    before a redraw; shot: a Director shot's {action, end, characters, place}; set_ref: the place's picture."""
+    measured = differences(video_path, keyframe_paths)
     with tempfile.TemporaryDirectory(prefix="clipreview_") as tmp:
-        sheet = make_sheet(video_path, keyframe_paths, os.path.join(tmp, "sheet.png"), original_paths=original_paths)
-        prompt = user_prompt(motion_prompt, duration(video_path), style, bool(original_paths))
-        return writer.write(SYSTEM_PROMPT, prompt, REVIEW_SCHEMA, image=sheet)
+        sheet = make_sheet(video_path, keyframe_paths, os.path.join(tmp, "sheet.png"), original_paths=original_paths,
+                           set_ref=set_ref)
+        prompt = user_prompt(motion_prompt, duration(video_path), style, bool(original_paths), shot, measured)
+        return {**writer.write(SYSTEM_PROMPT, prompt, REVIEW_SCHEMA, image=sheet), "measured": measured}
 
 
 # ---------------------------------------------------------------- checking redrawn keyframes before a render

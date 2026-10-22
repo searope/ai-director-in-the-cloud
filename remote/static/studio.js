@@ -320,6 +320,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {  // the picker can sit on top of the character sheet: close only the top one
     if (!$("picker").classList.contains("hidden")) return closeOverlay("picker");
     if (!$("ssZoom").classList.contains("hidden")) return closeOverlay("ssZoom");
+    if (!$("planSheet").classList.contains("hidden")) return closeOverlay("planSheet");
     closeOverlay("lightbox"); closeOverlay("charSheet"); closeOverlay("reelSheet"); closeOverlay("soundSheet"); closeOverlay("styleSheet");
   }
   if (e.key === "Enter" && e.target.matches?.(".tile")) e.target.click();
@@ -339,7 +340,7 @@ new MutationObserver(() => {
 
 // ---------------------------------------------------------------- back
 // Back (the browser's, the phone's, or a swipe right from the left edge) closes the top overlay first, then goes to the previous page.
-const OVERLAYS_TOP_FIRST = ["picker", "ssZoom", "lightbox", "charSheet", "reelSheet", "soundSheet", "styleSheet"];
+const OVERLAYS_TOP_FIRST = ["picker", "planSheet", "ssZoom", "lightbox", "charSheet", "reelSheet", "soundSheet", "styleSheet"];
 const openOverlays = () => OVERLAYS_TOP_FIRST.filter((id) => !$(id).classList.contains("hidden"));
 window.addEventListener("popstate", () => {
   if (S.skipPop) { S.skipPop = false; return; }
@@ -1571,7 +1572,8 @@ function charCard(c) {
   const more = c.refs.length > 1 ? `<span class="tag">${c.refs.length} images</span>` : "";
   return `<div class="char-card" data-char="${c.id}">
     <div class="char-art">${c.refs[0] ? `<img loading="lazy" alt="" src="${imgUrl(c.refs[0])}">` : `<span>No image</span>`}${more}</div>
-    <div class="char-text"><b>${esc(c.name)}</b>${c.description ? `<span>${esc(c.description)}</span>` : ""}</div>
+    <div class="char-text"><b>${esc(c.name)}</b>${c.kind === "set" ? `<span class="hint">Place${c.plan ? " · with floor plan" : ""}</span>` : ""}
+      ${c.description || c.layout ? `<span>${esc(c.description || c.layout)}</span>` : ""}</div>
     <div class="row"><button type="button" class="btn small" data-char-act="use">Use in image</button>
       <button type="button" class="btn small ghost" data-char-act="edit">Edit</button></div>
   </div>`;
@@ -1590,14 +1592,35 @@ $("charGrid").onclick = (e) => {
   } else openCharacter(id);
 };
 $("charNew").onclick = () => openCharacter(null);
+$("setNew").onclick = () => openCharacter(null, [], "set");
 
-const CH = { id: null, refs: [] };
-function openCharacter(id, refs) {
+// Characters and places (sets) share one store: a place has a master picture of the whole room, a written layout
+// and an optional floor plan, and keeps its furniture where it is in every shot.
+const CH = { id: null, refs: [], kind: "character", plan: null, planItems: [] };
+function setCharKind(kind) {
+  CH.kind = kind;
+  document.querySelectorAll("#charKind [data-kind]").forEach((b) => b.classList.toggle("on", b.dataset.kind === kind));
+  document.querySelectorAll("#charSheet .set-only").forEach((el) => el.classList.toggle("hidden", kind !== "set"));
+  $("charName").placeholder = kind === "set" ? "e.g. Attic bedroom" : "e.g. Mara";
+  $("charDesc").placeholder = kind === "set" ? "e.g. a small attic bedroom at night, night-blue walls, warm wooden furniture"
+    : "e.g. a lighthouse keeper in her sixties, grey braid, yellow oilskin coat";
+  $("charRefHint").textContent = kind === "set"
+    ? "The first image is the place's master picture, the one the image model sees: a wide view of the whole room in your film's aspect ratio, with nobody in it. Shots in this place are drawn from it."
+    : "The first image is the one the image model sees: a clear, front-facing, full or half-body shot works best. Extra images are kept for later (e.g. training a character LoRA).";
+  if (!CH.id) $("charTitle").textContent = kind === "set" ? "New place" : "New character";
+}
+$("charKind").onclick = (e) => { const b = e.target.closest("[data-kind]"); if (b) setCharKind(b.dataset.kind); };
+function openCharacter(id, refs, kind) {
   const c = id && charById(id);
   CH.id = c ? c.id : null; CH.refs = c ? [...c.refs] : [...(refs || [])];
-  $("charTitle").textContent = c ? `Edit ${c.name}` : "New character";
+  CH.plan = c?.plan || null; CH.planItems = c?.plan_items || [];
+  $("charTitle").textContent = c ? `Edit ${c.name}` : kind === "set" ? "New place" : "New character";
   $("charName").value = c ? c.name : ""; $("charDesc").value = c ? c.description : "";
+  $("charLayout").value = c?.layout || "";
   $("charDelete").classList.toggle("hidden", !c);
+  setCharKind(c?.kind || kind || "character");
+  renderPlanField();
+  CH.sig = charSig();
   renderRefs();
   $("charSheet").classList.remove("hidden");
   setTimeout(() => $("charName").focus(), 50);
@@ -1627,15 +1650,17 @@ $("charRefs").onclick = (e) => {
   renderRefs();
 };
 $("charSave").onclick = async () => {
-  const body = { name: $("charName").value.trim(), description: $("charDesc").value.trim(), refs: CH.refs };
-  if (!body.name) return toast("Give the character a name");
+  const body = { name: $("charName").value.trim(), description: $("charDesc").value.trim(), refs: CH.refs, kind: CH.kind,
+    layout: $("charLayout").value.trim(), plan: CH.kind === "set" ? CH.plan : null, plan_items: CH.planItems };
+  if (!body.name) return toast(CH.kind === "set" ? "Give the place a name" : "Give the character a name");
   if (!body.refs.length) return toast("Add at least one reference image");
   const btn = $("charSave"); btn.disabled = true;
   try {
     await api(CH.id ? `/api/characters/${CH.id}` : "/api/characters", { method: CH.id ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     await refreshCharacters(); closeOverlay("charSheet"); renderAll();
-    toast(CH.id ? "Saved" : `${body.name} created. Tag them in Create image.`);
+    toast(CH.id ? "Saved" : CH.kind === "set" ? `${body.name} created. Add it to a film's cast in the Director.`
+      : `${body.name} created. Tag them in Create image.`);
   } catch (e) { toast(e.message); } finally { btn.disabled = false; }
 };
 $("charDelete").onclick = async () => {
@@ -1645,6 +1670,108 @@ $("charDelete").onclick = async () => {
     S.cast = S.cast.filter((x) => x !== CH.id); store.set("cast", S.cast);
     await refreshCharacters(); closeOverlay("charSheet"); renderAll();
   } catch (e) { toast(e.message); }
+};
+
+// ---------------------------------------------------------------- floor plans (for places)
+// A simple plan of a place seen from above: furniture, windows and doors as labelled shapes. Saved as a picture in
+// the library (the image model gets it with the place's picture) and as its items, so it can be edited again.
+const PLAN_THINGS = {
+  bed: [0.32, 0.42, "#c9b8a6"], nightstand: [0.12, 0.12, "#b08d6c"], window: [0.24, 0.04, "#7fb4e6"],
+  door: [0.18, 0.04, "#8f7a66"], desk: [0.3, 0.14, "#b08d6c"], chair: [0.1, 0.1, "#a58e7a"], wardrobe: [0.3, 0.12, "#9c7e62"],
+  shelf: [0.28, 0.08, "#9c7e62"], table: [0.22, 0.22, "#b08d6c"], sofa: [0.34, 0.14, "#9aa7b8"], rug: [0.34, 0.24, "#d9c7d8"],
+  lamp: [0.07, 0.07, "#f2c46d"], plant: [0.08, 0.08, "#86b36b"], camera: [0.09, 0.09, "#e05a5a"],
+};
+const PLAN = { items: [], sel: -1, drag: null };
+function openPlan() {
+  PLAN.items = JSON.parse(JSON.stringify(CH.planItems || [])); PLAN.sel = -1;
+  $("planItems").innerHTML = Object.keys(PLAN_THINGS).map((k) => `<button type="button" class="chip" data-thing="${k}">+ ${k}</button>`).join("");
+  $("planSheet").classList.remove("hidden");
+  drawPlan();
+}
+function drawPlan(forSave = false) {
+  const cv = $("planCanvas"), g = cv.getContext("2d"), n = cv.width;
+  g.fillStyle = "#ffffff"; g.fillRect(0, 0, n, n);
+  if (!forSave) {
+    g.strokeStyle = "#eeeeee"; g.lineWidth = 1;
+    for (let i = 1; i < 10; i++) { g.beginPath(); g.moveTo(i * n / 10, 0); g.lineTo(i * n / 10, n); g.moveTo(0, i * n / 10); g.lineTo(n, i * n / 10); g.stroke(); }
+  }
+  g.strokeStyle = "#333333"; g.lineWidth = 10; g.strokeRect(20, 20, n - 40, n - 40);  // the walls
+  PLAN.items.forEach((it, i) => {
+    const [, , colour] = PLAN_THINGS[it.type] || [0, 0, "#bbbbbb"];
+    const x = it.x * n, y = it.y * n, w = it.w * n, h = it.h * n;
+    g.fillStyle = colour; g.strokeStyle = !forSave && i === PLAN.sel ? "#e0446a" : "#444444"; g.lineWidth = !forSave && i === PLAN.sel ? 4 : 2;
+    if (it.type === "camera") {  // a triangle pointing the way the camera looks (its turn: 0 = up)
+      g.save(); g.translate(x + w / 2, y + h / 2); g.rotate((it.rot || 0) * Math.PI / 180);
+      g.beginPath(); g.moveTo(0, -h / 2); g.lineTo(w / 2, h / 2); g.lineTo(-w / 2, h / 2); g.closePath(); g.fill(); g.stroke(); g.restore();
+    } else { g.fillRect(x, y, w, h); g.strokeRect(x, y, w, h); }
+    g.fillStyle = "#111111"; g.font = `${Math.max(14, Math.round(n / 36))}px sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(it.type, x + w / 2, it.type === "camera" ? y + h + 14 : y + h / 2);
+  });
+}
+const planAt = (e) => { const r = $("planCanvas").getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
+function planHit(px, py) {
+  for (let i = PLAN.items.length - 1; i >= 0; i--) {
+    const it = PLAN.items[i];
+    if (px >= it.x && px <= it.x + it.w && py >= it.y && py <= it.y + it.h) return i;
+  }
+  return -1;
+}
+$("planItems").onclick = (e) => {
+  const b = e.target.closest("[data-thing]"); if (!b) return;
+  const [w, h] = PLAN_THINGS[b.dataset.thing];
+  PLAN.items.push({ type: b.dataset.thing, x: 0.5 - w / 2, y: 0.5 - h / 2, w, h, rot: 0 }); PLAN.sel = PLAN.items.length - 1; drawPlan();
+};
+$("planCanvas").addEventListener("pointerdown", (e) => {
+  const [px, py] = planAt(e), i = planHit(px, py);
+  PLAN.sel = i; drawPlan();
+  if (i < 0) return;
+  const it = PLAN.items[i], corner = px > it.x + it.w - 0.03 && py > it.y + it.h - 0.03;  // the corner resizes
+  PLAN.drag = { i, corner, dx: px - it.x, dy: py - it.y };
+  $("planCanvas").setPointerCapture(e.pointerId);
+});
+$("planCanvas").addEventListener("pointermove", (e) => {
+  if (!PLAN.drag) return;
+  const [px, py] = planAt(e), it = PLAN.items[PLAN.drag.i], clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  if (PLAN.drag.corner) { it.w = clamp(px - it.x, 0.03, 1 - it.x); it.h = clamp(py - it.y, 0.02, 1 - it.y); }
+  else { it.x = clamp(px - PLAN.drag.dx, 0, 1 - it.w); it.y = clamp(py - PLAN.drag.dy, 0, 1 - it.h); }
+  drawPlan();
+});
+$("planCanvas").addEventListener("pointerup", () => { PLAN.drag = null; });
+$("planCanvas").addEventListener("dblclick", (e) => {  // turn 90°: a long thing swaps width and height
+  const i = planHit(...planAt(e)); if (i < 0) return;
+  const it = PLAN.items[i];
+  if (it.type === "camera") it.rot = ((it.rot || 0) + 90) % 360;
+  else { const cx = it.x + it.w / 2, cy = it.y + it.h / 2; [it.w, it.h] = [it.h, it.w]; it.x = Math.max(0, cx - it.w / 2); it.y = Math.max(0, cy - it.h / 2); }
+  drawPlan();
+});
+document.addEventListener("keydown", (e) => {
+  if (openOverlays()[0] !== "planSheet" || PLAN.sel < 0 || !["Delete", "Backspace"].includes(e.key) || e.target.matches?.("input, textarea")) return;
+  PLAN.items.splice(PLAN.sel, 1); PLAN.sel = -1; drawPlan();
+});
+$("planClear").onclick = () => { PLAN.items = []; PLAN.sel = -1; drawPlan(); };
+$("planSave").onclick = async () => {
+  if (!PLAN.items.length) { CH.plan = null; CH.planItems = []; closeOverlay("planSheet"); return renderPlanField(); }
+  drawPlan(true);
+  const blob = await new Promise((ok) => $("planCanvas").toBlob(ok, "image/png"));
+  drawPlan();
+  const fd = new FormData(); fd.append("image", blob, "floor-plan.png");
+  try {
+    const r = await api("/api/keyframes/upload", { method: "POST", body: fd });
+    CH.plan = r.image_id; CH.planItems = PLAN.items;
+    await refreshImages(); closeOverlay("planSheet"); renderPlanField();
+    toast("Plan ready: save the place to keep it");
+  } catch (err) { toast(err.message); }
+};
+function renderPlanField() {
+  $("charPlan").innerHTML = CH.plan ? `<div class="plan-field"><img alt="Floor plan" src="${imgUrl(CH.plan)}">
+      <div class="row"><button type="button" class="btn small" data-plan="edit">Edit plan</button>
+      <button type="button" class="btn small ghost" data-plan="remove">Remove</button></div></div>`
+    : `<button type="button" class="btn small" data-plan="edit">Draw a floor plan</button>`;
+}
+$("charPlan").onclick = (e) => {
+  const a = e.target.closest("[data-plan]")?.dataset.plan;
+  if (a === "edit") openPlan();
+  else if (a === "remove") { CH.plan = null; CH.planItems = []; renderPlanField(); }
 };
 
 // ---------------------------------------------------------------- director
@@ -1683,6 +1810,8 @@ function renderDirector() {
   $("dirHeadTitle").textContent = p.title;
   $("dirLogline").textContent = p.logline || (p.shots.length ? "" : "Fill in the brief on the left, choose an AI model and write the script.");
   $("dirFast").checked = p.fast !== false;
+  $("dirSetEdits").checked = p.set_edits !== false;
+  renderAutorun(p);
   const rendered = p.shots.filter((s) => s.render?.status === "done").length;
   $("dirFilm").disabled = !p.shots.length || rendered < p.shots.length || p.film?.status === "working";
   $("dirFilm").title = rendered < p.shots.length ? `${rendered} of ${p.shots.length} shots rendered` : "";
@@ -1861,6 +1990,7 @@ function shotCard(p, s, i) {
         ${ta("end_change", "End change", 2, "One change that makes the last frame, e.g. she turns and smiles")}
         ${ta("motion", "Motion", 2, "Movement and camera, e.g. slow push-in")}
         ${ta("narration", "Narration", 1, "Voice-over or dialogue (optional)")}
+        ${(s.warnings || []).map((w) => `<div class="note warn-text">${esc(w)}</div>`).join("")}
         ${(p.review?.notes || []).filter((n) => n.shot_id === s.id).map((n) => `<div class="note">${esc(n.note)}</div>`).join("")}
         ${r?.status === "done" ? reviewBlock(r.review, ["usefix", "Use this prompt and render again"]) : ""}
         ${cast.length ? `<div class="cast-pick small">${cast.map((c) => `<button type="button" class="cast-chip${s.characters.includes(c.id) ? " on" : ""}" data-sc="${c.id}">
@@ -2115,11 +2245,19 @@ $("dirAllKf").onclick = async () => {
   for (const s of todo) if (!await shotAction(`shots/${s.id}/keyframes`)) break;
   toast(`Making keyframes for ${todo.length} shot${todo.length === 1 ? "" : "s"}`);
 };
-$("dirAllRender").onclick = async () => {
-  const todo = D.project.shots.filter((s) => s.start_image && s.end_image && (!s.render || s.render.status === "failed" || s.render.status === "cancelled"));
-  if (!todo.length) return toast("No shots are waiting for a render (make the keyframes first)");
-  for (const s of todo) if (!await shotAction(`shots/${s.id}/render`)) break;
-  await refreshJobs(); toast(`${todo.length} shot${todo.length === 1 ? "" : "s"} queued on the GPU`);
+// Render all renders one shot at a time and has the AI model check each one (action, expressions, keyframes,
+// the place) before the next; it stops at the first shot that needs another go, so no GPU time goes to the rest.
+$("dirAllRender").onclick = async () => { if (await shotAction("render_all")) toast("Rendering the shots one at a time, each checked before the next"); };
+$("dirSetEdits").onchange = () => saveProject({ set_edits: $("dirSetEdits").checked });
+function renderAutorun(p) {
+  const a = p.autorun || {};
+  setHtml($("dirAutorun"), a.status === "working" ? `<div class="ai-status"><div class="spinner"></div>${esc(a.message || "")}
+      <button type="button" class="btn small ghost" data-autorun="stop">Stop after this shot</button></div>`
+    : a.status === "stopped" && !a.dismissed ? `<div class="ai-status bad"><b>Render all stopped.</b> ${esc(a.message || "")}</div>`
+    : a.status === "done" && Date.now() / 1000 - (p.updated || 0) < 600 ? `<div class="ai-status">${esc(a.message || "")}</div>` : "");
+}
+$("dirAutorun").onclick = async (e) => {
+  if (e.target.closest("[data-autorun=stop]") && await shotAction("render_all/stop")) toast("Stopping after the shot that is rendering");
 };
 $("dirFilm").onclick = async () => { if (await shotAction("film")) refreshJobs(); };
 $("dirFilmBox").onclick = (e) => { const b = e.target.closest("[data-film-sound]"); if (b) openSound(b.dataset.filmSound); };

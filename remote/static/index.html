@@ -304,12 +304,14 @@
               <div class="seg dir-tabs" id="dirTabs"><button type="button" data-dtab="shots" class="on">Shots</button><button type="button" data-dtab="board">Storyboard</button></div></div>
             <div class="row">
               <label class="toggle"><input id="dirFast" type="checkbox" checked><span>Fast renders</span></label>
+              <label class="toggle" title="A shot in a place starts as an edit of the place's picture, so the room stays the same"><input id="dirSetEdits" type="checkbox" checked><span>Draw shots from the place's picture</span></label>
               <button type="button" class="btn small" id="dirAllKf">Make all keyframes</button>
               <button type="button" class="btn small" id="dirAllRender">Render all shots</button>
               <button type="button" class="btn small primary" id="dirFilm">Make film</button>
               <button type="button" class="btn small ghost danger" id="dirDelete">Delete</button>
             </div>
           </div>
+          <div id="dirAutorun"></div>
           <div id="dirFilmBox"></div>
           <div id="dirReel" class="reel-words hidden"></div>
           <div id="dirShots" class="shots"></div>
@@ -332,7 +334,8 @@
     <section class="page" data-page="characters">
       <div class="lib-bar">
         <p class="hint" style="margin:0">Each character's main reference image is passed to the image model whenever you tag them, so faces and outfits stay the same from shot to shot.</p>
-        <button type="button" id="charNew" class="btn primary"><svg><use href="#i-plus"/></svg>New character</button>
+        <div class="row" style="margin:0"><button type="button" id="setNew" class="btn"><svg><use href="#i-plus"/></svg>New place</button>
+        <button type="button" id="charNew" class="btn primary"><svg><use href="#i-plus"/></svg>New character</button></div>
       </div>
       <div id="charGrid" class="char-grid"></div>
     </section>
@@ -382,6 +385,10 @@
     </div>
     <div class="char-body">
       <div class="field-block">
+        <label class="lbl">Kind</label>
+        <div class="seg" id="charKind"><button type="button" data-kind="character" class="on">Character</button><button type="button" data-kind="set">Place</button></div>
+      </div>
+      <div class="field-block">
         <label class="lbl" for="charName">Name</label>
         <input id="charName" type="text" maxlength="60" placeholder="e.g. Mara">
       </div>
@@ -389,15 +396,44 @@
         <label class="lbl" for="charDesc">Description <span class="hint">optional, added to the prompt</span></label>
         <textarea id="charDesc" maxlength="400" placeholder="e.g. a lighthouse keeper in her sixties, grey braid, yellow oilskin coat"></textarea>
       </div>
+      <div class="field-block set-only hidden">
+        <label class="lbl" for="charLayout">Layout <span class="hint">where everything is; added to every picture in this place</span></label>
+        <textarea id="charLayout" maxlength="800" placeholder="e.g. bed against the back wall, nightstand with the lantern on its LEFT, one round window above the headboard, a curtain on the right"></textarea>
+      </div>
       <div class="field-block">
         <label class="lbl">Reference images <span class="hint" id="charRefCount"></span></label>
         <div id="charRefs" class="tray"></div>
-        <p class="hint">The first image is the one the image model sees: a clear, front-facing, full or half-body shot works best. Extra images are kept for later (e.g. training a character LoRA).</p>
+        <p class="hint" id="charRefHint">The first image is the one the image model sees: a clear, front-facing, full or half-body shot works best. Extra images are kept for later (e.g. training a character LoRA).</p>
+      </div>
+      <div class="field-block set-only hidden">
+        <label class="lbl">Floor plan <span class="hint">optional: the place seen from above, given to the image model with its picture</span></label>
+        <div id="charPlan"></div>
       </div>
     </div>
     <div class="sheet-foot">
       <button type="button" id="charDelete" class="btn danger">Delete</button>
       <button type="button" id="charSave" class="btn primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="planSheet" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="planTitle">
+  <div class="sheet plan-sheet">
+    <div class="sheet-head">
+      <h3 id="planTitle">Floor plan</h3>
+      <span class="hint">seen from above</span>
+      <button type="button" class="lb-close" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="char-body">
+      <div id="planItems" class="chips"></div>
+      <canvas id="planCanvas" width="720" height="720" aria-label="Floor plan"></canvas>
+      <p class="hint">Drag a thing to move it, drag its bottom-right corner to resize, double-click to turn it (the camera
+        triangle points where the camera looks), Delete removes the selected one.</p>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" id="planClear" class="btn ghost">Clear</button>
+      <span class="grow"></span>
+      <button type="button" id="planSave" class="btn primary">Use this plan</button>
     </div>
   </div>
 </div>

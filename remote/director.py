@@ -24,6 +24,7 @@ Without a "writers" list: Claude Code if it is installed, plus the Anthropic API
 import base64
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -36,6 +37,10 @@ import uuid
 import reel
 
 SECONDS = (2, 3, 4, 5, 6)
+FROZEN_BELOW = 8  # keyframes closer than this (mean pixel difference) give a clip that barely moves
+# words that describe how a picture is made; video models tend to show them (fingers smearing the paint)
+MAKING_OF = re.compile(r"\b(fingers?|finger-smeared|brush(?:es)?|paintbrush|glass panes?|panes? of glass|on (?:backlit )?glass|"
+                       r"painter'?s? hands?|artist'?s? hands?|easel|camera crew)\b")
 LENGTH_FOR_SECONDS = {2: 33, 3: 49, 4: 65, 5: 81, 6: 97}  # Wan 2.2 frames at 16 fps
 MAX_SHOTS = 40
 VIDEO_ENGINES = ("minimax-h3", "wan22", "ltx23")  # the first is the default for new films
@@ -90,7 +95,12 @@ For each shot, in order:
   cast list. Use [] when no cast member is visible.
 - narration: voice-over or dialogue heard during the shot, or "".
 
-Keep the visual style, the characters' looks and the world consistent from shot to shot.
+Keep the visual style, the characters' looks and the world consistent from shot to shot. A cast member
+marked "place" is a set with a reference picture and a fixed layout: for every shot that happens there,
+list the place in `characters` (it doesn't count toward the 3 characters) and describe the room in
+start_frame as its layout says (which side the furniture is on, where the windows and doors are), so all
+its shots show the same room. Describe only what the camera sees: never how the picture is made (no
+painter's hands, fingers, brushes, glass panes or cameras), or the video model will show those too.
 Make the seconds add up to roughly the requested length. Prefer several short, simple shots
 to one long complicated move. Give the film a title and a one-sentence logline."""
 
@@ -109,9 +119,9 @@ REEL_SCHEMA["properties"]["reel"] = {
 }
 
 # The series' look, filled in when a project becomes a Lantern reel with no style of its own (styles.json "paint-on-glass").
-REEL_STYLE = ("paint-on-glass animation, slow-drying oil paint smeared by fingers on backlit glass, soft morphing edges, "
-              "luminous glowing colour, visible finger strokes; night blue and warm lantern amber; the painting fills the "
-              "frame edge to edge, no paper border")
+REEL_STYLE = ("painterly animated film in the paint-on-glass look: soft blended oil-paint texture, smudged painterly "
+              "strokes, luminous glowing colour as if lit from behind, soft morphing edges; night blue and warm lantern "
+              "amber; only the scene itself is visible; the painting fills the frame edge to edge, no paper border")
 REEL_AVOID = "border, frame, vignette, paper edge"  # Wan's negative prompt for reel shots
 
 REEL_PROMPT = """
@@ -484,12 +494,14 @@ def _clean_text(value, limit):
 
 
 class Director:
-    def __init__(self, root, writers, maker, characters, queue_job, jobs, add_film):
-        """queue_job(image_paths, raw_settings) -> job; jobs: the server's job store (for status and files);
-        add_film(make_video, keyframe_paths, info) -> job: records a finished film in the library."""
+    def __init__(self, root, writers, maker, characters, queue_job, jobs, add_film, review=None):
+        """queue_job(image_paths, raw_settings, extra) -> job; jobs: the server's job store (for status and files);
+        add_film(make_video, keyframe_paths, info) -> job: records a finished film in the library;
+        review(job, writer) -> the clip check's record (blocking), for Render all."""
         self.dir = os.path.join(root, "output", "director")
         self.writers, self.maker, self.characters = writers, maker, characters
-        self.queue_job, self.jobs, self.add_film = queue_job, jobs, add_film
+        self.queue_job, self.jobs, self.add_film, self.review = queue_job, jobs, add_film, review
+        self._diffs = {}  # (start image, end image) -> how different the two keyframes are
         self.lock = threading.RLock()
         self.running = {}  # project id -> number of AI requests, keyframe pairs and films in progress
         os.makedirs(self.dir, exist_ok=True)
@@ -529,6 +541,9 @@ class Director:
         if project.get("film", {}).get("status") == "working":
             project["film"].update(status="failed", error="The server restarted while the film was being made.")
             changed = True
+        if project.get("autorun", {}).get("status") == "working":
+            project["autorun"].update(status="stopped", message="The server restarted during Render all.")
+            changed = True
         for item in board_items(project.get("board")):
             if item.get("img_status") == "working":
                 item.update(img_status="failed", img_error="The server restarted while the picture was being drawn.")
@@ -559,6 +574,7 @@ class Director:
             shot["render"] = ({"status": job["status"], "progress": job.get("progress"), "error": job.get("error"),
                                "review": job.get("review")} if job else None)
             shot["characters"] = [c for c in shot["characters"] if self.characters.get(c)]
+            shot["warnings"] = self.warnings(project, shot)
         project["cast"] = [c for c in project["cast"] if self.characters.get(c)]
         film = project.get("film", {})
         if film.get("status") == "done":
@@ -567,6 +583,89 @@ class Director:
             else:
                 project["film"] = {"status": "idle"}  # its video was deleted from the library
         return project
+
+    def keyframe_difference(self, a, b):
+        """Mean pixel difference between two library images (0 = identical), cached."""
+        if (a, b) not in self._diffs:
+            from PIL import Image, ImageChops, ImageStat
+            x = Image.open(self.maker.path(a)).convert("RGB").resize((192, 341))
+            y = Image.open(self.maker.path(b)).convert("RGB").resize((192, 341))
+            self._diffs[(a, b)] = round(sum(ImageStat.Stat(ImageChops.difference(x, y)).mean) / 3, 1)
+        return self._diffs[(a, b)]
+
+    def warnings(self, project, shot):
+        """Problems to fix before rendering a shot (shown on its card; Render all stops on them)."""
+        out = []
+        a, b = shot.get("start_image"), shot.get("end_image")
+        if a and b and self.maker.exists(a) and self.maker.exists(b) and self.keyframe_difference(a, b) < FROZEN_BELOW:
+            out.append("The start and end keyframes are almost the same picture, so the clip will barely move: put the "
+                       "action or a camera move into the end change and make the keyframes again.")
+        words = sorted(set(MAKING_OF.findall(f"{shot.get('motion', '')} {project['brief'].get('style', '')}".lower())))
+        if words:
+            out.append(f"The motion or style names how the picture is made ({', '.join(words)}): the video model may show "
+                       "it (e.g. real fingers smearing paint). Describe only what the camera sees.")
+        return out
+
+    # ---- Render all: one shot at a time, each one checked before the next is rendered
+
+    def render_all(self, project_id):
+        project = self.get(project_id)
+        if not project:
+            raise KeyError("no such project")
+        if project.get("autorun", {}).get("status") == "working":
+            raise ValueError("Render all is already running")
+        todo = [s for s in project["shots"] if not s["render"] or s["render"]["status"] in ("failed", "cancelled")]
+        if not todo:
+            raise ValueError("every shot is rendered already")
+        self.update(project_id, lambda p: p.update(autorun={"status": "working", "started": time.time(), "message": "starting"}))
+        self._task_started(project_id)
+        threading.Thread(target=self._render_all, args=(project_id,), daemon=True).start()
+
+    def stop_render_all(self, project_id):
+        self.update(project_id, lambda p: p.get("autorun", {}).update(stop=True))
+
+    def _autorun(self, project_id, **fields):
+        self._update_quietly(project_id, lambda p: p.setdefault("autorun", {}).update(fields))
+
+    def _render_all(self, project_id):
+        writer = None
+        try:
+            while True:
+                project = self.get(project_id)
+                if not project or project.get("autorun", {}).get("stop"):
+                    return self._autorun(project_id, status="stopped", message="Stopped.")
+                i, shot = next(((i, s) for i, s in enumerate(project["shots"], 1)
+                                if not s["render"] or s["render"]["status"] in ("failed", "cancelled")), (0, None))
+                if not shot:
+                    return self._autorun(project_id, status="done", message="Every shot is rendered and checked.")
+                if not (shot.get("start_image") and shot.get("end_image")):
+                    return self._autorun(project_id, status="stopped", shot=i, message=f"Shot {i} has no keyframes yet: make them first.")
+                if shot["warnings"]:
+                    return self._autorun(project_id, status="stopped", shot=i, message=f"Shot {i}: {shot['warnings'][0]}")
+                self._autorun(project_id, shot=i, message=f"Rendering shot {i}")
+                job = self.render(project_id, shot["id"])
+                while (job := self.jobs.jobs.get(job["id"]) or {}).get("status") in ("queued", "running"):
+                    time.sleep(3)
+                if job.get("status") != "done":
+                    return self._autorun(project_id, status="stopped", shot=i, message=f"Shot {i}'s render {job.get('status', 'failed')}: "
+                                         f"{job.get('error') or ''}".strip())
+                writer = writer or self.writers.get(project.get("writer"))
+                if not writer or not writer.ready or writer.paid or not self.review:
+                    # no free AI model to check it: stop after each shot so a person checks it before the next
+                    why = "paid per use" if writer and writer.paid else "not set up"
+                    return self._autorun(project_id, status="stopped", shot=i,
+                                         message=f"Shot {i} is rendered. The AI check is off ({why}): look at it, then Render all again.")
+                self._autorun(project_id, message=f"Checking shot {i}")
+                check = self.review(job, writer)
+                if check.get("status") != "done":
+                    return self._autorun(project_id, status="stopped", shot=i, message=f"Shot {i}'s check failed: {check.get('error', '')}")
+                if check.get("verdict") == "redo" or check.get("style_rating") == "lost":
+                    return self._autorun(project_id, status="stopped", shot=i,
+                                         message=f"Shot {i} needs another go: {check.get('summary', '')}")
+        except Exception as e:  # report any failure in the app
+            self._autorun(project_id, status="stopped", message=f"{type(e).__name__}: {e}"[-600:])
+        finally:
+            self._task_done(project_id)
 
     def list(self):
         items = []
@@ -613,6 +712,28 @@ class Director:
     def _clean_cast(self, ids):
         return [i for i in dict.fromkeys(str(i) for i in (ids or [])) if self.characters.get(i)][:12]
 
+    def _shot_cast(self, ids):
+        """A shot's cast: up to 3 characters and one place, in the order given."""
+        chosen, people, place = [], 0, False
+        for i in dict.fromkeys(str(c) for c in ids or []):
+            c = self.characters.get(i)
+            if not c:
+                continue
+            if c.get("kind") == "set":
+                if place:
+                    continue
+                place = True
+            elif people == 3:
+                continue
+            else:
+                people += 1
+            chosen.append(i)
+        return chosen
+
+    def _place(self, shot):
+        """The shot's place (a set from Characters), or None."""
+        return next((c for c in map(self.characters.get, shot.get("characters") or []) if c and c.get("kind") == "set"), None)
+
     def _clean_shot(self, raw, old=None):
         shot = dict(old or {"id": uuid.uuid4().hex[:8], "start_image": None, "end_image": None, "job_id": None,
                             "kf_status": "idle", "kf_error": None})
@@ -624,7 +745,7 @@ class Director:
             shot["seconds"] = int(raw["seconds"]) if str(raw["seconds"]).isdigit() and int(raw["seconds"]) in SECONDS else 5
         shot.setdefault("seconds", 5)
         if "characters" in raw:
-            shot["characters"] = [i for i in dict.fromkeys(str(c) for c in raw["characters"] or []) if self.characters.get(i)][:3]
+            shot["characters"] = self._shot_cast(raw["characters"])
         shot.setdefault("characters", [])
         for key in ("start_image", "end_image"):  # a library image chosen as a keyframe (e.g. the user's own photo)
             if key in raw and raw[key] != shot.get(key):
@@ -669,6 +790,8 @@ class Director:
                 p["writer"] = raw["writer"]
             if "fast" in raw:
                 p["fast"] = bool(raw["fast"])
+            if "set_edits" in raw:
+                p["set_edits"] = bool(raw["set_edits"])
             if raw.get("engine") in VIDEO_ENGINES and raw["engine"] != p.get("engine"):
                 p["engine"] = raw["engine"]
             if isinstance(raw.get("reel"), dict):  # the words on screen and the caption, edited by hand
@@ -713,7 +836,10 @@ class Director:
         lines = []
         for char_id in project["cast"]:
             c = self.characters.get(char_id)
-            if c:
+            if c and c.get("kind") == "set":
+                lines.append(f"- {c['name']} (place)" + (f": {c['description']}" if c["description"] else "")
+                             + (f". Layout: {c['layout']}" if c.get("layout") else ""))
+            elif c:
                 lines.append(f"- {c['name']}" + (f": {c['description']}" if c["description"] else ""))
         return "\n".join(lines) or "(no cast: invent the people or creatures the story needs, described in each prompt)"
 
@@ -809,7 +935,7 @@ class Director:
                                         if isinstance(n, str) and n.strip().lower() in by_name])
             # an unchanged shot keeps its keyframes and clip
             same = next((s for s in old if all(s.get(f) == _clean_text(raw.get(f), TEXT_FIELDS[f]) for f in ("start_frame", "end_change"))
-                         and s.get("characters") == raw["characters"][:3]), None)
+                         and s.get("characters") == self._shot_cast(raw["characters"])), None)
             if same:
                 old.remove(same)
             shots.append(self._clean_shot(raw, same))
@@ -963,8 +1089,16 @@ class Director:
     def _keyframes(self, project_id, shot_id, project, shot, cast, keep_start=False):
         try:
             model, aspect = project.get("image_model"), project["brief"]["aspect"]
+            place = next((c for c in cast if c.get("kind") == "set"), None)
             if keep_start:
                 start = shot["start_image"]
+            elif place and project.get("set_edits", True) and self.maker.exists(place["refs"][0]):
+                # an edit keeps the furniture where it is in the place's picture; the camera may move closer
+                people = [c for c in cast if c.get("kind") != "set"]
+                prompt = (f"Redraw this picture of {place['name']} as this shot: {shot['start_frame']} It is the same "
+                          "place: keep every piece of furniture, window, door and wall exactly where it is in the "
+                          "picture; change only the camera framing, the people and the light as described.")
+                start = self._wait_task(self.maker.start(prompt, aspect, place["refs"][0], None, model, people))
             else:
                 start = self._wait_task(self.maker.start(shot["start_frame"], aspect, None, None, model, cast))
                 self.update(project_id, lambda p: self._shot(p, shot_id).update(start_image=start))
@@ -985,6 +1119,10 @@ class Director:
         if not paths or not all(os.path.exists(p) for p in paths):
             raise ValueError("make the keyframes first")
         engine = project.get("engine", "wan22")  # films made before H3 became the default rendered with Wan
+        place = self._place(shot)
+        info = {"action": shot["action"], "end": shot["end_change"],
+                "characters": ", ".join(c["name"] for c in map(self.characters.get, shot["characters"]) if c and c.get("kind") != "set"),
+                "place": {"name": place["name"], "layout": place.get("layout", ""), "image": place["refs"][0]} if place else None}
         job = self.queue_job(paths, {"prompts": [shot["motion"] or "smooth natural motion"], "engine": engine,
                                      "image_model": project.get("image_model") or self.maker.default_model(), "style": "photoreal",
                                      # the film's style keeps the clip in it (and tells Check clip what to judge)
@@ -992,7 +1130,8 @@ class Director:
                                      "restyle": False, "fast": project.get("fast", True), "audio": True,
                                      "length": LENGTH_FOR_SECONDS[shot["seconds"]], "size": "standard",
                                      "smooth": engine == "wan22",  # H3 and LTX already render 24-25 fps
-                                     "negative_extra": REEL_AVOID if project["brief"].get("format") == "reel" else ""})
+                                     "negative_extra": REEL_AVOID if project["brief"].get("format") == "reel" else ""},
+                             {"shot": info})
         self.update(project_id, lambda p: self._shot(p, shot_id).update(job_id=job["id"]))
         return job
 
