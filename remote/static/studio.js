@@ -1931,7 +1931,7 @@ $("charPlan").onclick = (e) => {
 };
 
 // ---------------------------------------------------------------- director
-const D = { list: [], project: null, filled: "", tab: "shots" };
+const D = { list: [], project: null, filled: "", tab: "shots", open: new Set() };  // open: shots shown as full cards
 const dirId = () => (location.hash.match(/^#\/director\/([0-9a-f]{12})/) || [])[1];
 const SHOT_FIELDS = ["scene", "action", "start_frame", "end_change", "motion", "narration", "sound", "seconds", "characters"];
 const writerById = (id) => (S.info?.writers || []).find((w) => w.id === id);
@@ -2118,6 +2118,24 @@ function frame(id, label, busy) {
   return id ? `<img alt="${label}" src="${imgUrl(id)}" data-open-img="${id}">`
     : `<div class="ph">${busy ? `<div class="spinner"></div>` : ""}${label}</div>`;
 }
+// A shot as a compact row: a small player (or its start keyframe), the basics and quick actions; Edit opens the full card.
+function shotRow(s, i, status, bad, kfBusy) {
+  const r = s.render, review = r?.review?.status === "done" ? r.review : null;
+  const ready = s.start_image && s.end_image && !["queued", "running"].includes(r?.status) && !kfBusy;
+  return `<div class="shot shot-row" data-shot="${s.id}">
+    <div class="sr-media">${r?.status === "done" ? `<video controls playsinline loop preload="metadata" src="${jobVideo({ id: s.job_id, audio: null })}"></video>`
+      : frame(s.start_image, "No keyframe", kfBusy && !s.start_image)}</div>
+    <div class="sr-info">
+      <div class="sr-title"><span class="num">${i + 1}</span><b>${esc(s.scene || "Untitled shot")}</b><span class="hint">${s.seconds} s</span></div>
+      ${s.action ? `<p class="sr-action">${esc(s.action)}</p>` : ""}
+      <div class="sr-meta"><span class="shot-status${bad ? " bad" : ""}">${esc(status || "Not started")}</span>
+        ${review ? `<span class="sr-badge ${review.verdict}">Check: ${esc(review.verdict)}</span>` : ""}
+        ${(s.warnings || []).length ? `<span class="sr-badge redo" title="${esc(s.warnings.join(" "))}">${s.warnings.length} warning${s.warnings.length === 1 ? "" : "s"}</span>` : ""}</div>
+      <div class="row"><button type="button" class="btn small" data-sa="open">Edit</button>
+        ${r?.status === "done" && r.review?.status !== "working" ? `<button type="button" class="btn small" data-sa="check">${r.review ? "Check again" : "Check clip"}</button>` : ""}
+        <button type="button" class="btn small" data-sa="render"${ready ? "" : " disabled"}>${r?.status === "done" ? "Render again" : "Render shot"}</button></div>
+    </div></div>`;
+}
 function shotCard(p, s, i) {
   const kfBusy = s.kf_status === "working", r = s.render;
   const status = kfBusy ? (s.start_image ? "Making the end keyframe…" : "Making the start keyframe…")
@@ -2126,13 +2144,14 @@ function shotCard(p, s, i) {
     : r?.status === "failed" ? `Render failed: ${r.error || ""}` : r?.status === "done" ? "Rendered"
     : s.start_image && s.end_image ? "Keyframes ready" : "";
   const bad = s.kf_status === "failed" || r?.status === "failed";
+  if (!D.open.has(s.id)) return shotRow(s, i, status, bad, kfBusy);
   const cast = p.cast.map(charById).filter(Boolean);
   const ta = (f, label, rows, ph) => `<label class="sf">${label}<textarea data-f="${f}" rows="${rows}" placeholder="${ph}">${esc(s[f] || "")}</textarea></label>`;
   return `<div class="shot" data-shot="${s.id}">
     <div class="shot-head"><span class="num">${i + 1}</span>
       <input data-f="scene" value="${esc(s.scene)}" placeholder="Scene, e.g. Lighthouse lamp room, night" aria-label="Scene">
       <select data-f="seconds" aria-label="Length">${[2, 3, 4, 5, 6].map((n) => `<option value="${n}"${s.seconds === n ? " selected" : ""}>${n} s</option>`).join("")}</select>
-      <span class="shot-tools"><button type="button" data-sa="up" aria-label="Move up">↑</button><button type="button" data-sa="down" aria-label="Move down">↓</button><button type="button" data-sa="del" aria-label="Delete shot">✕</button></span>
+      <span class="shot-tools"><button type="button" data-sa="close" aria-label="Show as a compact row" title="Collapse">▴</button><button type="button" data-sa="up" aria-label="Move up">↑</button><button type="button" data-sa="down" aria-label="Move down">↓</button><button type="button" data-sa="del" aria-label="Delete shot">✕</button></span>
     </div>
     <div class="shot-body">
       <div class="frames">
@@ -2390,6 +2409,7 @@ $("dirShots").addEventListener("click", async (e) => {
     return;
   }
   const a = e.target.closest("[data-sa]")?.dataset.sa; if (!a) return;
+  if (a === "open" || a === "close") { D.open[a === "open" ? "add" : "delete"](id); return renderShots(D.project); }
   const busyText = { check: "Starting the check…", kf: "Starting…", kfend: "Starting…", render: "Queueing…" }[a];
   const restore = busyText ? busyButton(e.target.closest("[data-sa]"), busyText) : () => {};
   if (a === "check") { if (await checkClip(shots[i].job_id)) await refreshDirector(); else restore(); return renderDirector(); }
