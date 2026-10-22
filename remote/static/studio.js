@@ -309,6 +309,9 @@ document.addEventListener("click", (e) => {
   const tile = e.target.closest(".tile[data-img], .tile[data-job]");
   if (!tile || tile.closest("#picker")) return;
   const act = e.target.closest("[data-act]")?.dataset.act;
+  // the lightbox pages through the clicked tile's grid (see stepLightbox)
+  const key = (t) => t.dataset.img ? `img:${t.dataset.img}` : `job:${t.dataset.job}`;
+  S.lbGrid = { items: [...tile.parentElement.children].filter((t) => t.matches(".tile[data-img], .tile[data-job]")).map(key), cur: key(tile) };
   if (tile.dataset.img) {
     const id = tile.dataset.img;
     if (act === "edit") editImage(id);
@@ -323,8 +326,6 @@ document.addEventListener("keydown", (e) => {
     closeOverlay("lightbox"); closeOverlay("charSheet"); closeOverlay("reelSheet"); closeOverlay("soundSheet"); closeOverlay("styleSheet");
   }
   if (e.key === "Enter" && e.target.matches?.(".tile")) e.target.click();
-  if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !$("lightbox").classList.contains("hidden") && $("lbMedia").querySelector(".lb-paddle")
-      && !e.target.matches?.("input, textarea")) S.lbStep?.(e.key === "ArrowLeft" ? -1 : 1);
 });
 
 // ---------------------------------------------------------------- lightbox
@@ -390,11 +391,41 @@ function onSideSwipe(el, step) {
   }, { passive: true });
   el.addEventListener("touchcancel", () => { t0 = null; }, { passive: true });
 }
-onSideSwipe($("lightbox"), (d) => { if ($("lbMedia").querySelector(".lb-paddle")) S.lbStep?.(d); });  // keyframes and the like
+// prev/next paging for a panel: ← → and Page Up/Down while it's the top overlay (not while typing), the mouse wheel
+// over wheelZone, a sideways wheel or trackpad swipe anywhere on the panel (one step per flick), and a sideways touch swipe
+function pager(overlayId, step, wheelZone) {
+  const el = $(overlayId); let wheelAt = 0;
+  onSideSwipe(el, step);
+  document.addEventListener("keydown", (e) => {
+    if (openOverlays()[0] !== overlayId || e.target.matches?.("input, textarea, select") || e.altKey || e.ctrlKey || e.metaKey) return;
+    const d = { ArrowLeft: -1, PageUp: -1, ArrowRight: 1, PageDown: 1 }[e.key];
+    if (d) { e.preventDefault(); step(d); }
+  });
+  el.addEventListener("wheel", (e) => {
+    const sideways = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+    if (!sideways && !e.target.closest(wheelZone)) return;  // elsewhere the wheel scrolls the panel
+    e.preventDefault();
+    const delta = sideways ? e.deltaX : e.deltaY;
+    if (Math.abs(delta) < 8 || Date.now() - wheelAt < 450) return;
+    wheelAt = Date.now();
+    step(delta > 0 ? 1 : -1);
+  }, { passive: false });
+}
+// the lightbox: the keyframes when it shows them with paddles, else the neighbour in the grid the tile was opened from
+function stepLightbox(d) {
+  if ($("lbMedia").querySelector(".lb-paddle")) return S.lbStep?.(d);
+  const g = S.lbGrid, n = g?.items.length, at = g ? g.items.indexOf(g.cur) : -1;
+  if (at < 0 || n < 2) return;
+  g.cur = g.items[(at + d + n) % n];
+  document.querySelector("#lightbox .lb").classList.remove("kf-view");
+  const [kind, id] = g.cur.split(/:(.*)/);
+  if (kind === "img") openImage(id); else openVideo(id);
+}
+pager("lightbox", stepLightbox, "#lbMedia");
 function closeOverlay(id) {
   const o = $(id); if (o.classList.contains("hidden")) return;
   o.classList.add("hidden"); o.querySelectorAll("video").forEach((v) => v.pause());
-  if (id === "lightbox") { $("lbMedia").innerHTML = ""; document.querySelector("#lightbox .lb").classList.remove("kf-view"); }
+  if (id === "lightbox") { $("lbMedia").innerHTML = ""; S.lbGrid = null; document.querySelector("#lightbox .lb").classList.remove("kf-view"); }
 }
 document.querySelectorAll(".overlay").forEach((o) => o.addEventListener("click", (e) => {
   if (e.target === o || e.target.closest("[data-close]")) closeOverlay(o.id);
@@ -490,11 +521,6 @@ function openKeyframe(jobId, ref, back) {
        <button type="button" class="lb-paddle next" data-step="1" aria-label="Next keyframe">›</button>
        <span class="lb-count">${at + 1} / ${all.length}</span>` : "");
   $("lbMedia").onclick = (e) => { const b = e.target.closest("[data-step]"); if (b) step(+b.dataset.step); };
-  $("lbMedia").onwheel = (e) => {  // the wheel moves through the keyframes, not the page behind
-    e.preventDefault();
-    if (Date.now() - (S.wheelAt || 0) < 250 || Math.abs(e.deltaY) + Math.abs(e.deltaX) < 4) return;
-    S.wheelAt = Date.now(); step((e.deltaY || e.deltaX) > 0 ? 1 : -1);
-  };
   S.lbStep = step;
   $("lbInfo").innerHTML = `<h3>${label}</h3>
     <p class="hint" style="margin:0">${esc(jobSummary(j).text)}</p>
@@ -963,25 +989,7 @@ function stepStyleSheet(d) {
   sheet.classList.remove("slide-next", "slide-prev"); void sheet.offsetWidth;  // restart the slide-in
   sheet.classList.add(d > 0 ? "slide-next" : "slide-prev");
 }
-onSideSwipe($("styleSheet"), stepStyleSheet);
-// keyboard and mouse: ← → and Page Up/Down page between styles (not while typing); the mouse wheel does too
-// over the example pictures, and a sideways wheel or trackpad swipe anywhere on the panel
-const styleSheetOnTop = () => !$("styleSheet").classList.contains("hidden") && $("ssZoom").classList.contains("hidden")
-  && $("picker").classList.contains("hidden");
-document.addEventListener("keydown", (e) => {
-  if (!styleSheetOnTop() || e.target.matches?.("input, textarea, select") || e.altKey || e.ctrlKey || e.metaKey) return;
-  const d = { ArrowLeft: -1, PageUp: -1, ArrowRight: 1, PageDown: 1 }[e.key];
-  if (d) { e.preventDefault(); stepStyleSheet(d); }
-});
-$("styleSheet").addEventListener("wheel", (e) => {
-  const sideways = Math.abs(e.deltaX) > Math.abs(e.deltaY);
-  if (!sideways && !e.target.closest("#ssExamples")) return;  // elsewhere the wheel scrolls the panel
-  e.preventDefault();
-  const delta = sideways ? e.deltaX : e.deltaY;
-  if (Math.abs(delta) < 8 || Date.now() - (SS.wheelAt || 0) < 450) return;  // one style per flick
-  SS.wheelAt = Date.now();
-  stepStyleSheet(delta > 0 ? 1 : -1);
-}, { passive: false });
+pager("styleSheet", stepStyleSheet, "#ssExamples");  // the wheel pages over the example pictures
 function renderStyleSheet() {
   const st = SS.id ? styleById(SS.id) : SS.draft; if (!st) return;
   $("ssNameBlock").classList.toggle("hidden", !st.custom);
@@ -1600,8 +1608,24 @@ function openCharacter(id, refs) {
   $("charDelete").classList.toggle("hidden", !c);
   renderRefs();
   $("charSheet").classList.remove("hidden");
-  setTimeout(() => $("charName").focus(), 50);
+  if (!c) setTimeout(() => $("charName").focus(), 50);  // not when editing: ← → page between characters
 }
+// the next/previous character, in the Characters grid's order (asks before dropping edits)
+function stepCharacter(d) {
+  const c = CH.id && charById(CH.id); if (!c) return;
+  const edited = $("charName").value !== c.name || $("charDesc").value !== (c.description || "")
+    || ($("charLayout")?.value ?? "") !== (c.layout || "") || CH.refs.join() !== c.refs.join();
+  if (edited && !confirm("Discard your changes to this character?")) return;
+  let ids = [...$("charGrid").querySelectorAll("[data-char]")].map((x) => x.dataset.char);
+  if (!ids.includes(CH.id)) ids = S.characters.map((x) => x.id);
+  if (ids.length < 2) return;
+  openCharacter(ids[(ids.indexOf(CH.id) + d + ids.length) % ids.length]);
+  const sheet = $("charSheet").querySelector(".sheet");
+  sheet.querySelector(".char-body")?.scrollTo(0, 0);
+  sheet.classList.remove("slide-next", "slide-prev"); void sheet.offsetWidth;  // restart the slide-in
+  sheet.classList.add(d > 0 ? "slide-next" : "slide-prev");
+}
+pager("charSheet", stepCharacter, "#charRefs");
 function renderRefs() {
   $("charRefs").innerHTML = CH.refs.map((id, i) => `<div class="kf"><img alt="" src="${imgUrl(id)}"><span class="n">${i ? i + 1 : "Main"}</span>
     <div class="kt"><button type="button" data-r="left" data-i="${i}" aria-label="Move earlier">◀</button>
