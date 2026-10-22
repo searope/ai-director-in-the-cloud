@@ -264,6 +264,7 @@
 
       <div id="dirWork" class="workspace hidden">
         <div class="panel">
+          <div id="dirShotEdit" class="hidden"></div>
           <a href="#/director" id="dirBack" class="back">← All films</a>
           <div class="field-block">
             <label class="lbl" for="dirTitle">Title</label>
@@ -319,7 +320,7 @@
         <div class="feed">
           <div class="dir-head">
             <div><h2 id="dirHeadTitle"></h2><p id="dirLogline" class="hint"></p>
-              <div class="seg dir-tabs" id="dirTabs"><button type="button" data-dtab="shots" class="on">Shots</button><button type="button" data-dtab="board">Storyboard</button></div></div>
+              <div class="seg dir-tabs" id="dirTabs"><button type="button" data-dtab="shots" class="on">Shots</button><button type="button" data-dtab="board">Storyboard</button><button type="button" data-dtab="words" class="hidden">Words</button></div></div>
             <div class="row">
               <label class="toggle"><input id="dirFast" type="checkbox" checked><span>Fast renders</span></label>
               <label class="toggle" title="A shot in a place starts as an edit of the place's picture, so the room stays the same"><input id="dirSetEdits" type="checkbox" checked><span>Draw shots from the place's picture</span></label>

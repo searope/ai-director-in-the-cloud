@@ -752,6 +752,12 @@ class Director:
         if "characters" in raw:
             shot["characters"] = self._shot_cast(raw["characters"])
         shot.setdefault("characters", [])
+        if "engine" in raw:  # the shot's own video model; None renders with the film's
+            shot["engine"] = raw["engine"] if raw["engine"] in VIDEO_ENGINES else None
+        if "fast" in raw:  # the shot's own fast/quality choice; None follows the film's
+            shot["fast"] = None if raw["fast"] is None else bool(raw["fast"])
+        shot.setdefault("engine", None)
+        shot.setdefault("fast", None)
         for key in ("start_image", "end_image"):  # a library image chosen as a keyframe (e.g. the user's own photo)
             if key in raw and raw[key] != shot.get(key):
                 if raw[key] and not self.maker.exists(raw[key]):
@@ -1124,7 +1130,9 @@ class Director:
             if shot.get("start_image") and shot.get("end_image") else None
         if not paths or not all(os.path.exists(p) for p in paths):
             raise ValueError("make the keyframes first")
-        engine = project.get("engine", "wan22")  # films made before H3 became the default rendered with Wan
+        # the shot's own video model, else the film's (films made before H3 became the default rendered with Wan)
+        engine = shot.get("engine") or project.get("engine", "wan22")
+        fast = project.get("fast", True) if shot.get("fast") is None else shot["fast"]
         place = self._place(shot)
         info = {"action": shot["action"], "end": shot["end_change"],
                 "characters": ", ".join(c["name"] for c in map(self.characters.get, shot["characters"]) if c and c.get("kind") != "set"),
@@ -1133,7 +1141,7 @@ class Director:
                                      "image_model": project.get("image_model") or self.maker.default_model(), "style": "photoreal",
                                      # the film's style keeps the clip in it (and tells Check clip what to judge)
                                      "custom_style": project["brief"].get("style", ""),
-                                     "restyle": False, "fast": project.get("fast", True), "audio": True,
+                                     "restyle": False, "fast": fast, "audio": True,
                                      "sound": shot.get("sound", ""),  # without one: the scene's quiet sounds, no music
                                      "length": LENGTH_FOR_SECONDS[shot["seconds"]], "size": "standard",
                                      "smooth": engine == "wan22",  # H3 and LTX already render 24-25 fps

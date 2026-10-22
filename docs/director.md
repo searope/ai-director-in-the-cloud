@@ -179,6 +179,13 @@ model has no negative prompt and the word itself brings music in; without any so
 Describe music only when you want it, or add it later with Sound. Make film levels the joined sound to one
 loudness.
 
+## Editing a shot
+
+The film and its shots show as compact cards. Select a shot (click its card or Edit) to highlight it and edit it
+in the settings panel on the left: its text, length and cast, and its own render settings (video model, fast or
+quality), which follow the film's until you change them. **Reset to defaults** puts the film's render settings
+back; **← Film settings** (or selecting the shot again) returns to the film's brief.
+
 ## Tips
 
 - Keep each shot's **end change** small (one pose or camera change): a shot is only 2-5 s.
