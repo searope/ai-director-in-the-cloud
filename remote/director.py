@@ -132,7 +132,14 @@ stays on; parts meant to be read together share until_shot. Nothing on screen in
 `reel.caption` is the post caption: one to three short sentences that open up the idea, the practice in one
 line, then 3-5 hashtags. When the topic is heavy (burnout, grief, panic, loneliness, hopelessness), add a
 line on its own: "If you're struggling, you're not alone. In the US, call or text 988." Never diagnose.
-`narration` is usually "": the words are on screen."""
+`narration` is usually "": the words are on screen.
+
+Before you answer, check every point and fix the script if one fails:
+- the lantern is visible in the first shot and in the last shot, and its light changes with the feeling;
+- one practice from the list above is named in the words on screen and shown in the try-this shots;
+- every part is lowercase, at most 9 words, and the last shot has no words;
+- the caption has the practice on a line of its own;
+- every start_frame names the night-blue and lantern-amber palette and the visual style."""
 
 
 REVIEW_SCHEMA = {
@@ -658,15 +665,17 @@ class Director:
         return self.update(project_id, change)
 
     @staticmethod
-    def _clean_reel(raw, shots):
+    def _clean_reel(raw, shots, quiet_close=False):
+        """quiet_close (the AI's words): nothing on screen in the last shot, the reel's calm close."""
+        last = shots - 1 if quiet_close and shots > 1 else shots
         parts = []
         for part in (raw.get("parts") or [])[:reel.MAX_PARTS]:
             if not isinstance(part, dict) or not str(part.get("text") or "").strip():
                 continue
-            shot = max(1, min(shots or 1, int(part.get("shot") or 1) if str(part.get("shot") or "").isdigit() else 1))
+            shot = max(1, min(last or 1, int(part.get("shot") or 1) if str(part.get("shot") or "").isdigit() else 1))
             until = int(part.get("until_shot") or shot) if str(part.get("until_shot") or "").isdigit() else shot
             parts.append({"text": _clean_text(part["text"], 160), "accent": bool(part.get("accent")),
-                          "shot": shot, "until_shot": max(shot, min(shots or 1, until))})
+                          "shot": shot, "until_shot": max(shot, min(last or 1, until))})
         return {"parts": parts, "caption": _clean_text(raw.get("caption"), 2200)}
 
     def delete(self, project_id):
@@ -695,7 +704,9 @@ class Director:
 
     def _prompt(self, project, instruction, task="write"):
         b = project["brief"]
-        text = (f"Title: {project['title']}\nIdea: {b['idea'] or '(none: invent one)'}\n"
+        text = ("Format: Lantern reel. Follow the Lantern reel rules: the lantern in every reel, one practice to try, "
+                "the words on screen and the caption.\n" if b.get("format") == "reel" else "")
+        text += (f"Title: {project['title']}\nIdea: {b['idea'] or '(none: invent one)'}\n"
                 f"Visual style: {b['style'] or '(choose one that suits the idea)'}\nTarget length: about {b['seconds']} seconds\n"
                 f"Aspect ratio: {b['aspect']}\n" + (f"Notes: {b['notes']}\n" if b["notes"] else "")
                 + f"\nCast (reference images are passed to the image model for these characters):\n{self._cast_text(project)}\n")
@@ -784,7 +795,7 @@ class Director:
         project["title"] = _clean_text(script.get("title"), 120) or project["title"]
         project["logline"] = _clean_text(script.get("logline"), 400)
         if isinstance(script.get("reel"), dict):
-            project["reel"] = self._clean_reel(script["reel"], len(shots))
+            project["reel"] = self._clean_reel(script["reel"], len(shots), quiet_close=True)
         project["ai"].update(status="done", error=None, finished=time.time(), writer=writer.id)
         project["review"] = None  # notes were about the old shot list
 
