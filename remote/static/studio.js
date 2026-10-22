@@ -2122,15 +2122,16 @@ function frame(id, label, busy) {
 function shotRow(s, i, status, bad, kfBusy) {
   const r = s.render, review = r?.review?.status === "done" ? r.review : null;
   const ready = s.start_image && s.end_image && !["queued", "running"].includes(r?.status) && !kfBusy;
-  return `<div class="shot shot-row" data-shot="${s.id}">
-    <div class="sr-media">${r?.status === "done" ? `<video controls playsinline loop preload="metadata" src="${jobVideo({ id: s.job_id, audio: null })}"></video>`
+  const facts = [`${s.seconds} s`, `<span class="shot-status${bad ? " bad" : ""}">${esc(status || "Not started")}</span>`,
+    ...(review ? [`<span class="mc-flag ${review.verdict}">check: ${esc(review.verdict)}</span>`] : []),
+    ...((s.warnings || []).length ? [`<span class="mc-flag redo" title="${esc(s.warnings.join(" "))}">${s.warnings.length} warning${s.warnings.length === 1 ? "" : "s"}</span>`] : [])];
+  return `<div class="shot mcard" data-shot="${s.id}">
+    <div class="mc-media">${r?.status === "done" ? `<video controls playsinline loop preload="metadata" src="${jobVideo({ id: s.job_id, audio: null })}"></video>`
       : frame(s.start_image, "No keyframe", kfBusy && !s.start_image)}</div>
-    <div class="sr-info">
-      <div class="sr-title"><span class="num">${i + 1}</span><b>${esc(s.scene || "Untitled shot")}</b><span class="hint">${s.seconds} s</span></div>
-      ${s.action ? `<p class="sr-action">${esc(s.action)}</p>` : ""}
-      <div class="sr-meta"><span class="shot-status${bad ? " bad" : ""}">${esc(status || "Not started")}</span>
-        ${review ? `<span class="sr-badge ${review.verdict}">Check: ${esc(review.verdict)}</span>` : ""}
-        ${(s.warnings || []).length ? `<span class="sr-badge redo" title="${esc(s.warnings.join(" "))}">${s.warnings.length} warning${s.warnings.length === 1 ? "" : "s"}</span>` : ""}</div>
+    <div class="mc-info">
+      <div class="mc-title"><span class="num">${i + 1}</span><b>${esc(s.scene || "Untitled shot")}</b></div>
+      <div class="mc-facts">${facts.join("<i>·</i>")}</div>
+      ${s.action ? `<p class="mc-text">${esc(s.action)}</p>` : ""}
       <div class="row"><button type="button" class="btn small" data-sa="open">Edit</button>
         ${r?.status === "done" && r.review?.status !== "working" ? `<button type="button" class="btn small" data-sa="check">${r.review ? "Check again" : "Check clip"}</button>` : ""}
         <button type="button" class="btn small" data-sa="render"${ready ? "" : " disabled"}>${r?.status === "done" ? "Render again" : "Render shot"}</button></div>
@@ -2207,13 +2208,14 @@ function renderShots(p) {
 function renderFilm(p) {
   const f = p.film || {}, job = f.job;  // sent with the project: the job list only holds the newest 50
   const reel = p.brief.format === "reel", engine = (S.info.engines || []).find((e) => e.id === p.engine)?.label || p.engine;
-  const facts = job ? [["Length", `<span data-film-len>${f.seconds ? fmtTime(f.seconds) : "…"}</span>`], ["Shots", f.shots],
-    ["Aspect", p.brief.aspect], ["Video model", esc(engine || "")], ["Sound", job.audio?.mixed ? "mixed in Sound" : "as rendered"],
-    ...(reel ? [["Words on screen", `${(job.reel?.parts || []).length} lines`]] : []), ["Made", ago(f.finished)]] : [];
-  setHtml($("dirFilmBox"), f.status === "done" && job ? `<div class="film-card">
-      <video controls playsinline preload="metadata" src="${jobVideo(job)}"></video>
-      <div class="film-info"><div class="film-title"><b>${esc(p.title)}</b><span class="hint">${reel ? "Lantern reel" : "Film"}</span></div>
-        <dl>${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>
+  const facts = job ? [`<span data-film-len>${f.seconds ? fmtTime(f.seconds) : "…"}</span>`, `${f.shots} shots`, p.brief.aspect, esc(engine || ""),
+    job.audio?.mixed ? "sound mixed" : "sound as rendered", ...(reel ? [`${(job.reel?.parts || []).length} lines on screen`] : []),
+    `made ${ago(f.finished)}`] : [];
+  setHtml($("dirFilmBox"), f.status === "done" && job ? `<div class="mcard film-card">
+      <div class="mc-media"><video controls playsinline preload="metadata" src="${jobVideo(job)}"></video></div>
+      <div class="mc-info"><div class="mc-title"><span class="mc-tag">${reel ? "Lantern reel" : "Film"}</span><b>${esc(p.title)}</b></div>
+        <div class="mc-facts">${facts.join("<i>·</i>")}</div>
+        ${p.logline ? `<p class="mc-text">${esc(p.logline)}</p>` : ""}
         <div class="row"><button type="button" class="btn small" data-film-open="${job.id}">Open</button>
           <button type="button" class="btn small" data-film-sound="${job.id}">Sound</button>
           ${reel ? `<button type="button" class="btn small" data-film-reel="${job.id}">Edit reel</button>` : ""}
