@@ -962,6 +962,24 @@ function stepStyleSheet(d) {
   sheet.classList.add(d > 0 ? "slide-next" : "slide-prev");
 }
 onSideSwipe($("styleSheet"), stepStyleSheet);
+// keyboard and mouse: ← → and Page Up/Down page between styles (not while typing); the mouse wheel does too
+// over the example pictures, and a sideways wheel or trackpad swipe anywhere on the panel
+const styleSheetOnTop = () => !$("styleSheet").classList.contains("hidden") && $("ssZoom").classList.contains("hidden")
+  && $("picker").classList.contains("hidden");
+document.addEventListener("keydown", (e) => {
+  if (!styleSheetOnTop() || e.target.matches?.("input, textarea, select") || e.altKey || e.ctrlKey || e.metaKey) return;
+  const d = { ArrowLeft: -1, PageUp: -1, ArrowRight: 1, PageDown: 1 }[e.key];
+  if (d) { e.preventDefault(); stepStyleSheet(d); }
+});
+$("styleSheet").addEventListener("wheel", (e) => {
+  const sideways = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+  if (!sideways && !e.target.closest("#ssExamples")) return;  // elsewhere the wheel scrolls the panel
+  e.preventDefault();
+  const delta = sideways ? e.deltaX : e.deltaY;
+  if (Math.abs(delta) < 8 || Date.now() - (SS.wheelAt || 0) < 450) return;  // one style per flick
+  SS.wheelAt = Date.now();
+  stepStyleSheet(delta > 0 ? 1 : -1);
+}, { passive: false });
 function renderStyleSheet() {
   const st = SS.id ? styleById(SS.id) : SS.draft; if (!st) return;
   $("ssNameBlock").classList.toggle("hidden", !st.custom);
