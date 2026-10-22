@@ -768,6 +768,115 @@ def make_reel_job(jobs, job, raw):
     return new
 
 
+# ---------------------------------------------------------------- the render list (Create video)
+
+ACTIVE = ("queued", "running", "approve")
+STATUS_GROUPS = {"active": ACTIVE, "done": ("done",), "failed": ("failed", "cancelled")}
+_projects_cache = {"sig": None, "shots": {}, "films": {}, "motions": {}}
+
+
+def _director_projects(folder):
+    """Director projects' renders, re-read when a project file changes: shot job id -> (project id, title, shot n),
+    film job id -> (project id, title), (style, motion prompt) -> (project id, title, shot n)."""
+    try:
+        names = sorted(n for n in os.listdir(folder) if n.endswith(".json"))
+        sig = [(n, os.path.getmtime(os.path.join(folder, n))) for n in names]
+    except OSError:
+        names, sig = [], []
+    c = _projects_cache
+    if sig == c["sig"]:
+        return c
+    shots, films, motions = {}, {}, {}
+    for name in names:
+        try:
+            with open(os.path.join(folder, name), encoding="utf-8") as f:
+                p = json.load(f)
+        except (OSError, ValueError):
+            continue
+        style = (p.get("brief") or {}).get("style", "")
+        for i, shot in enumerate(p.get("shots") or []):
+            if shot.get("job_id"):
+                shots[shot["job_id"]] = (p["id"], p.get("title", ""), i + 1)
+            if shot.get("motion"):
+                motions[(style.strip()[:300], shot["motion"].strip())] = (p["id"], p.get("title", ""), i + 1)
+        for key in ("film", "reel"):
+            if (p.get(key) or {}).get("job_id"):
+                films[p[key]["job_id"]] = (p["id"], p.get("title", ""))
+    c.update(sig=sig, shots=shots, films=films, motions=motions)
+    return c
+
+
+def job_source(jobs, job, projects):
+    """Where a render came from: {"kind": "video" | "shot" | "film" | "reel", "project", "title", "shot"}.
+    A Director shot is tagged in its job record (job["director"]) the first time it's seen in its project,
+    so older takes of a shot keep their project after the shot is rendered again."""
+    if job.get("kind") == "film":
+        src = {"kind": "reel" if job.get("reel") else "film"}
+        hit = projects["films"].get(job["id"]) or (projects["films"].get(job["reel"]["source"]) if job.get("reel") else None)
+        tag = job.get("director") or ({"project": hit[0], "title": hit[1]} if hit else None)
+        if hit and job.get("director") != {"project": hit[0], "title": hit[1]}:
+            jobs.update(job, director={"project": hit[0], "title": hit[1]})
+        return {**src, **(tag or {})}
+    hit = projects["shots"].get(job["id"])
+    if hit:
+        tag = {"project": hit[0], "title": hit[1], "shot": hit[2]}
+        if job.get("director") != tag:
+            jobs.update(job, director=tag)
+        return {"kind": "shot", **tag}
+    if job.get("director"):
+        return {"kind": "shot", **job["director"]}
+    seen, j = set(), job  # a "Try again" of a shot belongs to the shot
+    while j.get("retry_of") and j["retry_of"] not in seen:
+        seen.add(j["retry_of"])
+        j = jobs.jobs.get(j["retry_of"]) or {}
+        if j.get("director") or j.get("id") in projects["shots"]:
+            return job_source(jobs, j, projects)
+    s = job["settings"]
+    hit = s.get("custom_style") and projects["motions"].get((s["custom_style"], (s.get("prompts") or [""])[0].strip()))
+    if hit:  # a take from before tagging: the shot's film style and motion prompt
+        return {"kind": "shot", "project": hit[0], "title": hit[1], "shot": hit[2]}
+    return {"kind": "video"}
+
+
+def list_job_page(jobs, director_dir, query):
+    """GET /api/jobs with paging and filters: offset, limit (<= 100), status (active | done | failed),
+    kind (video | shot | film; film includes reels), q (words in the prompts, title, style or project).
+    The one rendering comes first, then those waiting for an OK or in line (in queue order), then the newest."""
+    try:
+        offset = max(0, int(query.get("offset", 0)))
+        limit = min(100, max(1, int(query.get("limit", 25))))
+    except ValueError:
+        offset, limit = 0, 25
+    status, kind = query.get("status", ""), query.get("kind", "")
+    words = query.get("q", "").lower().split()
+    projects = _director_projects(director_dir)
+    rows = []
+    for job in list(jobs.jobs.values()):
+        src = job_source(jobs, job, projects)
+        if kind and (src["kind"] if src["kind"] != "reel" else "film") != kind:
+            continue
+        if words:
+            s = job["settings"]
+            text = " ".join([job["id"], job.get("title") or "", src.get("title") or "", s.get("custom_style") or "",
+                             s.get("style") or "", s.get("engine") or "", *(s.get("prompts") or [])]).lower()
+            if not all(w in text for w in words):
+                continue
+        rows.append((job, src))
+    counts = {k: sum(1 for j, _ in rows if j["status"] in v) for k, v in STATUS_GROUPS.items()}
+    counts["all"] = len(rows)
+    if status in STATUS_GROUPS:
+        rows = [(j, s) for j, s in rows if j["status"] in STATUS_GROUPS[status]]
+    rows.sort(key=lambda r: (0, ("running", "approve", "queued").index(r[0]["status"]), r[0]["created"])
+              if r[0]["status"] in ACTIVE else (1, 0, -r[0]["created"]))  # rendering, then waiting in line, then the newest
+    items = []
+    for job, src in rows[offset:offset + limit]:
+        data = jobs.public(job)
+        data.pop("log", None)  # the list doesn't show it; it can be long
+        data["source"] = src
+        items.append(data)
+    return {"items": items, "total": len(rows), "offset": offset, "limit": limit, "counts": counts}
+
+
 # ---------------------------------------------------------------- web app
 
 def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
@@ -879,6 +988,8 @@ def make_app(jobs, token, maker, idle, sound, gpu, characters, director):
         return web.json_response({"ok": True})
 
     async def list_jobs(request):
+        if request.query.keys() & {"offset", "limit", "status", "kind", "q"}:  # the Create video list: a page of renders
+            return web.json_response(await asyncio.to_thread(list_job_page, jobs, director.dir, request.query))
         items = sorted(jobs.jobs.values(), key=lambda j: j["created"], reverse=True)
         return web.json_response([jobs.public(j) for j in items[:50]])
 
