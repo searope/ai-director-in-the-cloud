@@ -30,6 +30,7 @@ import io
 import json
 import os
 import random
+import re
 import sys
 import time
 import urllib.error
@@ -134,7 +135,8 @@ DEFAULTS = {
     "interpolate": None,      # FILM frame multiplier (1 = off); None = 2 for Wan (-> 32 fps), 1 for H3
     "turbo_steps": 8,         # H3 fast mode: 8 (turbo LoRA v1.0) or 4 (4-step turbo v1.3, about twice as fast)
     "audio": True,            # H3 only: keep the generated soundtrack
-    "sound": None,            # H3 only: describe the sound, e.g. "rain on a tin roof, distant thunder"
+    "sound": None,            # H3 only: describe the sound, e.g. "rain on a tin roof, distant thunder"; no music
+                              # unless the description asks for it (audio_direction)
     "fast": True,             # 4-step Lightx2v LoRAs; False = 20-step full quality (~5x slower)
     "seed": None,             # None = random
     "loop": False,            # add a last segment from the final keyframe back to the first
@@ -848,6 +850,19 @@ def auto_size(path, area, multiple=16):
             max(multiple, round(h * scale / multiple) * multiple))
 
 
+NO_MUSIC = "no music, no singing"
+
+
+def audio_direction(sound):
+    """The sound line for H3 and LTX: what the user described, or the scene's own sounds; music only when the
+    description asks for it (music is added later in Sound, so renders default to none)."""
+    sound = (sound or "").strip().rstrip(".")
+    if not sound:
+        return f"only the natural sounds of the scene, {NO_MUSIC}"
+    asks_for_music = re.search(r"\b(music|song|singing|sings|melody|tune|choir|piano|guitar|violin|drums?)\b", sound, re.I)
+    return sound if asks_for_music else f"{sound}, {NO_MUSIC}"
+
+
 def decode_audio(data):
     """Decode an audio file (bytes) to (float32 array [channels, samples] in stereo, sample_rate)."""
     import av
@@ -1009,8 +1024,8 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
         full_prompt = ", ".join(x for x in (prompt, style.get("video_prompt")) if x)
         label = f"segment {i + 1}/{len(pairs)}"
         prefix = f"keyframe_anim/{run_id}/seg{i + 1:02d}"
-        if sound and cfg["audio"] and cfg.get("sound"):
-            full_prompt += f"\nAudio: {cfg['sound']}"
+        if sound and cfg["audio"]:
+            full_prompt += f"\nAudio: {audio_direction(cfg.get('sound'))}"
         if h3:
             graph = build_h3_segment_graph(cfg, uploaded[a], uploaded[b], full_prompt, seed + i, width, height, prefix)
         elif ltx:
