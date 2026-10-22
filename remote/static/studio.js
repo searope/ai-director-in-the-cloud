@@ -1931,9 +1931,9 @@ $("charPlan").onclick = (e) => {
 };
 
 // ---------------------------------------------------------------- director
-const D = { list: [], project: null, filled: "", tab: "shots", open: new Set() };  // open: shots shown as full cards
+const D = { list: [], project: null, filled: "", tab: "shots", sel: null };  // sel: the shot edited in the settings panel
 const dirId = () => (location.hash.match(/^#\/director\/([0-9a-f]{12})/) || [])[1];
-const SHOT_FIELDS = ["scene", "action", "start_frame", "end_change", "motion", "narration", "sound", "seconds", "characters"];
+const SHOT_FIELDS = ["scene", "action", "start_frame", "end_change", "motion", "narration", "sound", "seconds", "characters", "engine", "fast"];
 const writerById = (id) => (S.info?.writers || []).find((w) => w.id === id);
 
 async function refreshDirector() {
@@ -1978,6 +1978,7 @@ function renderDirector() {
   $("dirShots").classList.toggle("hidden", board); $("dirAddShot").classList.toggle("hidden", board);
   $("dirBoard").classList.toggle("hidden", !board);
   if (board) renderBoard(p); else renderShots(p);
+  renderShotPanel(p);
 }
 
 // ---------------------------------------------------------------- storyboard board
@@ -2118,6 +2119,33 @@ function frame(id, label, busy) {
   return id ? `<img alt="${label}" src="${imgUrl(id)}" data-open-img="${id}">`
     : `<div class="ph">${busy ? `<div class="spinner"></div>` : ""}${label}</div>`;
 }
+// The shot's own render settings, each defaulting to the film's; Reset to defaults puts the film's back.
+function shotRenderSettings(p, s) {
+  const engines = S.info.engines || [], label = (id) => engines.find((e) => e.id === id)?.label || id;
+  const own = s.engine || s.fast != null;
+  return `<div class="shot-render"><b>Render settings</b><span class="hint" style="margin:0">this shot only</span>
+    <div class="field-row">
+      <label class="sf">Video model<select data-f="engine"><option value="">Film's: ${esc(label(p.engine))}</option>
+        ${engines.map((e) => `<option value="${e.id}"${s.engine === e.id ? " selected" : ""}${e.ready ? "" : " disabled"}>${esc(e.label)}</option>`).join("")}</select></label>
+      <label class="sf">Renders<select data-f="fast"><option value="">Film's: ${p.fast !== false ? "fast" : "quality"}</option>
+        <option value="fast"${s.fast === true ? " selected" : ""}>Fast</option><option value="quality"${s.fast === false ? " selected" : ""}>Quality</option></select></label>
+    </div>
+    <button type="button" class="btn small ghost" data-sa="reset"${own ? "" : " disabled"}>Reset to defaults</button></div>`;
+}
+// The settings panel while a shot is selected: its full card, with the way back to the film's settings.
+function renderShotPanel(p) {
+  const panel = $("dirShotEdit"), i = p.shots.findIndex((s) => s.id === D.sel);
+  if (i < 0) D.sel = null;
+  panel.parentElement.classList.toggle("shot-mode", !!D.sel);
+  panel.classList.toggle("hidden", !D.sel);
+  if (!D.sel || panel.contains(document.activeElement)) return;  // don't redraw what is being typed
+  setHtml(panel, `<button type="button" class="back linkish" data-panel-back>← Film settings</button>${shotCard(p, p.shots[i], i, true)}`);
+}
+function selectShot(id) {
+  D.sel = D.sel === id ? null : id;  // selecting the selected shot again goes back to the film's settings
+  renderDirector();
+  if (D.sel && innerWidth <= 760) window.scrollTo({ top: $("dirShotEdit").getBoundingClientRect().top + scrollY - 70, behavior: "smooth" });
+}
 // A shot as a compact row: a small player (or its start keyframe), the basics and quick actions; Edit opens the full card.
 function shotRow(s, i, status, bad, kfBusy) {
   const r = s.render, review = r?.review?.status === "done" ? r.review : null;
@@ -2125,7 +2153,7 @@ function shotRow(s, i, status, bad, kfBusy) {
   const facts = [`${s.seconds} s`, `<span class="shot-status${bad ? " bad" : ""}">${esc(status || "Not started")}</span>`,
     ...(review ? [`<span class="mc-flag ${review.verdict}">check: ${esc(review.verdict)}</span>`] : []),
     ...((s.warnings || []).length ? [`<span class="mc-flag redo" title="${esc(s.warnings.join(" "))}">${s.warnings.length} warning${s.warnings.length === 1 ? "" : "s"}</span>`] : [])];
-  return `<div class="shot mcard" data-shot="${s.id}">
+  return `<div class="shot mcard${D.sel === s.id ? " selected" : ""}" data-shot="${s.id}" title="Select to edit it in the settings panel">
     <div class="mc-media">${r?.status === "done" ? `<video controls playsinline loop preload="metadata" src="${jobVideo({ id: s.job_id, audio: null })}"></video>`
       : frame(s.start_image, "No keyframe", kfBusy && !s.start_image)}</div>
     <div class="mc-info">
@@ -2137,7 +2165,7 @@ function shotRow(s, i, status, bad, kfBusy) {
         <button type="button" class="btn small" data-sa="render"${ready ? "" : " disabled"}>${r?.status === "done" ? "Render again" : "Render shot"}</button></div>
     </div></div>`;
 }
-function shotCard(p, s, i) {
+function shotCard(p, s, i, panel = false) {
   const kfBusy = s.kf_status === "working", r = s.render;
   const status = kfBusy ? (s.start_image ? "Making the end keyframe…" : "Making the start keyframe…")
     : s.kf_status === "failed" ? `Keyframes failed: ${s.kf_error || ""}`
@@ -2145,14 +2173,14 @@ function shotCard(p, s, i) {
     : r?.status === "failed" ? `Render failed: ${r.error || ""}` : r?.status === "done" ? "Rendered"
     : s.start_image && s.end_image ? "Keyframes ready" : "";
   const bad = s.kf_status === "failed" || r?.status === "failed";
-  if (!D.open.has(s.id)) return shotRow(s, i, status, bad, kfBusy);
+  if (!panel) return shotRow(s, i, status, bad, kfBusy);
   const cast = p.cast.map(charById).filter(Boolean);
   const ta = (f, label, rows, ph) => `<label class="sf">${label}<textarea data-f="${f}" rows="${rows}" placeholder="${ph}">${esc(s[f] || "")}</textarea></label>`;
   return `<div class="shot" data-shot="${s.id}">
     <div class="shot-head"><span class="num">${i + 1}</span>
       <input data-f="scene" value="${esc(s.scene)}" placeholder="Scene, e.g. Lighthouse lamp room, night" aria-label="Scene">
       <select data-f="seconds" aria-label="Length">${[2, 3, 4, 5, 6].map((n) => `<option value="${n}"${s.seconds === n ? " selected" : ""}>${n} s</option>`).join("")}</select>
-      <span class="shot-tools"><button type="button" data-sa="close" aria-label="Show as a compact row" title="Collapse">▴</button><button type="button" data-sa="up" aria-label="Move up">↑</button><button type="button" data-sa="down" aria-label="Move down">↓</button><button type="button" data-sa="del" aria-label="Delete shot">✕</button></span>
+      <span class="shot-tools"><button type="button" data-sa="up" aria-label="Move up">↑</button><button type="button" data-sa="down" aria-label="Move down">↓</button><button type="button" data-sa="del" aria-label="Delete shot">✕</button></span>
     </div>
     <div class="shot-body">
       <div class="frames">
@@ -2166,6 +2194,7 @@ function shotCard(p, s, i) {
         ${ta("end_change", "End change", 2, "One change that makes the last frame, e.g. she turns and smiles")}
         ${ta("motion", "Motion", 2, "Movement and camera, e.g. slow push-in")}
         ${ta("narration", "Narration", 1, "Voice-over or dialogue (optional)")}
+        ${shotRenderSettings(p, s)}
         ${ta("sound", "Sound", 1, "What you hear, e.g. a blanket rustling, slow breathing (music only if you write it)")}
         ${(s.warnings || []).map((w) => `<div class="note warn-text">${esc(w)}</div>`).join("")}
         ${(p.review?.notes || []).filter((n) => n.shot_id === s.id).map((n) => `<div class="note">${esc(n.note)}</div>`).join("")}
@@ -2386,15 +2415,19 @@ async function shotAction(path) {
   try { D.project = await api(`/api/director/${D.project.id}/${path}`, { method: "POST" }); } catch (e) { toast(e.message); return false; }
   renderDirector(); return true;
 }
-$("dirShots").addEventListener("change", (e) => {
+function shotChange(e) {
   const f = e.target.dataset.f, card = e.target.closest("[data-shot]"); if (!f || !card) return;
-  const shots = D.project.shots.map((s) => s.id === card.dataset.shot ? { ...s, [f]: f === "seconds" ? +e.target.value : e.target.value } : s);
+  const v = e.target.value, value = f === "seconds" ? +v : f === "fast" ? (v ? v === "fast" : null) : f === "engine" ? v || null : v;
+  const shots = D.project.shots.map((s) => s.id === card.dataset.shot ? { ...s, [f]: value } : s);
   saveProject({ shots: shotsForSave(shots) });
-});
-$("dirShots").addEventListener("click", async (e) => {
+}
+async function shotClick(e) {
+  if (e.target.closest("[data-panel-back]")) { D.sel = null; return renderDirector(); }
   const img = e.target.closest("[data-open-img]");
   if (img) { await refreshImages(); return openImage(img.dataset.openImg); }
   const card = e.target.closest("[data-shot]"); if (!card) return;
+  // a click on a row (not on its buttons or player) selects the shot for the settings panel
+  if (card.classList.contains("mcard") && !e.target.closest("button, a, video, input, textarea, select")) return selectShot(card.dataset.shot);
   const id = card.dataset.shot, shots = [...D.project.shots], i = shots.findIndex((s) => s.id === id);
   const sc = e.target.closest("[data-sc]");
   if (sc) {
@@ -2411,7 +2444,8 @@ $("dirShots").addEventListener("click", async (e) => {
     return;
   }
   const a = e.target.closest("[data-sa]")?.dataset.sa; if (!a) return;
-  if (a === "open" || a === "close") { D.open[a === "open" ? "add" : "delete"](id); return renderShots(D.project); }
+  if (a === "open") return selectShot(id);
+  if (a === "reset") return saveProject({ shots: shotsForSave(shots.map((s) => s.id === id ? { ...s, engine: null, fast: null } : s)) });
   const busyText = { check: "Starting the check…", kf: "Starting…", kfend: "Starting…", render: "Queueing…" }[a];
   const restore = busyText ? busyButton(e.target.closest("[data-sa]"), busyText) : () => {};
   if (a === "check") { if (await checkClip(shots[i].job_id)) await refreshDirector(); else restore(); return renderDirector(); }
@@ -2422,7 +2456,8 @@ $("dirShots").addEventListener("click", async (e) => {
   if (a === "del") { if (!confirm(`Delete shot ${i + 1}?`)) return; shots.splice(i, 1); }
   else { const j = a === "up" ? i - 1 : i + 1; if (j < 0 || j >= shots.length) return; [shots[i], shots[j]] = [shots[j], shots[i]]; }
   saveProject({ shots: shotsForSave(shots) });
-});
+}
+for (const el of [$("dirShots"), $("dirShotEdit")]) { el.addEventListener("change", shotChange); el.addEventListener("click", shotClick); }
 function setShotStart(shotId, imageId) {
   const shots = shotsForSave(D.project.shots).map((s) => s.id === shotId ? { ...s, start_image: imageId } : s);
   saveProject({ shots });
