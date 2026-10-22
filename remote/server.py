@@ -60,7 +60,7 @@ MAX_CAST = 3            # characters per keyframe: each adds a reference image t
 MAX_SIDE = 2048  # phone photos are downscaled to this before rendering
 
 SIZES = {"preview": 512 * 288, "standard": 832 * 480}
-LENGTHS = {33, 49, 65, 81}
+LENGTHS = {33, 49, 65, 81, 97}  # 2-6 s at 16 fps
 
 
 # ---------------------------------------------------------------- job store

@@ -1846,7 +1846,7 @@ function shotCard(p, s, i) {
   return `<div class="shot" data-shot="${s.id}">
     <div class="shot-head"><span class="num">${i + 1}</span>
       <input data-f="scene" value="${esc(s.scene)}" placeholder="Scene, e.g. Lighthouse lamp room, night" aria-label="Scene">
-      <select data-f="seconds" aria-label="Length">${[2, 3, 4, 5].map((n) => `<option value="${n}"${s.seconds === n ? " selected" : ""}>${n} s</option>`).join("")}</select>
+      <select data-f="seconds" aria-label="Length">${[2, 3, 4, 5, 6].map((n) => `<option value="${n}"${s.seconds === n ? " selected" : ""}>${n} s</option>`).join("")}</select>
       <span class="shot-tools"><button type="button" data-sa="up" aria-label="Move up">↑</button><button type="button" data-sa="down" aria-label="Move down">↓</button><button type="button" data-sa="del" aria-label="Delete shot">✕</button></span>
     </div>
     <div class="shot-body">
