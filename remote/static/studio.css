@@ -792,3 +792,8 @@ body.no-scroll { overflow: hidden; }
 .shots-head .linkish { font-size: 13px; color: var(--muted); }
 .film-card { cursor: pointer; }
 .film-card video { cursor: auto; }
+
+.mc-shots { align-self: flex-start; font-size: 13px; color: var(--muted); margin-top: 2px; }
+.mc-shots b { color: var(--text); }
+#dirShotEdit .panel-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+#dirShotEdit .panel-top .back { margin: 0; }
