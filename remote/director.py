@@ -576,7 +576,9 @@ class Director:
             return None
         for shot in project["shots"]:
             job = self.jobs.jobs.get(shot.get("job_id") or "")
+            took = job and job.get("started") and job.get("finished") and job["finished"] - job["started"]
             shot["render"] = ({"status": job["status"], "progress": job.get("progress"), "error": job.get("error"),
+                               "seconds": round(took, 1) if took else None,
                                "review": job.get("review")} if job else None)
             shot["characters"] = [c for c in shot["characters"] if self.characters.get(c)]
             shot["warnings"] = self.warnings(project, shot)
@@ -1175,7 +1177,10 @@ class Director:
             raise ValueError("there are no shots")
         if project.get("film", {}).get("status") == "working":
             raise ValueError("the film is already being made")
+        shot_jobs = [self.jobs.jobs.get(s["job_id"]) or {} for s in project["shots"]]
+        render_seconds = sum(j["finished"] - j["started"] for j in shot_jobs if j.get("started") and j.get("finished"))
         info = {"title": project["title"], "fast": project.get("fast", True), "narration": narration,
+                "render_seconds": render_seconds,  # the film's making time: its shots' renders + the assembly
                 "prompts": [s["action"] or s["motion"] for s in project["shots"]],
                 "engine": "minimax-h3" if any(_probe(c)["audio"] for c in clips) else "wan22"}
         words = self.reel_times(project.get("reel", {}).get("parts", []), bounds) if project["brief"].get("format") == "reel" else None

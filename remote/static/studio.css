@@ -806,3 +806,6 @@ body.no-scroll { overflow: hidden; }
   .jrow > .job video { height: 240px; }
   .jrow .kf-thumb img { height: 104px; }
 }
+
+/* a video tile's making time, opposite its kind */
+.tile .tag.time { left: auto; right: 8px; }
