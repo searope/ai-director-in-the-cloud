@@ -31,8 +31,16 @@ any device (browser) ──HTTPS──▶ home PC: web app (queue, library, soun
                                    └─ creates a GPU pod when a job needs it, removes it after 10 idle min
                                         ▼
                                  Runpod pod: token-protected gateway ──▶ ComfyUI (never exposed)
-                                             models on the network volume
+                                             Community Cloud: set up and models downloaded at start (~2-6 min)
+                                             Secure Cloud (fallback): models on the network volume
 ```
+
+**Community Cloud** (`"cloud": "COMMUNITY_FIRST"`): pods on third-party hosts, about 30-45% cheaper than Secure
+Cloud. They can't mount the network volume, so each pod installs ComfyUI and downloads the job's models from
+Hugging Face when it starts (measured Oct 2026 on an RTX PRO 5000: ComfyUI up 1 min 40 s after the start,
+all 144 GB of models by 5 min 20 s at ~5 Gbps), and stays up 30 idle minutes instead of 10. Your keyframes and
+prompts are processed on a host run by a third party. When no Community GPU fits, the app uses the Secure pod
+with the volume. See [docs/home-server.md](docs/home-server.md#community-cloud).
 
 Alternative (the original setup): everything on the rented GPU pod, with ComfyUI on 127.0.0.1 and the
 web app on port 8700. The app is then reachable only while the pod runs; it stops the pod after 30 idle
