@@ -81,7 +81,11 @@ class Jobs:
             with open(path, encoding="utf-8") as f:
                 job = json.load(f)
             if job["status"] == "running":
-                job.update(status="failed", error="Server restarted while this job was running.")
+                if job.get("kind") != "film" and saved_segments(self.dir(job_id)):  # pick up where it stopped
+                    job.update(status="queued", progress="resuming after a restart of the app",
+                               log=(job.get("log") or [])[-30:] + ["the app restarted: resuming with the saved segments"])
+                else:
+                    job.update(status="failed", error="Server restarted while this job was running.")
             if (job.get("review") or {}).get("status") == "working":
                 job["review"] = {"status": "failed", "error": "The server restarted during the check."}
             self.jobs[job_id] = job
@@ -240,9 +244,22 @@ class Jobs:
         self.update(job, status="running", started=time.time(), progress="starting")
         keep_awake(True)
         try:
-            overrides["server"] = self.gpu.ensure(report, lambda: job.get("cancel", False))
-            cfg = animate.make_config(overrides, out_dir)
-            step = animate.run(cfg, report, lambda: job.get("cancel", False))
+            need = gpus.profiles_for(overrides["engine"], overrides["image_model"], restyles and not job.get("approved"))
+            while True:
+                overrides["server"] = self.gpu.ensure(report, lambda: job.get("cancel", False), need)
+                cfg = animate.make_config(overrides, out_dir)
+                try:
+                    step = animate.run(cfg, report, lambda: job.get("cancel", False))
+                    break
+                except animate.Cancelled:
+                    raise
+                except Exception as e:
+                    # The GPU pod crashed or went away mid-render: start a new one and go on from the saved segments.
+                    if job.get("cancel") or job.get("resumes", 0) >= 2 or not self.gpu.lost():
+                        raise
+                    job["resumes"] = job.get("resumes", 0) + 1
+                    report(f"the GPU pod was lost ({str(e)[:120]}); resuming on a new one", final=True)
+                    self.gpu.replace()
             styled_dir = os.path.join(out_dir, "result_keyframes")
             styled = sorted(n for n in os.listdir(styled_dir) if len(n) == 6 and n.endswith(".png")) if os.path.isdir(styled_dir) else []
             if step == "restyled":
@@ -255,6 +272,15 @@ class Jobs:
             self.update(job, status="failed", finished=time.time(), error=str(e)[-2000:])
         finally:
             keep_awake(False)
+
+
+def saved_segments(job_dir):
+    """Segments of an unfinished render already saved on this PC (animate.run keeps them in result_segments)."""
+    folder = os.path.join(job_dir, "result_segments")
+    try:
+        return [n for n in os.listdir(folder) if os.path.exists(os.path.join(folder, n, "done.json"))]
+    except OSError:
+        return []
 
 
 def merge_render_info(job, info):
@@ -421,7 +447,7 @@ class KeyframeMaker:
             task["progress"] = text
 
         try:
-            server = self.gpu.ensure(report)
+            server = self.gpu.ensure(report, need=gpus.profiles_for(image_model=model))
             refs = self.cast_refs(cast)
             if example:
                 tmp = example + ".png"
@@ -675,7 +701,7 @@ def queue_job(jobs, files, raw, extra=None):
     try:
         for i, data in enumerate(files):
             name = f"{i + 1:02d}.png"
-            save_keyframe(data if isinstance(data, bytes) else _read_bytes(data), os.path.join(in_dir, name))
+            save_keyframe(data if isinstance(data, (bytes, bytearray)) else _read_bytes(data), os.path.join(in_dir, name))
             names.append(name)
     except Exception as e:
         shutil.rmtree(jobs.dir(job_id), ignore_errors=True)

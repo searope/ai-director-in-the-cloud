@@ -10,7 +10,8 @@ phone / any browser ──HTTPS──▶ Windows PC (always on): Caddy :443 ─�
 ```
 
 - **You pay for the GPU only around jobs**, at the normal pod rate. The first job of a session waits
-  2-5 minutes while the pod starts. Later jobs start at once, until the GPU has been idle for 10
+  2-5 minutes while the pod starts (Secure Cloud; a Community Cloud pod also downloads its models, see
+  [Community Cloud](#community-cloud)). Later jobs start at once, until the GPU has been idle for 10
   minutes. You can also start or stop it by hand in the app; it shows this month's GPU spend.
 - **Fixed costs:** the network volume, about $0.07/GB a month (about $10.50 for 150 GB). The PC
   costs nothing extra.
@@ -116,6 +117,16 @@ Optional `gpu` settings, shown with their defaults:
 | `pod_safety_minutes` | `30` | The pod stops itself after this long without requests |
 | `extra_models` | `[]` | Optional model profiles from `setup/models.json` that pods download after the defaults, e.g. `["ltx23"]` for the opt-in LTX-2.3 engine (~39 GB: check the storage shown in the GPU card first) |
 | `env` | `{}` | Extra environment variables for pods, e.g. `{"HF_TOKEN": "hf_..."}` for gated models like FLUX 3 Klein |
+| `cloud` | `"SECURE"` | `"COMMUNITY_FIRST"`: Community Cloud first, the Secure pod with the volume when none fits; `"COMMUNITY"`: Community only (no volume needed); `"SECURE"`: as before |
+| `max_price` | `1.0` | Community: highest hourly price in USD (strictly below) |
+| `min_download_mbps` | `1000` | Community: hosts with at least this download speed |
+| `min_vram_gb` | `32` | Community: smallest GPU memory. MiniMax H3's video model alone is 21 GB and LTX-2.3's 29.5 GB, so 24 GB cards (4090) would offload and crawl |
+| `community_gpu_types` | none | Community: only these types, in this order (default: every type that fits, cheapest per job first) |
+| `gpu_speed` | built in | Community: speed relative to an RTX 5090, e.g. `{"NVIDIA RTX A6000": 0.3}`, used to rank by cost per job |
+| `community_idle_minutes` | `30` | Community: idle minutes before the pod is removed (a new pod downloads the models again) |
+| `community_models` | `["minimax-h3", "flux3-klein"]` | Community: model profiles every pod downloads after the job's own; others download when a job needs them |
+| `community_disk_gb` | `200` | Community: the pod's disk (all default and optional models take about 145 GB) |
+| `community_boot_timeout_minutes` | `30` | Community: how long ComfyUI may take to come up |
 
 `elevenlabs_api_key` is optional (the paid Sound feature). It now lives on the PC because sound is
 mixed there. The Runpod secret isn't needed for this setup.
@@ -144,6 +155,36 @@ powershell -ExecutionPolicy Bypass -File setup\windows\restart_pc.ps1
 It stops the startup task and its leftover processes, starts it again and waits until the app
 answers. Check that nothing is rendering first: a running render is cancelled. If the app crashes
 or is killed, the startup task starts it again within a minute by itself.
+
+## Community Cloud
+
+With `"cloud": "COMMUNITY_FIRST"` the app first rents a GPU on Runpod's Community Cloud: machines run by
+third-party hosts, about 30-45% cheaper than Secure Cloud (Oct 2026: RTX 5090 $0.69/h vs $1.19, RTX PRO 5000
+$0.82 vs $0.96, A6000 $0.33 vs $0.59).
+
+- **Which GPU:** types with at least 32 GB (`min_vram_gb`), under $1.00/h (`max_price`), on hosts with a
+  1000 Mbps or faster download line (`min_download_mbps`) and CUDA 13, ordered by price divided by an estimated
+  speed (cost per job), so a 5090 at $0.69 comes before an A6000 at $0.33. If none is free, or all are taken
+  by the time the app asks, it creates the usual Secure pod with the network volume. Stock of 32 GB+ cards on fast
+  hosts is thin (on Oct 23, 2026 only the RTX PRO 5000 qualified), so the fallback matters.
+- **Cold start:** network volumes can't attach to Community pods, so each pod starts empty. The app's start
+  command carries the pod-side code; `remote/pod_bootstrap.sh` reuses the image's PyTorch and installs
+  ComfyUI with `uv` in about 30 s, and the gateway downloads the job's models from Hugging Face over 16 parallel
+  connections while ComfyUI installs. The GPU card shows each step, e.g. "downloading models 23 / 51 GB".
+  Measured on Oct 23, 2026 (RTX PRO 5000, Community): container up in 55 s, ComfyUI answering after
+  1 min 40 s, all 144 GB of models after 5 min 20 s (about 5 Gbps). Hosts differ; the download-speed filter
+  keeps slow ones out.
+- **Idle:** a Community pod stays up 30 idle minutes (`community_idle_minutes`) instead of 10, so a short
+  break doesn't cost a new download. It's still removed after that, so you pay for GPU time only around jobs.
+- **Your data on someone else's machine:** keyframes, prompts and renders pass through a host run by a third
+  party (Runpod vets hosts, but it isn't Runpod's own data center). The gateway still accepts only the app's
+  token, and nothing stays behind once the pod is removed. Use `"SECURE"` for material that must not leave
+  Runpod's own data centers.
+- **Losing a pod:** Community hosts can go away. Every finished segment of a render is saved on the PC at once;
+  if the pod is lost mid-render, the app starts a new one and renders only the missing segments (up to two
+  times), and after an app restart an interrupted render resumes the same way.
+- **Licenses:** Community hosts are in many countries. The owner's MiniMax H3 license covers all use; anyone
+  else needs their own (see the README).
 
 ## Troubleshooting
 

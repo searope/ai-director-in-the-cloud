@@ -2591,7 +2591,8 @@ function renderStatus() {
     const wait = fmtTime(Math.max(0, Date.now() / 1000 - g.since));
     const [pill, cls, name, sub] = {
       off: ["GPU off", "", "GPU off", "Starts by itself when you render" + month + storage(true)],
-      starting: ["GPU starting", "busy", "GPU starting…", `${wait} · usually 2–5 min`],
+      starting: ["GPU starting", "busy", "GPU starting…", `${wait} · ${g.progress || (g.cloud_setting === "SECURE" ? "usually 2–5 min" : "usually 5–10 min")}`
+        + (g.gpu ? ` · ${cloudName(g)}${g.gpu.replace(/^NVIDIA (GeForce )?/, "")}${g.cost_per_hour ? ` $${g.cost_per_hour}/h` : ""}` : "")],
       stopping: ["GPU stopping", "", "GPU stopping…", "Removing the pod" + month],
       failed: ["GPU failed", "bad", "GPU didn't start", g.error || "unknown error"],
     }[g.state] || ["GPU", "", "GPU", ""];
@@ -2606,8 +2607,8 @@ function renderStatus() {
     card.querySelector(".gpu-name").textContent = gpu;
     card.querySelector(".meter span").style.width = total ? `${Math.round(100 * used / total)}%` : "0";
     card.querySelector(".gpu-sub").textContent = (total ? `${used.toFixed(1)} / ${total.toFixed(0)} GB VRAM` : "") +
-      (pod && g.cost_per_hour ? ` · $${g.cost_per_hour}/h` : "") + month +
-      storage(false);
+      (pod ? ` · ${cloudName(g).trim()}` : "") + (pod && g.cost_per_hour ? ` $${g.cost_per_hour}/h` : "") + month +
+      (pod && g.progress ? ` · ${g.progress}` : "") + (g.cloud === "COMMUNITY" ? "" : storage(false));
   } else {
     st.textContent = "GPU offline"; st.className = "pill bad";
     card.querySelector(".gpu-name").textContent = "ComfyUI offline";
@@ -2623,6 +2624,9 @@ function renderStatus() {
   q.textContent = [active ? `${active} in queue` : "", waiting ? `${waiting} waiting for you` : ""].filter(Boolean).join(" · ");
   const badge = $("tabBadge"); badge.classList.toggle("hidden", !active && !waiting); badge.textContent = active + waiting;
 }
+
+// "Community " or "Secure " for the GPU card: Community pods are cheaper third-party hosts without the network volume
+function cloudName(g) { return g.cloud === "COMMUNITY" ? "Community " : g.cloud === "SECURE" ? "Secure " : ""; }
 
 $("gpuBtn").onclick = async () => {
   const act = $("gpuBtn").dataset.act;

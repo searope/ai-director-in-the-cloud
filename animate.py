@@ -26,10 +26,12 @@ standard library plus PyAV, numpy and Pillow, which ComfyUI already installs.
 """
 
 import argparse
+import hashlib
 import io
 import json
 import os
 import random
+import shutil
 import sys
 import time
 import urllib.error
@@ -941,7 +943,14 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
         width, height = auto_size(keys[0], area, 32 if sound else 16)
     elif sound:
         width, height = width // 32 * 32, height // 32 * 32
-    seed = cfg["seed"] if cfg["seed"] is not None else random.randint(0, 2**32 - 1)
+    # Each finished segment is saved here at once, so a render cut short (the GPU pod lost, the app restarted)
+    # picks up where it stopped: a new try of the same render reuses the seed and the segments that match.
+    seg_dir = os.path.splitext(cfg["output"])[0] + "_segments"
+    saved = _read_json(os.path.join(seg_dir, "render.json")) or {}
+    seed = cfg["seed"] if cfg["seed"] is not None else saved.get("seed", random.randint(0, 2**32 - 1))
+    os.makedirs(seg_dir, exist_ok=True)
+    with open(os.path.join(seg_dir, "render.json"), "w", encoding="utf-8") as f:
+        json.dump({"seed": seed}, f)
     base_fps = 24 if h3 else LTX_FPS if ltx else cfg["fps"]
     out_fps = base_fps * max(1, cfg["interpolate"])
     if sound and style.get("loras"):
@@ -974,6 +983,7 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
         })
 
     uploaded = {p: comfy.upload_image(p, f"{run_id}_{i:02d}{os.path.splitext(p)[1]}") for i, p in enumerate(keys)}
+    redrawn = {p: p for p in keys}  # the picture each keyframe really is (its redrawn version after a restyle)
 
     if cfg["restyle"]:
         styled_dir = os.path.splitext(cfg["output"])[0] + "_keyframes"
@@ -1011,6 +1021,7 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
                     f.write(data)
         for i, (p, local) in enumerate(zip(keys, styled)):
             uploaded[p] = comfy.upload_image(local, f"{run_id}_styled_{i:02d}.png")
+            redrawn[p] = local
         report(f"restyled keyframes saved in {styled_dir}", final=True)
         if cfg.get("stop_after_restyle"):  # the caller shows them for approval before the video is rendered
             return "restyled"
@@ -1029,18 +1040,29 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
             graph = build_ltx_segment_graph(cfg, uploaded[a], uploaded[b], full_prompt, seed + i, width, height, prefix)
         else:
             graph = build_segment_graph(cfg, style, uploaded[a], uploaded[b], full_prompt, seed + i, width, height, prefix)
-        outputs = comfy.wait(comfy.queue(graph), label, report, should_cancel)
-        images = sorted(outputs["save"]["images"], key=lambda im: im["filename"])
-        # Many downloads at once: through a remote GPU's proxy each frame takes ~1.5 s on its own
-        # (161 frames: ~4 min one by one, ~9 s sixteen at a time).
-        if should_cancel():
-            raise Cancelled()
-        report(f"{label}: downloading {len(images)} frames")
-        with ThreadPoolExecutor(16) as pool:
-            frames = list(pool.map(lambda im: Image.open(io.BytesIO(comfy.fetch(im))).convert("RGB"), images))
+        key = _segment_key(graph, run_id, redrawn[a], redrawn[b])
+        here = os.path.join(seg_dir, f"seg{i + 1:02d}")
+        if (_read_json(os.path.join(here, "done.json")) or {}).get("key") == key:
+            report(f"{label}: already rendered (saved from an earlier try)", final=True)
+            names = sorted(n for n in os.listdir(here) if n.endswith(".png"))
+            frames = [Image.open(os.path.join(here, n)).convert("RGB") for n in names]
+            audio_bytes = _read_bytes(os.path.join(here, "audio.bin")) if sound and cfg["audio"] else None
+        else:
+            outputs = comfy.wait(comfy.queue(graph), label, report, should_cancel)
+            images = sorted(outputs["save"]["images"], key=lambda im: im["filename"])
+            # Many downloads at once: through a remote GPU's proxy each frame takes ~1.5 s on its own
+            # (161 frames: ~4 min one by one, ~9 s sixteen at a time).
+            if should_cancel():
+                raise Cancelled()
+            report(f"{label}: downloading {len(images)} frames")
+            with ThreadPoolExecutor(16) as pool:
+                raw = list(pool.map(comfy.fetch, images))
+            audio_bytes = comfy.fetch(outputs["save_audio"]["audio"][0]) if sound and cfg["audio"] else None
+            _save_segment(here, key, raw, audio_bytes)
+            frames = [Image.open(io.BytesIO(data)).convert("RGB") for data in raw]
         all_frames.extend(frames if i == 0 else frames[1:])  # segment i starts on segment i-1's last frame
         if sound and cfg["audio"]:
-            samples, audio_rate = decode_audio(comfy.fetch(outputs["save_audio"]["audio"][0]))
+            samples, audio_rate = decode_audio(audio_bytes)
             if i > 0:  # drop the audio under the dropped shared frame
                 samples = samples[:, round(audio_rate / base_fps):]
             audio_parts.append(samples)
@@ -1052,7 +1074,43 @@ def run(cfg, report=console_report, should_cancel=lambda: False):
         audio = np.concatenate(audio_parts, axis=1)
     write_video(all_frames, cfg["output"], out_fps, cfg["crf"], audio, audio_rate)
     report(f"wrote {cfg['output']} ({len(all_frames)} frames, {len(all_frames) / out_fps:.1f}s at {out_fps} fps)", final=True)
+    shutil.rmtree(seg_dir, ignore_errors=True)  # the video has them all now
     return cfg["output"]
+
+
+def _read_json(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
+def _read_bytes(path):
+    with open(path, "rb") as f:
+        return f.read()
+
+
+def _segment_key(graph, run_id, start_path, end_path):
+    """What makes a segment the same render: its workflow (without this run's file names) and its two pictures."""
+    h = hashlib.sha256(json.dumps(graph, sort_keys=True).replace(run_id, "RUN").encode())
+    for path in (start_path, end_path):
+        h.update(_read_bytes(path))
+    return h.hexdigest()
+
+
+def _save_segment(folder, key, frames, audio):
+    """A finished segment's frames (PNG, as ComfyUI sent them) and sound, written before done.json marks it whole."""
+    shutil.rmtree(folder, ignore_errors=True)
+    os.makedirs(folder)
+    for n, data in enumerate(frames):
+        with open(os.path.join(folder, f"{n:04d}.png"), "wb") as f:
+            f.write(data)
+    if audio is not None:
+        with open(os.path.join(folder, "audio.bin"), "wb") as f:
+            f.write(audio)
+    with open(os.path.join(folder, "done.json"), "w", encoding="utf-8") as f:
+        json.dump({"key": key, "frames": len(frames)}, f)
 
 
 # ---------------------------------------------------------------- CLI
