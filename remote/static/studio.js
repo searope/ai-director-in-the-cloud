@@ -47,6 +47,19 @@ const ago = (t) => {
   return new Date(t * 1000).toLocaleDateString();
 };
 const fmtTime = (s) => s < 60 ? `${Math.round(s)}s` : `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
+// How long a video took to make: a render's GPU time; a film or reel adds its source renders to its assembly.
+function makeTime(j) {
+  if (!j?.started || !j.finished) return null;
+  const own = j.finished - j.started;
+  if (j.kind === "film" && j.render_seconds == null && own < 1) return null;  // made before times were kept
+  return j.render_seconds != null ? { total: j.render_seconds + own, renders: j.render_seconds, assembly: own } : { total: own };
+}
+const makeTimeShort = (j) => { const t = makeTime(j); return t ? fmtTime(t.total) : ""; };
+const makeTimeLong = (j) => {
+  const t = makeTime(j);
+  return !t ? "" : t.renders != null ? `${fmtTime(t.total)} (${fmtTime(t.renders)} rendering + ${fmtTime(t.assembly)} assembly)`
+    : j.kind === "film" ? `${fmtTime(t.total)} assembly` : fmtTime(t.total);
+};
 const licenseClass = (text) => /commercial OK/i.test(text) ? "ok" : /non-commercial|not licensed/i.test(text) ? "bad" : "warn";
 
 // ---------------------------------------------------------------- state
@@ -108,6 +121,7 @@ function videoTile(j) {
   return `<div class="tile" data-job="${j.id}" tabindex="0">
     <video muted loop playsinline preload="none" poster="${poster}" src="${jobVideo(j)}"></video>
     <span class="tag"><svg><use href="#i-${j.kind === "film" ? "director" : "video"}"/></svg>${j.kind === "film" ? "Film" : "Video"}</span>
+    ${makeTimeShort(j) ? `<span class="tag time" title="Making time">${makeTimeShort(j)}</span>` : ""}
   </div>`;
 }
 function pendingTile(p) {
@@ -552,7 +566,7 @@ function openVideo(id) {
   const j = jobById(id); if (!j) return;  // a Director film may be older than the newest jobs
   const s = j.settings, sum = jobSummary(j);
   $("lbMedia").innerHTML = `<video controls autoplay loop playsinline src="${jobVideo(j)}"></video>`;
-  const rows = [["Keyframes", j.inputs.length], ["Render time", j.started && j.finished ? fmtTime(j.finished - j.started) : ""], ["Created", ago(j.created)]]
+  const rows = [["Keyframes", j.inputs.length], [j.kind === "film" ? "Making time" : "Render time", makeTimeLong(j)], ["Created", ago(j.created)]]
     .filter(([, v]) => v !== "");
   $("lbInfo").innerHTML = `<h3>${j.kind === "film" ? esc(j.title) : "Video"}</h3>
     ${j.kind === "film" ? `<div class="prompt">${s.prompts.map((p, i) => `Shot ${i + 1}: ${esc(p)}`).join("\n")}</div>` : renderFacts(j)}
@@ -1361,7 +1375,7 @@ ${r.negative}` : "" };
 }
 function jobCard(j) {
   const sum = jobSummary(j);
-  const end = j.finished || Date.now() / 1000, took = j.started ? fmtTime(end - j.started) : "";
+  const took = j.status === "running" && j.started ? fmtTime(Date.now() / 1000 - j.started) : makeTimeShort(j);
   const active = ["queued", "running"].includes(j.status);
   const when = new Date(j.created * 1000).toLocaleString([], { dateStyle: "short", timeStyle: "short" });
   const eta = (sec) => sec == null ? "" : sec < 60 ? "under a minute" : `about ${Math.round(sec / 60)} min`;
@@ -1380,7 +1394,7 @@ function jobCard(j) {
   const statusLabel = cancelling ? "cancelling…" : { approve: "waiting for you", running: "rendering" }[j.status] || j.status;
   return `<div class="job${flash ? " flash" : ""}" data-id="${j.id}">
     <div class="job-head"><span class="status ${j.status}${cancelling ? " cancelling" : ""}">${statusLabel}</span><span class="job-meta">${esc(sum.text)}</span>
-      <span class="job-time">${took && !active ? `${took} · ` : ""}${when}</span></div>
+      <span class="job-time">${took && !active ? `<span title="${esc(makeTimeLong(j))}">made in ${took}</span> · ` : ""}${when}</span></div>
     ${progress ? `<div class="progress">${esc(progress)}</div><div class="bar"><span></span></div>` : ""}
     ${j.error ? `<div class="error">${esc(j.error)}</div>` : ""}
     ${j.status === "done" ? `<video controls playsinline loop preload="metadata" src="${jobVideo(j)}"></video>` : ""}
@@ -1455,7 +1469,7 @@ function jobRow(j, inGroup) {
   const from = src.kind === "shot" ? (inGroup ? `Shot ${src.shot || "?"}` : `${src.title || "Director"} · shot ${src.shot || "?"}`)
     : { film: "Film", reel: "Reel" }[src.kind] || "";
   const engine = (S.info?.engines || []).find((e) => e.id === j.settings.engine)?.label || j.settings.engine;
-  const sub = active ? [from, jobProgressShort(j)] : [from, engine, jobLength(j), jobWhen(j.created)];
+  const sub = active ? [from, jobProgressShort(j)] : [from, engine, jobLength(j), makeTimeShort(j) && `made in ${makeTimeShort(j)}`, jobWhen(j.created)];
   const flash = S.flashJob?.id === j.id && Date.now() < S.flashJob.until, pic = jobPic(j);
   return `<div class="jrow${open ? " open" : ""}${inGroup ? " in-group" : ""}${flash ? " flash" : ""}" data-row="${j.id}">
     <button type="button" class="jr-head" data-open aria-expanded="${open}">
@@ -2194,7 +2208,7 @@ function shotCard(p, s, i, panel = false) {
   const status = kfBusy ? (s.start_image ? "Making the end keyframe…" : "Making the start keyframe…")
     : s.kf_status === "failed" ? `Keyframes failed: ${s.kf_error || ""}`
     : r?.status === "queued" ? "Render queued" : r?.status === "running" ? `Rendering: ${r.progress || ""}`
-    : r?.status === "failed" ? `Render failed: ${r.error || ""}` : r?.status === "done" ? "Rendered"
+    : r?.status === "failed" ? `Render failed: ${r.error || ""}` : r?.status === "done" ? `Rendered${r.seconds ? ` in ${fmtTime(r.seconds)}` : ""}`
     : s.start_image && s.end_image ? "Keyframes ready" : "";
   const bad = s.kf_status === "failed" || r?.status === "failed";
   if (!panel) return shotRow(p, s, i, status, bad, kfBusy);
@@ -2263,6 +2277,7 @@ function renderFilm(p) {
   const reel = p.brief.format === "reel", engine = (S.info.engines || []).find((e) => e.id === p.engine)?.label || p.engine;
   const facts = job ? [`<span data-film-len>${f.seconds ? fmtTime(f.seconds) : "…"}</span>`, `${f.shots} shots`, p.brief.aspect, esc(engine || ""),
     job.audio?.mixed ? "sound mixed" : "sound as rendered", ...(reel ? [`${(job.reel?.parts || []).length} lines on screen`] : []),
+    ...(makeTimeShort(job) ? [`<span title="${esc(makeTimeLong(job))}">took ${makeTimeShort(job)} to make</span>`] : []),
     `made ${ago(f.finished)}`] : [];
   setHtml($("dirFilmBox"), f.status === "done" && job ? `<div class="mcard film-card" title="Click to show or hide its shots">
       <div class="mc-media"><video controls playsinline preload="metadata" src="${jobVideo(job)}"></video></div>

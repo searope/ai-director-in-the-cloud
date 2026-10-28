@@ -801,10 +801,18 @@ def rerender_job(jobs, job, prompts, keep_styled=False, engine=None):
                      extra={"retry_of": job["id"]})
 
 
+def job_seconds(job):
+    """How long a video took to make: a render's own time, plus, for a film or reel, its sources' renders."""
+    if not job or not job.get("started") or not job.get("finished"):
+        return 0.0
+    return (job.get("render_seconds") or 0.0) + job["finished"] - job["started"]
+
+
 def add_film_job(jobs, make_video, keyframes, info):
     """Record a finished film as a done job, so it shows in the library with Sound and Download.
     make_video(path) writes the video; keyframes are image paths (shown as the job's inputs);
-    info: title, prompts (one line per shot) and narration ([{start, text}])."""
+    info: title, prompts (one line per shot), narration ([{start, text}]) and render_seconds (the time
+    its source renders took; started/finished time the assembly)."""
     job_id = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
     in_dir = os.path.join(jobs.dir(job_id), "inputs")
     os.makedirs(in_dir)
@@ -813,13 +821,15 @@ def add_film_job(jobs, make_video, keyframes, info):
         for i, path in enumerate(keyframes):
             names.append(f"{i + 1:02d}.png")
             shutil.copyfile(path, os.path.join(in_dir, names[-1]))
+        assembly_start = time.time()
         make_video(os.path.join(jobs.dir(job_id), "result.mp4"))
     except Exception:
         shutil.rmtree(jobs.dir(job_id), ignore_errors=True)
         raise
     now = time.time()
     job = {"id": job_id, "kind": "film", "title": info["title"], "narration": info.get("narration", []),
-           "created": now, "started": now, "finished": now, "status": "done", "progress": "done",
+           "created": now, "started": assembly_start, "finished": now, "status": "done", "progress": "done",
+           "render_seconds": round(info["render_seconds"], 1) if info.get("render_seconds") else None,
            "settings": {"prompts": info["prompts"], "engine": info.get("engine", "wan22"), "style": "photoreal", "custom_style": "",
                         "fast": info.get("fast", True), "loop": False, "seed": None},
            "inputs": names, "styled": [], "log": []}
@@ -849,6 +859,7 @@ def make_reel_job(jobs, job, raw):
     title = job["title"] if job.get("reel") else f"{job.get('title') or 'Video'} · reel"
     new = add_film_job(jobs, lambda path: reel.compose(src, path, spec["parts"], spec["logo"], spec["end_card"]),
                        job_keyframes(jobs, job), {"title": title, "prompts": job["settings"]["prompts"], "narration": job.get("narration", []),
+                                                  "render_seconds": job_seconds(jobs.jobs.get(source_id)),
                                                   "engine": job["settings"].get("engine", "wan22"), "fast": job["settings"].get("fast", True)})
     jobs.update(new, reel=spec)
     return new
