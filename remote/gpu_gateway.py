@@ -21,6 +21,7 @@ import os
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 
 from aiohttp import ClientSession, ClientTimeout, web
@@ -181,7 +182,14 @@ def stop_pod():
     req = urllib.request.Request(f"https://api.runpod.io/v2/pods/{pod}/action", method="POST",
                                  data=json.dumps({"action": "stop"}).encode(),
                                  headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
-    urllib.request.urlopen(req, timeout=60).close()
+    for attempt in range(5):  # Runpod's APIs are rate limited: on 429, wait and try again
+        try:
+            urllib.request.urlopen(req, timeout=60).close()
+            return
+        except urllib.error.HTTPError as e:
+            if e.code != 429 or attempt == 4:
+                raise
+            time.sleep(min(60, float(e.headers.get("Retry-After") or 2 ** attempt)))
 
 
 def watchdog(activity, minutes, models):

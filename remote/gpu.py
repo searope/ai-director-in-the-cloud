@@ -22,6 +22,7 @@ import base64
 import io
 import json
 import os
+import random
 import secrets
 import tarfile
 import threading
@@ -31,6 +32,22 @@ import urllib.request
 
 API = "https://api.runpod.io/v2"
 GRAPHQL = "https://api.runpod.io/graphql"  # Community pods: only this API filters hosts by download speed
+
+
+def open_with_backoff(req, timeout, tries=6):
+    """urlopen that waits and retries when Runpod answers 429 Too Many Requests (its APIs are rate limited since
+    Oct 27 2026): Retry-After when given, else exponential backoff with jitter (1, 2, 4, 8, 16 s, at most 60)."""
+    for attempt in range(tries):
+        try:
+            return urllib.request.urlopen(req, timeout=timeout)
+        except urllib.error.HTTPError as e:
+            if e.code != 429 or attempt == tries - 1:
+                raise
+            try:
+                wait = float(e.headers.get("Retry-After") or 0)
+            except (TypeError, ValueError):
+                wait = 0
+            time.sleep(min(60, wait or 2 ** attempt) + random.uniform(0, 0.5))
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GATEWAY_PORT = 8700
 # Runpod's proxy (Cloudflare) rejects Python's default "Python-urllib" User-Agent with error 1010.
@@ -299,10 +316,7 @@ class RunpodGPU:
         """The network volume's size in bytes (from Runpod), or None."""
         if not getattr(self, "_volume_size", None):
             try:
-                req = urllib.request.Request(f"https://rest.runpod.io/v1/networkvolumes/{self.cfg['volume_id']}",  # REST API
-                                             headers={"Authorization": f"Bearer {self.cfg['api_key']}", "User-Agent": USER_AGENT})
-                with urllib.request.urlopen(req, timeout=30) as resp:
-                    self._volume_size = int(json.loads(resp.read())["size"]) * 10**9
+                self._volume_size = int(self.api("GET", f"/network-volumes/{self.cfg['volume_id']}", timeout=30)["size"]) * 10**9
             except Exception:
                 return None
         return self._volume_size
@@ -314,7 +328,7 @@ class RunpodGPU:
                                      headers={"Authorization": f"Bearer {self.cfg['api_key']}", "Content-Type": "application/json",
                                               "User-Agent": USER_AGENT})
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with open_with_backoff(req, timeout) as resp:
                 raw = resp.read()
                 return json.loads(raw) if raw else {}
         except urllib.error.HTTPError as e:
@@ -330,7 +344,7 @@ class RunpodGPU:
                                      headers={"Authorization": f"Bearer {self.cfg['api_key']}", "Content-Type": "application/json",
                                               "User-Agent": USER_AGENT})
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with open_with_backoff(req, timeout) as resp:
                 data = json.loads(resp.read())
         except urllib.error.HTTPError as e:
             raise ApiError(e.code, f"Runpod GraphQL: HTTP {e.code} {e.read()[:300]!r}") from None
@@ -430,7 +444,7 @@ class RunpodGPU:
         for gpu_id in c["gpu_types"]:  # in order of preference; 400 also means "none free right now"
             try:
                 gpu = {"id": gpu_id, "count": 1, "minCudaVersion": c["min_cuda"]}  # the venv has CUDA 13 PyTorch
-                pod = self.api("POST", "/pods", {**body, "gpu": gpu})
+                pod = self.api("POST", "/pods", {**body, "gpu": gpu})  # REST v2 (API base)  rp-migrate: ignore
                 return {"id": pod["id"], "gpu_id": gpu_id, "cost": pod.get("cost"), "created": time.time(), "cloud": "SECURE"}
             except ApiError as e:
                 if e.code not in (400, 409, 422, 503):

@@ -30,6 +30,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 import uuid
 
@@ -608,7 +609,14 @@ class IdleStop:
         req = urllib.request.Request(f"https://api.runpod.io/v2/pods/{self.pod_id}/action", method="POST",
                                      data=json.dumps({"action": "stop"}).encode(),
                                      headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"})
-        urllib.request.urlopen(req, timeout=60).close()
+        for attempt in range(5):  # Runpod's APIs are rate limited: on 429, wait and try again
+            try:
+                urllib.request.urlopen(req, timeout=60).close()
+                return
+            except urllib.error.HTTPError as e:
+                if e.code != 429 or attempt == 4:
+                    raise
+                time.sleep(min(60, float(e.headers.get("Retry-After") or 2 ** attempt)))
 
     def _watch(self):
         while True:
